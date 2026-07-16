@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Appointment → Order Conversion Funnel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root {
+    --navy:   #1E3A5F;
+    --blue:   #2E6DB4;
+    --teal:   #0E9F8E;
+    --green:  #1A7A4A;
+    --amber:  #D97706;
+    --red:    #DC2626;
+    --slate:  #64748B;
+    --light:  #F1F5F9;
+  }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #F1F5F9; }
+
+  /* ── Funnel ── */
+  .funnel-wrap { display: flex; flex-direction: column; align-items: center; gap: 0; width: 100%; }
+  .funnel-stage-row { display: flex; align-items: center; width: 100%; gap: 12px; margin-bottom: 3px; }
+  .funnel-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .funnel-bar {
+    height: 54px; border-radius: 6px; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 18px;
+    transition: width .4s ease; position: relative; min-width: 120px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  }
+  .funnel-bar span { color: #fff; font-weight: 700; font-size: .95rem; white-space: nowrap; }
+  .funnel-bar .fcount { font-size: 1.3rem; }
+  .funnel-label { width: 130px; text-align: right; font-size: .78rem; font-weight: 600; color: #334155; }
+  .funnel-drop { width: 110px; font-size: .75rem; text-align: left; }
+  .drop-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 99px;
+    font-weight: 700; font-size: .72rem;
+  }
+  .drop-good  { background: #D1FAE5; color: #065F46; }
+  .drop-mid   { background: #FEF3C7; color: #92400E; }
+  .drop-bad   { background: #FEE2E2; color: #991B1B; }
+  .conv-line  { border-left: 2px dashed #CBD5E1; height: 10px; width: 1px; margin: 0 auto; }
+
+  /* ── Cards ── */
+  .kpi-card { background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .kpi-num  { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .kpi-sub  { font-size: .78rem; color: #64748B; margin-top: 4px; }
+
+  /* ── Tables ── */
+  .dash-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .dash-table th { background: var(--navy); color: #fff; padding: 8px 12px; text-align: left; font-weight: 600; font-size: .75rem; }
+  .dash-table td { padding: 8px 12px; border-bottom: 1px solid #E2E8F0; }
+  .dash-table tr:hover td { background: #F8FAFC; }
+  .dash-table tr:last-child td { border-bottom: none; }
+
+  /* ── Bar inline ── */
+  .inline-bar { height: 6px; border-radius: 3px; background: #E2E8F0; }
+  .inline-bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+
+  /* ── Coaching ── */
+  .coach-card { background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 10px; padding: 14px 18px; }
+  .coach-card.red { background: #FFF5F5; border-color: #FCA5A5; }
+  .coach-card.green { background: #F0FDF4; border-color: #86EFAC; }
+
+  /* ── Config panel ── */
+  #config-panel { transition: max-height .3s ease, opacity .3s ease; overflow: hidden; }
+  #config-panel.hidden-panel { max-height: 0; opacity: 0; }
+  #config-panel.shown-panel  { max-height: 500px; opacity: 1; }
+
+  /* ── Spinner ── */
+  .spinner { width:24px; height:24px; border:3px solid #E2E8F0; border-top-color: var(--blue); border-radius:50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ── */
+  #toast { position:fixed; bottom:24px; right:24px; z-index:9999; transition: opacity .3s; }
+  .toast-msg { padding:10px 18px; border-radius:8px; font-size:.85rem; font-weight:600; margin-top:6px; }
+
+  .section-title { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #94A3B8; margin-bottom: 12px; }
+</style>
+</head>
+<body class="min-h-screen p-4 md:p-6">
+
+<!-- ══════════════════════════════════════════════ HEADER ══ -->
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl font-black text-slate-800">Appointment → Order Funnel</h1>
+    <p class="text-sm text-slate-500 mt-0.5">Conversion analysis from first contact through to confirmed order</p>
+  </div>
+  <div class="flex items-center gap-3 flex-wrap">
+    <div id="last-updated" class="text-xs text-slate-400"></div>
+    <div id="spinner-wrap" class="hidden"><div class="spinner"></div></div>
+    <button onclick="loadData()" class="px-4 py-2 rounded-lg text-white text-sm font-semibold shadow transition hover:opacity-90"
+      style="background:var(--blue)">&#8635; Refresh</button>
+    <button onclick="toggleConfig()" class="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white hover:bg-slate-50 transition">
+      &#9881; Config
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ CONFIG ══ -->
+<div id="config-panel" class="shown-panel">
+  <div class="bg-white rounded-xl shadow p-5 mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">API Base URL</label>
+      <input id="cfg-base" type="text" value="https://api.myinsyte.com.au/v2"
+        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+      <input id="cfg-email" type="text" value=""
+        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">API Key</label>
+      <input id="cfg-key" type="password" value=""
+        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Date From</label>
+        <input id="cfg-from" type="date" value="2026-01-01"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Date To</label>
+        <input id="cfg-to" type="date"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+    </div>
+
+    <!-- Schema adaptation settings -->
+    <div class="md:col-span-2 lg:col-span-4 border-t border-slate-100 pt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">
+          Appointment Type Values
+          <span class="text-slate-400 font-normal">(comma-sep, or * for all)</span>
+        </label>
+        <!--
+          SCHEMA NOTE: Set this to the ActivityType values in your Insyte that
+          represent in-home or phone appointments. Check your Activities data for
+          exact string values. Common examples: "appointment", "home_visit", "measure"
+        -->
+        <input id="cfg-appt-types" type="text" value="*"
+          placeholder="appointment,home_visit"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Completed Status Values</label>
+        <!--
+          SCHEMA NOTE: ActivityStatus values meaning the appointment was attended.
+          Check your Activities.Status field values.
+        -->
+        <input id="cfg-done-status" type="text" value="completed,closed,done"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">No-Show Status Values</label>
+        <input id="cfg-noshow-status" type="text" value="no_show,noshow,cancelled,customer_cancelled"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Auto-refresh (minutes, 0=off)</label>
+        <input id="cfg-refresh" type="number" value="0" min="0" max="60"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+    </div>
+
+    <div class="md:col-span-2 lg:col-span-4 flex justify-end">
+      <button onclick="saveConfig(); loadData();"
+        class="px-5 py-2 rounded-lg text-white text-sm font-semibold shadow transition hover:opacity-90"
+        style="background:var(--green)">Save & Load Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ KPI CARDS ══ -->
+<div id="kpi-row" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+  <div class="kpi-card">
+    <div class="section-title">Enquiries</div>
+    <div class="kpi-num text-slate-800" id="kpi-enquiries">—</div>
+    <div class="kpi-sub">Total leads / opps</div>
+  </div>
+  <div class="kpi-card">
+    <div class="section-title">Appts Booked</div>
+    <div class="kpi-num" style="color:var(--blue)" id="kpi-booked">—</div>
+    <div class="kpi-sub" id="kpi-booked-pct">—% of enquiries</div>
+  </div>
+  <div class="kpi-card">
+    <div class="section-title">Appts Completed</div>
+    <div class="kpi-num" style="color:var(--teal)" id="kpi-completed">—</div>
+    <div class="kpi-sub" id="kpi-show-rate">Show rate —%</div>
+  </div>
+  <div class="kpi-card">
+    <div class="section-title">Quotes Sent</div>
+    <div class="kpi-num" style="color:var(--amber)" id="kpi-quoted">—</div>
+    <div class="kpi-sub" id="kpi-quoted-pct">—% of completed</div>
+  </div>
+  <div class="kpi-card">
+    <div class="section-title">Orders Won</div>
+    <div class="kpi-num" style="color:var(--green)" id="kpi-won">—</div>
+    <div class="kpi-sub" id="kpi-win-rate">Win rate —%</div>
+  </div>
+  <div class="kpi-card border-2" style="border-color:var(--red)">
+    <div class="section-title" style="color:var(--red)">No-Show Rate</div>
+    <div class="kpi-num" style="color:var(--red)" id="kpi-noshow">—%</div>
+    <div class="kpi-sub" id="kpi-noshow-abs">— appointments</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ MAIN GRID ══ -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+
+  <!-- Funnel -->
+  <div class="bg-white rounded-xl shadow p-5 lg:col-span-1">
+    <div class="section-title">Conversion Funnel</div>
+    <div id="funnel-container" class="funnel-wrap mt-2">
+      <div class="text-slate-400 text-sm text-center py-8">Load data to view funnel</div>
+    </div>
+    <div class="mt-4 border-t border-slate-100 pt-3">
+      <div class="flex justify-between text-xs text-slate-500">
+        <span>End-to-end conversion</span>
+        <span id="e2e-conv" class="font-bold text-slate-700">—%</span>
+      </div>
+      <div class="inline-bar mt-1.5">
+        <div id="e2e-bar" class="inline-bar-fill" style="width:0%;background:var(--green)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trend + monthly bars -->
+  <div class="bg-white rounded-xl shadow p-5 lg:col-span-2">
+    <div class="section-title">Monthly Conversion Trend</div>
+    <canvas id="trend-chart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ BREAKDOWNS ══ -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+  <!-- Rep Table -->
+  <div class="bg-white rounded-xl shadow p-5">
+    <div class="flex justify-between items-center mb-3">
+      <div class="section-title mb-0">Conversion by Rep</div>
+      <select id="rep-sort" onchange="renderRepTable()" class="text-xs border border-slate-200 rounded px-2 py-1">
+        <option value="won">Sort: Orders Won</option>
+        <option value="conv">Sort: Conv %</option>
+        <option value="booked">Sort: Booked</option>
+        <option value="noshow">Sort: No-Show %</option>
+      </select>
+    </div>
+    <div style="max-height:320px; overflow-y:auto">
+      <table class="dash-table" id="rep-table">
+        <thead>
+          <tr>
+            <th>Rep</th>
+            <th class="text-right">Booked</th>
+            <th class="text-right">Show%</th>
+            <th class="text-right">Quoted</th>
+            <th class="text-right">Won</th>
+            <th class="text-right">Conv%</th>
+          </tr>
+        </thead>
+        <tbody id="rep-tbody">
+          <tr><td colspan="6" class="text-slate-400 text-xs py-4 text-center">No data</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Day-of-week chart -->
+  <div class="bg-white rounded-xl shadow p-5">
+    <div class="section-title">Conversion by Day of Week</div>
+    <canvas id="dow-chart" height="220"></canvas>
+  </div>
+
+  <!-- Product category chart -->
+  <div class="bg-white rounded-xl shadow p-5">
+    <div class="section-title">Orders by Product Category</div>
+    <canvas id="product-chart" height="220"></canvas>
+  </div>
+
+  <!-- Funnel drop-off by month heatmap / bar -->
+  <div class="bg-white rounded-xl shadow p-5">
+    <div class="section-title">Stage Drop-Off by Month</div>
+    <canvas id="dropoff-chart" height="220"></canvas>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════ COACHING ══ -->
+<div class="bg-white rounded-xl shadow p-5 mb-4">
+  <div class="section-title">Coaching Insights</div>
+  <div id="coaching-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div class="text-slate-400 text-sm">Load data to generate insights</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ DETAIL TABLE ══ -->
+<div class="bg-white rounded-xl shadow p-5 mb-4">
+  <div class="flex justify-between items-center mb-3">
+    <div class="section-title mb-0">All Appointments Detail</div>
+    <div class="flex gap-2">
+      <input id="detail-search" type="text" placeholder="Search rep, contact…"
+        oninput="renderDetailTable()"
+        class="text-xs border border-slate-200 rounded px-3 py-1.5 w-48 focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <select id="detail-filter" onchange="renderDetailTable()" class="text-xs border border-slate-200 rounded px-2 py-1">
+        <option value="all">All statuses</option>
+        <option value="completed">Completed</option>
+        <option value="noshow">No-Show</option>
+        <option value="pending">Pending</option>
+      </select>
+    </div>
+  </div>
+  <div style="max-height:300px; overflow-y:auto">
+    <table class="dash-table">
+      <thead>
+        <tr>
+          <th>Date</th><th>Rep</th><th>Contact</th><th>Status</th>
+          <th>Type</th><th>Opp Ref</th><th>Opp Status</th><th>Value</th>
+        </tr>
+      </thead>
+      <tbody id="detail-tbody">
+        <tr><td colspan="8" class="text-slate-400 text-xs py-4 text-center">No data</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="detail-count" class="text-xs text-slate-400 mt-2"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════ TOAST ══ -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════ SCRIPT ══ -->
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONFIG
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const LS = 'insyte_funnel_cfg';
+
+function saveConfig() {
+  const cfg = getConfig();
+  localStorage.setItem(LS, JSON.stringify(cfg));
+  setupAutoRefresh(cfg.refreshMins);
+}
+
+function getConfig() {
+  return {
+    base:        document.getElementById('cfg-base').value.trim().replace(/\/$/, ''),
+    email:       document.getElementById('cfg-email').value.trim(),
+    key:         document.getElementById('cfg-key').value.trim(),
+    from:        document.getElementById('cfg-from').value,
+    to:          document.getElementById('cfg-to').value,
+    apptTypes:   document.getElementById('cfg-appt-types').value.trim(),
+    doneStatus:  document.getElementById('cfg-done-status').value.toLowerCase().split(',').map(s => s.trim()),
+    noshowStatus:document.getElementById('cfg-noshow-status').value.toLowerCase().split(',').map(s => s.trim()),
+    refreshMins: parseInt(document.getElementById('cfg-refresh').value) || 0,
+  };
+}
+
+function loadConfig() {
+  const defaults = { from: new Date().getFullYear() + '-01-01' };
+  const saved = JSON.parse(localStorage.getItem(LS) || '{}');
+  const cfg = { ...defaults, ...saved };
+  if (cfg.base)         document.getElementById('cfg-base').value = cfg.base;
+  if (cfg.email)        document.getElementById('cfg-email').value = cfg.email;
+  if (cfg.key)          document.getElementById('cfg-key').value = cfg.key;
+  if (cfg.from)         document.getElementById('cfg-from').value = cfg.from;
+  if (cfg.to)           document.getElementById('cfg-to').value = cfg.to || '';
+  if (cfg.apptTypes)    document.getElementById('cfg-appt-types').value = cfg.apptTypes;
+  if (cfg.doneStatus)   document.getElementById('cfg-done-status').value = Array.isArray(cfg.doneStatus) ? cfg.doneStatus.join(',') : cfg.doneStatus;
+  if (cfg.noshowStatus) document.getElementById('cfg-noshow-status').value = Array.isArray(cfg.noshowStatus) ? cfg.noshowStatus.join(',') : cfg.noshowStatus;
+  if (cfg.refreshMins)  document.getElementById('cfg-refresh').value = cfg.refreshMins;
+  setupAutoRefresh(cfg.refreshMins);
+}
+
+let _autoTimer = null;
+function setupAutoRefresh(mins) {
+  if (_autoTimer) clearInterval(_autoTimer);
+  if (mins > 0) _autoTimer = setInterval(loadData, mins * 60000);
+}
+
+function toggleConfig() {
+  const p = document.getElementById('config-panel');
+  p.classList.toggle('hidden-panel');
+  p.classList.toggle('shown-panel');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// API HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function authHeader(cfg) {
+  return 'Basic ' + btoa(cfg.email + ':' + cfg.key);
+}
+
+async function apiGet(cfg, path) {
+  const url = cfg.base + path;
+  const res = await fetch(url, { headers: { Authorization: authHeader(cfg), Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path.split('?')[0]}`);
+  return res.json();
+}
+
+// Skip-based pagination (Insyte does not return @odata.nextLink)
+async function fetchAll(cfg, path, label) {
+  const PAGE = 500;
+  const clean = path.replace(/([&?])\$top=\d+/gi, '$1').replace(/([&?])\$skip=\d+/gi, '$1').replace(/[?&]+$/, '');
+  const sep = clean.includes('?') ? '&' : '?';
+  let rows = [], skip = 0;
+  while (true) {
+    const data = await apiGet(cfg, `${clean}${sep}$top=${PAGE}&$skip=${skip}`);
+    const page = data.value || (Array.isArray(data) ? data : []);
+    rows = rows.concat(page);
+    if (page.length < PAGE) break;
+    skip += PAGE;
+  }
+  return rows;
+}
+
+// Build OData date filter segment
+function dateFilter(field, from, to) {
+  let parts = [];
+  if (from) parts.push(`${field} ge ${from}T00:00:00Z`);
+  if (to)   parts.push(`${field} le ${to}T23:59:59Z`);
+  return parts.join(' and ');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DATA STATE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let STATE = {
+  activities: [],   // raw from /Activities
+  opps: [],         // raw from /Opportunities
+  users: {},        // map ID → user
+  processed: [],    // enriched activity rows
+  funnelData: null,
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// LOAD DATA
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadData() {
+  const cfg = getConfig();
+  if (!cfg.email || !cfg.key) { toast('Enter API credentials', 'amber'); return; }
+
+  setLoading(true);
+  try {
+    // ── Users (no date filter — small table)
+    const users = await fetchAll(cfg, '/Users');
+    STATE.users = {};
+    users.forEach(u => {
+      STATE.users[u.ID] = u.FullName || `${u.FirstName||''} ${u.LastName||''}`.trim() || `Rep ${u.ID}`;
+    });
+
+    // ── Activities filtered by date
+    // SCHEMA NOTE: 'Start' is the appointment date field in Insyte Activities.
+    // If your schema uses a different field, update the dateFilter call below.
+    const actFilter = dateFilter('Start', cfg.from, cfg.to);
+    const actPath = `/Activities${actFilter ? '?$filter=' + encodeURIComponent(actFilter) : ''}`;
+    STATE.activities = await fetchAll(cfg, actPath, 'Activities');
+
+    // ── Opportunities (all — needed to match to opps created in range)
+    // SCHEMA NOTE: Opportunities link to Activities via ContactID or a direct
+    // OpportunityID on the Activity record. We join them below by best available field.
+    const oppFilter = dateFilter('CreatedOn', cfg.from, cfg.to);
+    const oppPath = `/Opportunities${oppFilter ? '?$filter=' + encodeURIComponent(oppFilter) : ''}`;
+    STATE.opps = await fetchAll(cfg, oppPath, 'Opportunities');
+
+    // ── Process and render
+    processData(cfg);
+    renderAll();
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    toast(`Loaded ${STATE.activities.length.toLocaleString()} activities · ${STATE.opps.length.toLocaleString()} opps`, 'green');
+  } catch(e) {
+    console.error(e);
+    toast('Error: ' + e.message, 'red');
+  }
+  setLoading(false);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DATA PROCESSING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function processData(cfg) {
+  const doneSet   = new Set(cfg.doneStatus);
+  const noshowSet = new Set(cfg.noshowStatus);
+  const apptTypes = cfg.apptTypes === '*' ? null : new Set(cfg.apptTypes.toLowerCase().split(',').map(s => s.trim()));
+
+  // Build opp lookup by Reference and by ID
+  const oppByRef = {}, oppById = {};
+  STATE.opps.forEach(o => {
+    oppById[o.ID] = o;
+    const ref = baseRef(o.Reference || o.JobReference || '');
+    if (ref) oppByRef[ref] = o;
+  });
+
+  // SCHEMA NOTE: Enrich each activity with computed fields.
+  // Adapt field names below if your schema differs:
+  //   Activity.ActivityType or .Type = the kind of appointment
+  //   Activity.Status or .ActivityStatus = completion status
+  //   Activity.Start = appointment datetime
+  //   Activity.RepresentativeID = sales rep FK
+  //   Activity.OpportunityID or .Reference = link to opportunity (if available)
+  //   Activity.ContactName = customer name (if denormalised on activity)
+
+  STATE.processed = STATE.activities.map(a => {
+    const typeRaw   = (a.ActivityType || a.Type || '').toLowerCase();
+    const statusRaw = (a.Status || a.ActivityStatus || '').toLowerCase();
+    const repId     = a.RepresentativeID;
+    const repName   = STATE.users[repId] || `Rep ${repId || '?'}`;
+    const startDt   = a.Start ? new Date(a.Start) : null;
+    const month     = startDt ? startDt.toISOString().slice(0, 7) : 'Unknown';
+    const dow       = startDt ? startDt.getDay() : -1; // 0=Sun
+
+    const isAppt    = apptTypes === null || apptTypes.has(typeRaw);
+    const isDone    = doneSet.has(statusRaw);
+    const isNoshow  = noshowSet.has(statusRaw);
+
+    // Try to find linked opportunity
+    // SCHEMA NOTE: Insyte Activities may carry OpportunityID, Reference, or JobReference.
+    // Adapt the field access below to match your schema.
+    const oppRef  = baseRef(a.Reference || a.JobReference || a.OpportunityReference || '');
+    const oppIdRaw = a.OpportunityID || a.JobID || null;
+    const linkedOpp = (oppRef && oppByRef[oppRef]) || (oppIdRaw && oppById[oppIdRaw]) || null;
+    const oppStatus = linkedOpp ? (linkedOpp.Status || '').toLowerCase() : null;
+    const oppValue  = linkedOpp ? (linkedOpp.ExpectedRevenue || linkedOpp.Value || 0) : 0;
+    const oppRefDisp = linkedOpp ? (linkedOpp.Reference || linkedOpp.JobReference || '') : '';
+
+    return {
+      id: a.ID, raw: a,
+      typeRaw, statusRaw, repId, repName,
+      startDt, month, dow,
+      isAppt, isDone, isNoshow,
+      isPending: !isDone && !isNoshow,
+      linkedOpp, oppStatus, oppValue, oppRefDisp,
+      contactName: a.ContactName || linkedOpp?.ContactName || '',
+    };
+  });
+
+  // Filter to appointment-type activities only for funnel
+  const appts = STATE.processed.filter(a => a.isAppt);
+
+  // ── Funnel stages
+  // SCHEMA NOTE: Enquiries = unique base references from Opportunities in date range.
+  // If your business tracks enquiries differently (e.g. a separate lead record),
+  // replace the enquiries count below with the appropriate endpoint data.
+  const enquiries  = new Set(STATE.opps.map(o => baseRef(o.Reference || o.JobReference || String(o.ID)))).size;
+  const booked     = appts.length;
+  const completed  = appts.filter(a => a.isDone).length;
+  const noShows    = appts.filter(a => a.isNoshow).length;
+
+  // Quoted = opps in Open or any stage that has a reference (beyond initial enquiry)
+  // SCHEMA NOTE: Adapt status values to your pipeline stage names.
+  const quoted = new Set(
+    STATE.opps
+      .filter(o => {
+        const s = (o.Status || '').toLowerCase();
+        return s === 'open' || s === 'won' || s === 'lost';
+      })
+      .map(o => baseRef(o.Reference || o.JobReference || String(o.ID)))
+  ).size;
+
+  const won = new Set(
+    STATE.opps
+      .filter(o => (o.Status || '').toLowerCase() === 'won')
+      .map(o => baseRef(o.Reference || o.JobReference || String(o.ID)))
+  ).size;
+
+  STATE.funnelData = { enquiries, booked, completed, noShows, quoted, won };
+
+  // ── Monthly aggregates for trend
+  STATE.monthly = buildMonthly(appts, STATE.opps);
+
+  // ── Rep aggregates
+  STATE.repStats = buildRepStats(appts, STATE.opps, STATE.users, doneSet, noshowSet);
+
+  // ── Day-of-week aggregates
+  STATE.dowStats = buildDowStats(appts, doneSet);
+
+  // ── Product/category aggregates from opps
+  STATE.productStats = buildProductStats(STATE.opps);
+}
+
+function baseRef(ref) {
+  return String(ref || '').replace(/-\d+$/, '');
+}
+
+function pct(num, den) {
+  if (!den || !num) return 0;
+  return Math.round((num / den) * 1000) / 10;
+}
+
+function buildMonthly(appts, opps) {
+  // Group activities by month
+  const months = {};
+  appts.forEach(a => {
+    if (!months[a.month]) months[a.month] = { booked: 0, completed: 0, noshow: 0 };
+    months[a.month].booked++;
+    if (a.isDone)   months[a.month].completed++;
+    if (a.isNoshow) months[a.month].noshow++;
+  });
+  // Group won opps by month (using ClosedOn or CreatedOn)
+  opps.filter(o => (o.Status || '').toLowerCase() === 'won').forEach(o => {
+    const dt = o.ClosedOn || o.ClosedDate || o.CreatedOn || '';
+    const m  = dt ? dt.slice(0, 7) : 'Unknown';
+    if (!months[m]) months[m] = { booked: 0, completed: 0, noshow: 0 };
+    months[m].won = (months[m].won || 0) + 1;
+  });
+  return Object.entries(months).sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, d]) => ({ month, ...d, won: d.won || 0 }));
+}
+
+function buildRepStats(appts, opps, userMap, doneSet, noshowSet) {
+  const stats = {};
+  // Appointment stats per rep
+  appts.forEach(a => {
+    if (!stats[a.repId]) stats[a.repId] = {
+      repName: a.repName, booked: 0, completed: 0, noshow: 0, won: 0, quoted: 0
+    };
+    stats[a.repId].booked++;
+    if (a.isDone)   stats[a.repId].completed++;
+    if (a.isNoshow) stats[a.repId].noshow++;
+  });
+  // Won opps per rep
+  opps.forEach(o => {
+    const id  = o.RepresentativeID;
+    const s   = (o.Status || '').toLowerCase();
+    if (!id) return;
+    if (!stats[id]) stats[id] = {
+      repName: userMap[id] || `Rep ${id}`, booked: 0, completed: 0, noshow: 0, won: 0, quoted: 0
+    };
+    if (s === 'won') stats[id].won++;
+    if (s === 'open' || s === 'won' || s === 'lost') stats[id].quoted++;
+  });
+  return Object.values(stats).filter(r => r.booked > 0 || r.won > 0);
+}
+
+function buildDowStats(appts, doneSet) {
+  const days = Array(7).fill(null).map(() => ({ booked: 0, completed: 0 }));
+  appts.forEach(a => {
+    if (a.dow >= 0) {
+      days[a.dow].booked++;
+      if (a.isDone) days[a.dow].completed++;
+    }
+  });
+  return days;
+}
+
+function buildProductStats(opps) {
+  // SCHEMA NOTE: Opportunities don't always carry product category.
+  // This uses LeadSource or a custom field. Adapt field name as needed.
+  // If you have JobLines data, link by reference for more accurate categorisation.
+  const cats = {};
+  opps.filter(o => (o.Status || '').toLowerCase() === 'won').forEach(o => {
+    const cat = o.ProductCategory || o.Category || o.LeadSource || o.Source || 'Unspecified';
+    cats[cat] = (cats[cat] || 0) + 1;
+  });
+  return Object.entries(cats).sort(([,a],[,b]) => b - a).slice(0, 10);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RENDER ALL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderAll() {
+  renderKPIs();
+  renderFunnel();
+  renderTrendChart();
+  renderRepTable();
+  renderDowChart();
+  renderProductChart();
+  renderDropoffChart();
+  renderCoaching();
+  renderDetailTable();
+}
+
+// ── KPI Cards
+function renderKPIs() {
+  const f = STATE.funnelData;
+  if (!f) return;
+  setText('kpi-enquiries', f.enquiries.toLocaleString());
+  setText('kpi-booked',    f.booked.toLocaleString());
+  setText('kpi-booked-pct', pct(f.booked, f.enquiries) + '% of enquiries');
+  setText('kpi-completed', f.completed.toLocaleString());
+  setText('kpi-show-rate', 'Show rate ' + pct(f.completed, f.booked) + '%');
+  setText('kpi-quoted',    f.quoted.toLocaleString());
+  setText('kpi-quoted-pct', pct(f.quoted, f.completed) + '% of completed');
+  setText('kpi-won',       f.won.toLocaleString());
+  setText('kpi-win-rate',  'Win rate ' + pct(f.won, f.quoted) + '%');
+
+  const nsPct = pct(f.noShows, f.booked);
+  setText('kpi-noshow',    nsPct + '%');
+  setText('kpi-noshow-abs', f.noShows + ' appointments');
+
+  const e2e = pct(f.won, f.enquiries);
+  setText('e2e-conv', e2e + '%');
+  document.getElementById('e2e-bar').style.width = Math.min(e2e * 2, 100) + '%';
+}
+
+// ── Funnel visual
+function renderFunnel() {
+  const f = STATE.funnelData;
+  if (!f) return;
+  const stages = [
+    { label: 'Enquiries',  value: f.enquiries,  color: '#2E6DB4' },
+    { label: 'Appt Booked',value: f.booked,     color: '#0E9F8E' },
+    { label: 'Completed',  value: f.completed,  color: '#7C3AED' },
+    { label: 'Quoted',     value: f.quoted,     color: '#D97706' },
+    { label: 'Won',        value: f.won,        color: '#1A7A4A' },
+  ];
+  const max = Math.max(...stages.map(s => s.value), 1);
+  const MIN_W = 30, MAX_W = 100; // % widths
+
+  let html = '';
+  stages.forEach((stage, i) => {
+    const w     = MIN_W + (stage.value / max) * (MAX_W - MIN_W);
+    const prev  = i > 0 ? stages[i - 1] : null;
+    const convPct = prev ? pct(stage.value, prev.value) : 100;
+    const drop    = prev ? prev.value - stage.value : 0;
+    const dropCls = convPct >= 70 ? 'drop-good' : convPct >= 40 ? 'drop-mid' : 'drop-bad';
+
+    if (i > 0) {
+      html += `<div style="width:100%;display:flex;align-items:center;gap:12px;padding:2px 0">
+        <div style="width:130px"></div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px">
+          <div style="border-left:2px dashed #CBD5E1;height:14px"></div>
+        </div>
+        <div style="width:110px;font-size:.72rem;color:#64748B">
+          -${drop.toLocaleString()} (${100 - convPct}% drop)
+        </div>
+      </div>`;
+    }
+
+    html += `<div class="funnel-stage-row">
+      <div class="funnel-label">${stage.label}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="width:${w}%;background:${stage.color}">
+          <span class="fcount">${stage.value.toLocaleString()}</span>
+          <span style="opacity:.85">${convPct}%</span>
+        </div>
+      </div>
+      <div class="funnel-drop">
+        ${i > 0 ? `<span class="drop-pill ${dropCls}">${convPct}% kept</span>` : '<span class="drop-pill drop-good">100%</span>'}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('funnel-container').innerHTML = html;
+}
+
+// ── Charts (Chart.js)
+let _charts = {};
+function mkChart(id, type, data, options = {}) {
+  if (_charts[id]) _charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  _charts[id] = new Chart(ctx, { type, data, options: { responsive: true, ...options } });
+  return _charts[id];
+}
+
+function renderTrendChart() {
+  const m = STATE.monthly || [];
+  const labels = m.map(r => r.month);
+  const showRate = m.map(r => pct(r.completed, r.booked));
+  const wonCounts = m.map(r => r.won);
+
+  mkChart('trend-chart', 'bar', {
+    labels,
+    datasets: [
+      {
+        type: 'bar', label: 'Appointments Completed', data: m.map(r => r.completed),
+        backgroundColor: 'rgba(14,159,142,.25)', borderColor: 'rgba(14,159,142,.7)',
+        borderWidth: 1, yAxisID: 'y',
+      },
+      {
+        type: 'bar', label: 'Orders Won', data: wonCounts,
+        backgroundColor: 'rgba(26,122,74,.35)', borderColor: 'rgba(26,122,74,.8)',
+        borderWidth: 1, yAxisID: 'y',
+      },
+      {
+        type: 'line', label: 'Show Rate %', data: showRate,
+        borderColor: '#7C3AED', backgroundColor: 'transparent',
+        tension: 0.35, pointRadius: 4, pointBackgroundColor: '#7C3AED',
+        borderWidth: 2.5, yAxisID: 'y2',
+      },
+    ]
+  }, {
+    interaction: { mode: 'index' },
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+    scales: {
+      y:  { position: 'left',  title: { display: true, text: 'Count', font: { size: 10 } } },
+      y2: { position: 'right', title: { display: true, text: 'Show Rate %', font: { size: 10 } },
+             min: 0, max: 100, grid: { drawOnChartArea: false } },
+    }
+  });
+}
+
+function renderDowChart() {
+  const days  = STATE.dowStats || [];
+  const LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const booked    = days.map(d => d.booked);
+  const completed = days.map(d => d.completed);
+  const rate      = days.map(d => pct(d.completed, d.booked));
+
+  mkChart('dow-chart', 'bar', {
+    labels: LABELS,
+    datasets: [
+      { label: 'Booked',    data: booked,    backgroundColor: 'rgba(46,109,180,.3)', borderColor: '#2E6DB4', borderWidth: 1 },
+      { label: 'Completed', data: completed, backgroundColor: 'rgba(14,159,142,.4)', borderColor: '#0E9F8E', borderWidth: 1 },
+      { type: 'line', label: 'Show %', data: rate,
+        borderColor: '#D97706', backgroundColor: 'transparent',
+        tension: 0.3, pointRadius: 4, yAxisID: 'y2', borderWidth: 2 },
+    ]
+  }, {
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+    scales: {
+      y:  {},
+      y2: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Show %', font: { size: 10 } } }
+    }
+  });
+}
+
+function renderProductChart() {
+  const cats = STATE.productStats || [];
+  if (!cats.length) { document.getElementById('product-chart').parentElement.innerHTML += '<p class="text-xs text-slate-400 mt-2">No product category data (field not found in Opportunities)</p>'; return; }
+  const COLORS = ['#2E6DB4','#0E9F8E','#7C3AED','#D97706','#DC2626','#1A7A4A','#EC4899','#06B6D4','#F59E0B','#6366F1'];
+  mkChart('product-chart', 'doughnut', {
+    labels: cats.map(([k]) => k),
+    datasets: [{ data: cats.map(([,v]) => v), backgroundColor: COLORS, borderWidth: 2 }],
+  }, {
+    plugins: { legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12 } } },
+    cutout: '55%',
+  });
+}
+
+function renderDropoffChart() {
+  const m = STATE.monthly || [];
+  // Show % at each stage per month (normalised to enquiries proxy = booked)
+  const showRate = m.map(r => pct(r.completed, r.booked));
+  const wonPct   = m.map(r => pct(r.won, r.completed || 1));
+
+  mkChart('dropoff-chart', 'line', {
+    labels: m.map(r => r.month),
+    datasets: [
+      { label: 'Show Rate %',    data: showRate, borderColor: '#7C3AED', backgroundColor: 'rgba(124,58,237,.08)', fill: true, tension: 0.3, pointRadius: 3 },
+      { label: 'Complete→Won %', data: wonPct,   borderColor: '#1A7A4A', backgroundColor: 'rgba(26,122,74,.08)',  fill: true, tension: 0.3, pointRadius: 3 },
+    ]
+  }, {
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+    scales: { y: { min: 0, max: 100, title: { display: true, text: '%', font: { size: 10 } } } }
+  });
+}
+
+// ── Rep Table
+function renderRepTable() {
+  const sort = document.getElementById('rep-sort').value;
+  const reps = [...(STATE.repStats || [])];
+  reps.sort((a, b) => {
+    if (sort === 'conv')   return pct(b.won, b.booked) - pct(a.won, a.booked);
+    if (sort === 'booked') return b.booked - a.booked;
+    if (sort === 'noshow') return pct(b.noshow, b.booked) - pct(a.noshow, a.booked);
+    return b.won - a.won;
+  });
+  const maxBooked = Math.max(...reps.map(r => r.booked), 1);
+
+  const rows = reps.map(r => {
+    const showPct = pct(r.completed, r.booked);
+    const convPct = pct(r.won, r.booked);
+    const nsPct   = pct(r.noshow, r.booked);
+    const barW    = Math.round((r.booked / maxBooked) * 100);
+    const convColor = convPct >= 25 ? '#1A7A4A' : convPct >= 12 ? '#D97706' : '#DC2626';
+    const nsColor   = nsPct   <= 10 ? '#1A7A4A' : nsPct   <= 20 ? '#D97706' : '#DC2626';
+    return `<tr>
+      <td>
+        <div class="font-medium text-slate-700" style="font-size:.82rem">${r.repName}</div>
+        <div class="inline-bar mt-1" style="width:80px"><div class="inline-bar-fill" style="width:${barW}%;background:#2E6DB4"></div></div>
+      </td>
+      <td class="text-right font-semibold">${r.booked}</td>
+      <td class="text-right" style="color:${nsColor}">${showPct}%<br><span style="font-size:.68rem;color:#94A3B8">${nsPct}% NS</span></td>
+      <td class="text-right">${r.quoted}</td>
+      <td class="text-right font-bold" style="color:var(--green)">${r.won}</td>
+      <td class="text-right font-bold" style="color:${convColor}">${convPct}%</td>
+    </tr>`;
+  });
+
+  document.getElementById('rep-tbody').innerHTML = rows.join('') || '<tr><td colspan="6" class="text-center text-slate-400 py-4 text-xs">No data</td></tr>';
+}
+
+// ── Coaching Insights
+function renderCoaching() {
+  const reps = STATE.repStats || [];
+  if (!reps.length) return;
+
+  const avgConv   = pct(reps.reduce((a,r) => a + r.won, 0), reps.reduce((a,r) => a + r.booked, 0));
+  const avgNoshow = pct(reps.reduce((a,r) => a + r.noshow, 0), reps.reduce((a,r) => a + r.booked, 0));
+  const avgShow   = pct(reps.reduce((a,r) => a + r.completed, 0), reps.reduce((a,r) => a + r.booked, 0));
+
+  const cards = [];
+
+  // High volume, low conversion (opportunity: closing skills)
+  const medVolume = median(reps.map(r => r.booked));
+  reps.filter(r => r.booked >= medVolume && pct(r.won, r.booked) < avgConv * 0.6).forEach(r => {
+    cards.push({ type: 'red', icon: '⚠', title: r.repName,
+      body: `High volume (${r.booked} appts) but low conversion (${pct(r.won,r.booked)}% vs ${avgConv}% avg). Focus: closing / quote follow-up.` });
+  });
+
+  // High no-show rate
+  reps.filter(r => r.booked >= 5 && pct(r.noshow, r.booked) > avgNoshow * 1.5).forEach(r => {
+    cards.push({ type: 'red', icon: '📵', title: r.repName,
+      body: `No-show rate ${pct(r.noshow,r.booked)}% (avg ${avgNoshow}%). Consider same-day confirmation calls.` });
+  });
+
+  // Star performers
+  reps.filter(r => r.booked >= 5 && pct(r.won, r.booked) > avgConv * 1.4).slice(0, 2).forEach(r => {
+    cards.push({ type: 'green', icon: '★', title: r.repName,
+      body: `Conversion ${pct(r.won,r.booked)}% (avg ${avgConv}%) — top performer. Share approach with team.` });
+  });
+
+  // Low show rate (diary management)
+  reps.filter(r => r.booked >= 5 && pct(r.completed, r.booked) < avgShow * 0.7).forEach(r => {
+    cards.push({ type: 'amber', icon: '📅', title: r.repName,
+      body: `Show rate ${pct(r.completed,r.booked)}% (avg ${avgShow}%). Review booking confirmation process.` });
+  });
+
+  if (!cards.length) {
+    cards.push({ type: 'green', icon: '✓', title: 'All reps within normal range',
+      body: `Avg conversion: ${avgConv}% · Avg show rate: ${avgShow}% · Avg no-show: ${avgNoshow}%` });
+  }
+
+  document.getElementById('coaching-grid').innerHTML = cards.map(c => `
+    <div class="coach-card ${c.type}">
+      <div class="flex items-center gap-2 mb-1">
+        <span style="font-size:1.2rem">${c.icon}</span>
+        <span class="font-bold text-sm text-slate-700">${c.title}</span>
+      </div>
+      <p class="text-xs text-slate-600">${c.body}</p>
+    </div>`).join('');
+}
+
+// ── Detail Table
+function renderDetailTable() {
+  const q   = (document.getElementById('detail-search').value || '').toLowerCase();
+  const f   = document.getElementById('detail-filter').value;
+  const cfg = getConfig();
+  const doneSet   = new Set(cfg.doneStatus);
+  const noshowSet = new Set(cfg.noshowStatus);
+
+  let rows = STATE.processed.filter(a => a.isAppt);
+
+  if (q) rows = rows.filter(a =>
+    a.repName.toLowerCase().includes(q) || a.contactName.toLowerCase().includes(q));
+
+  if (f === 'completed') rows = rows.filter(a => a.isDone);
+  else if (f === 'noshow')   rows = rows.filter(a => a.isNoshow);
+  else if (f === 'pending')  rows = rows.filter(a => a.isPending);
+
+  rows.sort((a,b) => (b.startDt||0) - (a.startDt||0));
+
+  const statusBadge = (a) => {
+    if (a.isDone)    return '<span class="drop-pill drop-good">Completed</span>';
+    if (a.isNoshow)  return '<span class="drop-pill drop-bad">No-Show</span>';
+    return '<span style="background:#E0E7FF;color:#3730A3" class="drop-pill">Pending</span>';
+  };
+  const oppBadge = (s) => {
+    if (!s) return '—';
+    if (s === 'won')  return '<span class="drop-pill drop-good">Won</span>';
+    if (s === 'lost') return '<span class="drop-pill drop-bad">Lost</span>';
+    return '<span style="background:#FEF3C7;color:#92400E" class="drop-pill">Open</span>';
+  };
+
+  const trs = rows.slice(0, 500).map(a => `<tr>
+    <td class="whitespace-nowrap">${a.startDt ? a.startDt.toLocaleDateString('en-AU') : '—'}</td>
+    <td>${a.repName}</td>
+    <td>${a.contactName || '—'}</td>
+    <td>${statusBadge(a)}</td>
+    <td class="text-slate-500">${a.typeRaw || '—'}</td>
+    <td class="font-mono text-xs">${a.oppRefDisp || '—'}</td>
+    <td>${oppBadge(a.oppStatus)}</td>
+    <td class="text-right">${a.oppValue ? '$' + a.oppValue.toLocaleString('en-AU', {maximumFractionDigits:0}) : '—'}</td>
+  </tr>`).join('');
+
+  document.getElementById('detail-tbody').innerHTML = trs ||
+    '<tr><td colspan="8" class="text-center text-slate-400 py-4 text-xs">No results</td></tr>';
+  document.getElementById('detail-count').textContent =
+    `Showing ${Math.min(rows.length, 500).toLocaleString()} of ${rows.length.toLocaleString()} appointments`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// UTILITIES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function setLoading(on) {
+  document.getElementById('spinner-wrap').classList.toggle('hidden', !on);
+}
+
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a,b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
+function toast(msg, type = 'blue') {
+  const colors = { green: '#D1FAE5 text-green-800', red: '#FEE2E2 text-red-800',
+    amber: '#FEF3C7 text-yellow-800', blue: '#DBEAFE text-blue-800' };
+  const [bg, tx] = (colors[type] || colors.blue).split(' ');
+  const el = document.createElement('div');
+  el.className = `toast-msg ${tx}`;
+  el.style.background = bg;
+  el.textContent = msg;
+  const wrap = document.getElementById('toast');
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Set default "to" date to today
+document.getElementById('cfg-to').value = new Date().toISOString().slice(0, 10);
+
+loadConfig();
+</script>
+</body>
+</html>

@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insyte — Appointment Conversion</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f1b35;--navy2:#1a2d52;--blue:#2563eb;--blue-light:#3b82f6;
+  --green:#059669;--amber:#f59e0b;--red:#dc2626;--purple:#7c3aed;--cyan:#0891b2;
+  --bg:#f0f2f7;--surface:#fff;--border:#e2e5ed;--text:#1a1a2e;--muted:#6b7280;
+  --mono:'SF Mono',Monaco,Consolas,monospace;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+.topbar{background:var(--navy);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-logo{width:32px;height:32px;background:linear-gradient(135deg,#059669,#0891b2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:#fff}
+.brand-title{color:#fff;font-weight:700;font-size:15px}.brand-sub{color:#6ee7b7;font-size:11px;margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.live{background:#34d399;box-shadow:0 0 6px #34d399}.status-dot.demo{background:#f59e0b}.status-dot.error{background:#f87171}.status-dot.loading{background:#93c5fd;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.status-label{font-size:11px;color:rgba(255,255,255,.7)}
+.refresh-btn{background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;transition:.15s}
+.refresh-btn:hover{background:rgba(255,255,255,.2)}.refresh-btn:disabled{opacity:.4}
+.spin{display:inline-block;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.page-tabs{background:var(--navy2);padding:0 24px;display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:58px;z-index:199}
+.tab{padding:10px 16px;border:none;background:none;color:rgba(255,255,255,.55);cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
+.tab.active{color:#fff;border-bottom-color:#34d399}.tab:hover:not(.active){color:rgba(255,255,255,.8)}
+.filter-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:104px;z-index:198}
+.filter-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.period-btns{display:flex;gap:3px}
+.period-btn{padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:#f9fafb;cursor:pointer;font-size:12px;transition:.15s;font-weight:500}
+.period-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}.period-btn:hover:not(.active){background:#e5e7eb}
+select{border:1px solid var(--border);background:#f9fafb;color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;height:30px;outline:none}
+select:focus{border-color:var(--blue)}
+.filter-div{width:1px;height:20px;background:var(--border)}
+.main{padding:20px 24px;max-width:1600px}
+.page-section{display:none}.page-section.active{display:block}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--surface);border-radius:10px;padding:14px 16px;border:1px solid var(--border);position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--blue))}
+.kpi-label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-value{font-size:22px;font-weight:700;line-height:1.1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi-delta{font-size:11px;margin-top:4px}.kpi-delta.good{color:var(--green)}.kpi-delta.bad{color:var(--red)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px}
+.card{background:var(--surface);border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.card-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{background:#d1fae5;color:#065f46}.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-amber{background:#fef3c7;color:#92400e}.badge-red{background:#fee2e2;color:#991b1b}
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{font-size:10px;color:var(--muted);font-weight:600;text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none}
+.data-table th:hover{color:var(--text)}
+.data-table th.sorted{color:var(--blue)}
+.data-table td{font-size:12px;padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover td{background:#f9fafb;cursor:pointer}
+.num{text-align:right;font-family:var(--mono);font-size:11px}
+.pct{text-align:right;font-family:var(--mono);font-size:11px}
+.bar-wrap{flex:1;height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden;min-width:60px}
+.bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;color:#fff}
+.pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.funnel{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.funnel-row{display:flex;align-items:center;gap:12px}
+.funnel-label{font-size:11px;color:var(--muted);width:100px;text-align:right;flex-shrink:0}
+.funnel-bar-wrap{flex:1;background:#f3f4f6;border-radius:4px;overflow:hidden;height:32px}
+.funnel-bar{height:100%;display:flex;align-items:center;padding-left:10px;font-size:12px;font-weight:700;color:#fff;border-radius:4px;transition:width .5s}
+.funnel-val{font-size:12px;font-weight:600;width:80px;text-align:right;flex-shrink:0;font-family:var(--mono)}
+.seg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.seg-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;border-top:3px solid var(--seg-color)}
+.seg-name{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:8px}
+.seg-val{font-size:24px;font-weight:700;margin-bottom:4px}
+.seg-sub{font-size:11px;color:var(--muted)}
+.disc-heatmap{display:grid;gap:3px;margin-top:8px}
+.hm-row{display:flex;align-items:center;gap:4px}
+.hm-label{font-size:10px;color:var(--muted);width:110px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hm-cell{width:40px;height:26px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600}
+.table-wrap{overflow-x:auto}
+.empty{text-align:center;padding:40px;color:var(--muted);font-size:13px}
+.chart-wrap{position:relative}
+@media(max-width:1024px){.g3{grid-template-columns:1fr 1fr}.g21,.g12{grid-template-columns:1fr}.seg-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.g2{grid-template-columns:1fr}.main{padding:12px 16px}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-logo">AC</div>
+    <div>
+      <div class="brand-title">Appointment Conversion</div>
+      <div class="brand-sub">Insyte — 2025 &amp; 2026</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="status-dot loading" id="statusDot"></div>
+    <span class="status-label" id="statusLabel">Loading…</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
+      <span id="refreshIcon">↻</span> Refresh
+    </button>
+  </div>
+</div>
+
+<div class="page-tabs">
+  <button class="tab active" onclick="setPage('national',this)">📊 National</button>
+  <button class="tab" onclick="setPage('consultants',this)">👤 By Consultant</button>
+  <button class="tab" onclick="setPage('product',this)">📦 By Product</button>
+  <button class="tab" onclick="setPage('segment',this)">💰 By Price Segment</button>
+  <button class="tab" onclick="setPage('state',this)">🗺 By State</button>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Period</span>
+  <div class="period-btns">
+    <button class="period-btn active" onclick="setPeriod('all',this)">All</button>
+    <button class="period-btn" onclick="setPeriod('ytd',this)">YTD 2026</button>
+    <button class="period-btn" onclick="setPeriod('2025',this)">2025</button>
+    <button class="period-btn" onclick="setPeriod('h1',this)">H1 2026</button>
+    <button class="period-btn" onclick="setPeriod('qtd',this)">QTD</button>
+    <button class="period-btn" onclick="setPeriod('mtd',this)">MTD</button>
+  </div>
+  <div class="filter-div"></div>
+  <span class="filter-label">State</span>
+  <select id="stateFilter" onchange="applyFilters()">
+    <option value="all">All States</option>
+    <option>VIC</option><option>NSW</option><option>QLD</option><option>WA</option><option>SA</option>
+  </select>
+  <span class="filter-label">Consultant</span>
+  <select id="consultantFilter" onchange="applyFilters()">
+    <option value="all">All Consultants</option>
+  </select>
+  <span class="filter-label">Activity Type</span>
+  <select id="actTypeFilter" onchange="applyFilters()">
+    <option value="all">All Types</option>
+  </select>
+</div>
+
+<div class="main">
+
+<!-- ── PAGE 1: NATIONAL ── -->
+<div class="page-section active" id="page-national">
+  <div class="kpi-grid" id="natKpis"></div>
+  <div class="g21">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📈 Monthly Trend — Appointments vs Conversions</div></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔽 Conversion Funnel</div></div>
+      <div class="funnel" id="funnelViz"></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🗂 Activity Type Breakdown</div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="actTypeChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Conversion Rate by Month</div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="convRateChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PAGE 2: CONSULTANTS ── -->
+<div class="page-section" id="page-consultants">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">👤 Consultant Conversion Leaderboard</div>
+      <select id="sortConsult" onchange="renderConsultants()">
+        <option value="revenue">Sort: Revenue Won</option>
+        <option value="conv">Sort: Conversion %</option>
+        <option value="appts">Sort: Appointments</option>
+        <option value="quotes">Sort: Quotes</option>
+        <option value="disc">Sort: Avg Discount</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th onclick="setConsultSort('rank')">#</th>
+          <th onclick="setConsultSort('name')">Consultant</th>
+          <th onclick="setConsultSort('state')">State</th>
+          <th class="num" onclick="setConsultSort('appts')">Appts</th>
+          <th class="num" onclick="setConsultSort('quotes')">Total Quotes</th>
+          <th class="num" onclick="setConsultSort('won')">Orders</th>
+          <th class="pct" onclick="setConsultSort('conv')">Quote→Order</th>
+          <th class="pct">Appt→Order</th>
+          <th class="num" onclick="setConsultSort('revenue')">Revenue Won</th>
+          <th class="pct" onclick="setConsultSort('disc')">Avg Disc</th>
+          <th class="num">Pipeline $</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="consultBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="consultDetail"></div>
+</div>
+
+<!-- ── PAGE 3: PRODUCT ── -->
+<div class="page-section" id="page-product">
+  <div class="g21">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📦 Conversion by Product Group</div></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th>Product Group</th>
+            <th class="num">Total Quotes</th>
+            <th class="num">Orders</th>
+            <th class="pct">Quote→Order</th>
+            <th></th>
+            <th class="num">Won Revenue</th>
+            <th class="pct">Avg Disc</th>
+            <th class="pct">Avg GP %</th>
+          </tr></thead>
+          <tbody id="productBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Conversion % by Product</div></div>
+      <div class="chart-wrap" style="height:320px"><canvas id="productConvChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">🏷 Discount vs Conversion by Product</div></div>
+    <div class="chart-wrap" style="height:220px"><canvas id="productDiscChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ── PAGE 4: PRICE SEGMENT ── -->
+<div class="page-section" id="page-segment">
+  <div class="seg-grid" id="segCards"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-header"><div class="card-title">💰 Conversion by Price Segment</div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="segConvChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏷 Avg Discount by Segment</div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="segDiscChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🔥 Consultant × Segment Conversion Heatmap</div>
+      <span class="card-badge badge-blue">% conv rate per cell</span>
+    </div>
+    <div id="segHeatmap"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">📊 Discount Band vs Conversion Rate</div></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th>Discount Band</th>
+          <th class="num">Total Quotes</th>
+          <th class="num">Orders</th>
+          <th class="pct">Quote→Order</th>
+          <th></th>
+          <th class="num">Won Revenue</th>
+        </tr></thead>
+        <tbody id="discBandBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── PAGE 5: STATE ── -->
+<div class="page-section" id="page-state">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🗺 Conversion by State</div></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th>State</th>
+            <th class="num">Appts</th>
+            <th class="num">Total Quotes</th>
+            <th class="num">Orders</th>
+            <th class="pct">Quote→Order</th>
+            <th></th>
+            <th class="num">Revenue</th>
+            <th class="pct">Avg Disc</th>
+          </tr></thead>
+          <tbody id="stateBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Revenue Won by State</div></div>
+      <div class="chart-wrap" style="height:300px"><canvas id="stateChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">👤 State Breakdown — Consultant Detail</div></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th>Consultant</th><th>State</th><th class="num">Appts</th>
+          <th class="num">Total Quotes</th><th class="num">Orders</th>
+          <th class="pct">Quote→Order</th><th class="num">Revenue</th><th class="pct">Disc</th>
+        </tr></thead>
+        <tbody id="stateConsultBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── CONFIG ──
+// Credentials are cached in localStorage per-browser rather than hardcoded here.
+function _insyteCred(storageKey, promptLabel) {
+  let v = localStorage.getItem(storageKey);
+  if (!v) { v = prompt(promptLabel) || ''; if (v) localStorage.setItem(storageKey, v); }
+  return v;
+}
+const API_BASE  = 'https://api.myinsyte.com.au/v2';
+const API_EMAIL = _insyteCred('insyte_email', 'Insyte API email:');
+const API_KEY   = _insyteCred('insyte_key', 'Insyte API key:');
+const AUTH_HDR  = 'Basic ' + btoa(API_EMAIL + ':' + API_KEY);
+
+const CHARTS = {};
+let _data = null;  // { activities, jobSummaries, userMap }
+let _page = 'national';
+let _period = 'all';
+let _state = 'all';
+let _consultant = 'all';
+let _actType = 'all';
+let _consultSort = 'revenue';
+
+// Stage classification
+const WON_STAGES = new Set([
+  'stage_job_line_confirmed','stage_job_line_confirmed_cm',
+  'stage_job_line_cm_booked','stage_job_line_cm_inprogress',
+  'stage_job_line_cm_completed','stage_job_line_cm_completed_confirmed',
+  'stage_job_line_cm_completed_reschedule','stage_job_line_cm_completed_unconfirmed',
+  'stage_job_line_supply','stage_job_line_supply_failed',
+  'stage_job_line_dispatch','stage_job_line_invoicing','stage_job_line_restocked'
+]);
+// Open + Sent quotes — still active, count toward open pipeline value
+const QUOTE_STAGES = new Set([
+  'stage_job_line_unconfirmed','stage_job_line_unconfirmed_cm','stage_job_line_cm_not_booked',
+  'stage_job_line_negotiation','stage_job_line_negotiation_cm',
+  'stage_job_line_sent','stage_job_line_quote_sent','stage_job_line_quoted',
+]);
+// Expired + Lost + Cancelled quotes — count toward Total Quotes but NOT open pipeline value
+const LOST_STAGES = new Set([
+  'stage_job_line_cancelled','status_invoice_line_cancelled',
+  'stage_job_line_expired','stage_job_line_quote_expired',
+  'stage_job_line_lost','stage_job_line_quote_lost',
+]);
+
+const SEGMENTS = [
+  { name:'Budget',   color:'#94a3b8', min:0,     max:1999  },
+  { name:'Mid',      color:'#3b82f6', min:2000,  max:4999  },
+  { name:'Premium',  color:'#7c3aed', min:5000,  max:14999 },
+  { name:'Prestige', color:'#f59e0b', min:15000, max:Infinity },
+];
+const DISC_BANDS = [
+  {label:'0%', min:0,max:0},{label:'1–5%',min:1,max:5},{label:'6–10%',min:6,max:10},
+  {label:'11–15%',min:11,max:15},{label:'16–20%',min:16,max:20},{label:'>20%',min:21,max:100}
+];
+const STATE_COLORS = {VIC:'#3b82f6',NSW:'#8b5cf6',QLD:'#0891b2',WA:'#f59e0b',SA:'#059669'};
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ── UTILS ──
+const fmt$ = v => v>=1e6?'$'+(v/1e6).toFixed(2)+'M':v>=1000?'$'+(v/1000).toFixed(1)+'k':'$'+Math.round(v).toLocaleString();
+const fmtN = v => (v||0).toLocaleString();
+const fmtP = v => (v||0).toFixed(1)+'%';
+const avatarColor = n => {const c=['#3b82f6','#7c3aed','#0891b2','#059669','#f59e0b','#dc2626'];let h=0;for(let x of(n||''))h=((h<<5)-h)+x.charCodeAt(0);return c[Math.abs(h)%c.length]};
+const initials = n => (n||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+function destroyChart(id){if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}
+
+function segmentOf(val) {
+  return SEGMENTS.find(s => val >= s.min && val <= s.max) || SEGMENTS[0];
+}
+
+// ── PERIOD FILTER ──
+function inPeriod(dateStr) {
+  if(_period === 'all') return true;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return false;
+  const yr = d.getFullYear(), mo = d.getMonth()+1;
+  const now = new Date(), nyr = now.getFullYear(), nmo = now.getMonth()+1;
+  if(_period === 'ytd')  return yr === 2026;
+  if(_period === '2025') return yr === 2025;
+  if(_period === 'h1')   return yr === 2026 && mo <= 6;
+  if(_period === 'qtd')  return yr === nyr && Math.ceil(mo/3) === Math.ceil(nmo/3);
+  if(_period === 'mtd')  return yr === nyr && mo === nmo;
+  return true;
+}
+
+// ── DATA FETCH ──
+async function fetchAllPages(path) {
+  const PAGE = 500;
+  const clean = path.replace(/([&?])\$top=\d+/g,'$1').replace(/([&?])\$skip=\d+/g,'$1').replace(/[&?]+$/g,'');
+  const sep = clean.includes('?') ? '&' : '?';
+  let results = [], skip = 0;
+  while(true) {
+    const url = API_BASE + clean + sep + `$top=${PAGE}&$skip=${skip}`;
+    const res = await fetch(url, { headers: { Authorization: AUTH_HDR, Accept: 'application/json' } });
+    if(!res.ok) throw new Error(`HTTP ${res.status} — ${clean}`);
+    const json = await res.json();
+    const page = json.value || (Array.isArray(json) ? json : []);
+    results = results.concat(page);
+    if(page.length < PAGE) break;
+    skip += PAGE;
+  }
+  console.log(`Loaded ${results.length} from ${path.split('?')[0]}`);
+  return results;
+}
+
+async function loadData() {
+  setStatus('loading','Loading job lines…');
+  const lf = encodeURIComponent('OrderDate ge 2026-01-01T00:00:00Z');
+
+  // Load confirmed/ordered lines + users in parallel
+  const [confirmedLines, users] = await Promise.all([
+    fetchAllPages(`/JobLines?$filter=${lf}`),
+    fetchAllPages('/Users'),
+  ]);
+
+  // Attempt to load open quote lines (no OrderDate) — fetch by Jobs endpoint
+  // Since OrderDate eq null may not be supported, we fetch all Jobs without date filter
+  // and pick up their lines via the existing jobMap batch fetch below
+  // Log what stages are present in confirmed data so we can verify stage mappings
+  const uniqueStages = [...new Set(confirmedLines.map(l => l.Stage).filter(Boolean))].sort();
+  console.log('Stage values in confirmed lines:', uniqueStages);
+
+  const lines = confirmedLines;
+
+  // Batch-fetch only jobs referenced by our lines — chunks of 30, 5 concurrent
+  setStatus('loading','Loading jobs…');
+  const jobIds = [...new Set(lines.map(l => l.JobID).filter(Boolean))];
+  const jobMap = {};
+  const CHUNK = 15, CONCURRENCY = 5;
+  const chunks = [];
+  for(let i = 0; i < jobIds.length; i += CHUNK) chunks.push(jobIds.slice(i, i+CHUNK));
+  for(let i = 0; i < chunks.length; i += CONCURRENCY) {
+    const wave = chunks.slice(i, i+CONCURRENCY);
+    await Promise.all(wave.map(ids => {
+      const filter = encodeURIComponent(ids.map(id=>`ID eq ${id}`).join(' or '));
+      return fetchAllPages(`/Jobs?$expand=Address&$filter=${filter}`)
+        .then(batch => batch.forEach(j => { jobMap[j.ID] = j; }));
+    }));
+  }
+
+  // Activities loaded last and restricted to 2026 to keep volume manageable
+  setStatus('loading','Loading activities…');
+  const af = encodeURIComponent('Start ge 2026-01-01T00:00:00Z');
+  const activities = await fetchAllPages(`/Activities?$filter=${af}`);
+
+  const userMap = {};
+  users.forEach(u => { userMap[u.ID] = u; });
+
+  // Build job summaries
+  const jobSummMap = {};
+  lines.forEach(line => {
+    const jid = line.JobID; if(!jid) return;
+    const job  = jobMap[jid] || {};
+    const rep  = userMap[job.SalesRepID] || {};
+    const addr = job.Address || {};
+    const stdP = line.StandardPriceExTax || 0;
+    const discP = line.DiscountedPriceExTax || stdP;
+    const price  = line.DiscountedPriceIncTax || line.StandardPriceIncTax || discP;
+    const cost   = line.DiscountedCostExTax || line.StandardCostExTax || 0;
+    const install = line.StandardIntallCostExTax || 0;
+    const deliver = line.StandardDeliveryCostExTax || 0;
+    const gp2    = price - cost - install - deliver;
+    const disc   = stdP > 0 ? Math.max(0, (1 - discP/stdP)*100) : 0;
+    const stage  = (line.Stage || '').toLowerCase();
+    const prod   = (line.Product || 'Other').trim() || 'Other';
+    const date   = line.OrderDate || job.JobDate || null;
+
+    if(!jobSummMap[jid]) {
+      jobSummMap[jid] = {
+        id: jid, ref: job.Reference || `J${jid}`,
+        repId: job.SalesRepID,
+        rep: rep.FullName || ((rep.FirstName||'')+' '+(rep.LastName||'')).trim() || `Rep ${job.SalesRepID||'?'}`,
+        state: addr.State || 'Unknown',
+        date,
+        totalValue:0, totalCost:0, totalGP:0,
+        discSum:0, discCount:0,
+        lines:[], products:{},
+      };
+    }
+    const j = jobSummMap[jid];
+    j.totalValue += price;
+    j.totalGP    += gp2;
+    j.discSum    += disc;
+    j.discCount  ++;
+    j.lines.push({ stage, prod, price, disc, gp2 });
+    if(!j.products[prod]) j.products[prod] = {value:0,lines:0};
+    j.products[prod].value += price; j.products[prod].lines++;
+  });
+
+  const jobSummaries = Object.values(jobSummMap).map(j => {
+    const stages = j.lines.map(l => l.stage);
+    const hasWon   = stages.some(s => WON_STAGES.has(s));
+    const hasQuoted = stages.some(s => QUOTE_STAGES.has(s));
+    const allLost  = stages.length > 0 && stages.every(s => LOST_STAGES.has(s));
+    const avgDisc  = j.discCount ? j.discSum / j.discCount : 0;
+    const gpPct    = j.totalValue > 0 ? j.totalGP / j.totalValue * 100 : 0;
+    const seg      = segmentOf(j.totalValue);
+    return {
+      ...j, hasWon, hasQuoted, allLost,
+      isQuoteOnly: hasQuoted && !hasWon,
+      avgDisc, gpPct, seg: seg.name, segColor: seg.color,
+      topProd: Object.entries(j.products).sort((a,b)=>b[1].value-a[1].value)[0]?.[0] || 'Other',
+    };
+  });
+
+  // Populate activity type filter
+  const actTypes = [...new Set(activities.map(a=>a.ActivityType).filter(Boolean))].sort();
+  const atf = document.getElementById('actTypeFilter');
+  atf.innerHTML = '<option value="all">All Types</option>' + actTypes.map(t=>`<option>${t}</option>`).join('');
+
+  // Populate consultant filter
+  const consultants = [...new Set(jobSummaries.map(j=>j.rep))].filter(Boolean).sort();
+  const cf = document.getElementById('consultantFilter');
+  cf.innerHTML = '<option value="all">All Consultants</option>' + consultants.map(c=>`<option>${c}</option>`).join('');
+
+  _data = { activities, jobSummaries, userMap };
+  setStatus('live','Live data');
+}
+
+// ── FILTERS ──
+function getFiltered() {
+  if(!_data) return { acts:[], jobs:[] };
+  const acts = _data.activities.filter(a => {
+    if(!inPeriod(a.Start)) return false;
+    if(_actType !== 'all' && a.ActivityType !== _actType) return false;
+    if(_consultant !== 'all') {
+      const rep = _data.userMap[a.RepresentativeID];
+      const name = rep?.FullName || ((rep?.FirstName||'')+' '+(rep?.LastName||'')).trim();
+      if(name !== _consultant) return false;
+    }
+    return true;
+  });
+  const jobs = _data.jobSummaries.filter(j => {
+    if(!inPeriod(j.date)) return false;
+    if(_state !== 'all' && j.state !== _state) return false;
+    if(_consultant !== 'all' && j.rep !== _consultant) return false;
+    return true;
+  });
+  return { acts, jobs };
+}
+
+// ── PAGE 1: NATIONAL ──
+function renderNational() {
+  const { acts, jobs } = getFiltered();
+  const won        = jobs.filter(j => j.hasWon);
+  // Total quotes = ALL jobs regardless of stage (open + sent + expired + converted to order)
+  const totalQuotes = jobs;
+  const openPipeline = jobs.filter(j => j.isQuoteOnly);
+  const quoteConv  = totalQuotes.length ? won.length / totalQuotes.length * 100 : 0;
+  const apptConv   = acts.length ? won.length / acts.length * 100 : 0;
+  const rev   = won.reduce((s,j)=>s+j.totalValue,0);
+  const pipe  = openPipeline.reduce((s,j)=>s+j.totalValue,0);
+  const aov   = won.length ? rev/won.length : 0;
+  const disc  = jobs.length ? jobs.reduce((s,j)=>s+j.avgDisc,0)/jobs.length : 0;
+  const gp    = won.length ? won.reduce((s,j)=>s+j.gpPct,0)/won.length : 0;
+
+  document.getElementById('natKpis').innerHTML = [
+    {l:'Appointments',      v:fmtN(acts.length),          sub:'recorded activities',           accent:'#0891b2'},
+    {l:'Total Quotes',      v:fmtN(totalQuotes.length),   sub:'incl. open, expired & orders',  accent:'#3b82f6'},
+    {l:'Orders',            v:fmtN(won.length),            sub:'confirmed jobs',                accent:'#059669'},
+    {l:'Quote → Order',     v:fmtP(quoteConv),             sub:'quotes that converted',         accent: quoteConv>50?'#059669':'#f59e0b'},
+    {l:'Appt → Order',      v:fmtP(apptConv),              sub:'appts that resulted in order',  accent: apptConv>30?'#059669':'#f59e0b'},
+    {l:'Revenue Won',       v:fmt$(rev),                   sub:'from confirmed orders',          accent:'#059669'},
+    {l:'Open Pipeline',     v:fmt$(pipe),                  sub:openPipeline.length+' open quotes',accent:'#7c3aed'},
+    {l:'Avg Discount',      v:fmtP(disc),                  sub:disc>15?'⚠ high':'✓ ok',         accent: disc>15?'#dc2626':'#059669'},
+  ].map(k=>`<div class="kpi-card" style="--accent:${k.accent}">
+    <div class="kpi-label">${k.l}</div>
+    <div class="kpi-value">${k.v}</div>
+    <div class="kpi-sub">${k.sub}</div>
+  </div>`).join('');
+
+  // Monthly trend — all jobs count as quotes; orders = won subset
+  const monthData = {};
+  acts.forEach(a => {
+    const d = new Date(a.Start); if(isNaN(d)) return;
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!monthData[key]) monthData[key]={appts:0,orders:0,quotes:0};
+    monthData[key].appts++;
+  });
+  jobs.forEach(j => {
+    const d = new Date(j.date); if(isNaN(d)) return;
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!monthData[key]) monthData[key]={appts:0,orders:0,quotes:0};
+    monthData[key].quotes++;            // every job = a quote
+    if(j.hasWon) monthData[key].orders++;
+  });
+  const mKeys = Object.keys(monthData).sort();
+  destroyChart('trendChart');
+  CHARTS.trendChart = new Chart(document.getElementById('trendChart'), {
+    type:'bar',
+    data:{labels:mKeys.map(k=>{const[y,m]=k.split('-');return MONTHS[+m-1]+' '+y.slice(2)}),
+      datasets:[
+        {label:'Appointments', data:mKeys.map(k=>monthData[k].appts),  backgroundColor:'rgba(8,145,178,.6)',borderRadius:3},
+        {label:'Total Quotes',  data:mKeys.map(k=>monthData[k].quotes), backgroundColor:'rgba(124,58,237,.5)',borderRadius:3},
+        {label:'Orders',        data:mKeys.map(k=>monthData[k].orders), backgroundColor:'rgba(5,150,105,.85)',borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:11}}}},
+      scales:{x:{stacked:false,grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#f3f4f6'},ticks:{font:{size:11}}}}}
+  });
+
+  // Funnel — Appointments → Total Quotes → Orders
+  const funnelData = [
+    {label:'Appointments', val:acts.length,          color:'#0891b2'},
+    {label:'Total Quotes', val:totalQuotes.length,   color:'#7c3aed'},
+    {label:'Orders',       val:won.length,            color:'#059669'},
+  ];
+  const maxF = Math.max(...funnelData.map(f=>f.val), 1);
+  document.getElementById('funnelViz').innerHTML = funnelData.map(f=>`
+    <div class="funnel-row">
+      <div class="funnel-label">${f.label}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="width:${f.val/maxF*100}%;background:${f.color}">
+          ${f.val > 0 ? fmtN(f.val) : ''}
+        </div>
+      </div>
+      <div class="funnel-val" style="color:${f.color}">${fmtN(f.val)}</div>
+    </div>`).join('') + `
+    <div style="font-size:11px;color:var(--muted);padding:10px 0 0 112px;line-height:1.8">
+      <strong style="color:var(--text)">Quote → Order:</strong> ${fmtP(quoteConv)}
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      <strong style="color:var(--text)">Appt → Order:</strong> ${acts.length?fmtP(apptConv):'—'}
+    </div>`;
+
+  // Activity type chart
+  const typeMap = {};
+  acts.forEach(a => { const t=a.ActivityType||'Unknown'; typeMap[t]=(typeMap[t]||0)+1; });
+  const typeEntries = Object.entries(typeMap).sort((a,b)=>b[1]-a[1]);
+  const typeColors = ['#0891b2','#3b82f6','#7c3aed','#059669','#f59e0b','#dc2626','#64748b'];
+  destroyChart('actTypeChart');
+  CHARTS.actTypeChart = new Chart(document.getElementById('actTypeChart'), {
+    type:'doughnut',
+    data:{labels:typeEntries.map(([t])=>t.replace('type_activity_','')),
+      datasets:[{data:typeEntries.map(([,v])=>v),backgroundColor:typeColors,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11}}}},cutout:'60%'}
+  });
+
+  // Monthly conversion rate — Quote→Order and Appt→Order
+  const convByMonth = mKeys.map(k => {
+    const d = monthData[k];
+    return d.quotes > 0 ? d.orders/d.quotes*100 : null;
+  });
+  const apptConvByMonth = mKeys.map(k => {
+    const d = monthData[k];
+    return d.appts > 0 ? d.orders/d.appts*100 : null;
+  });
+  destroyChart('convRateChart');
+  CHARTS.convRateChart = new Chart(document.getElementById('convRateChart'), {
+    type:'line',
+    data:{labels:mKeys.map(k=>{const[y,m]=k.split('-');return MONTHS[+m-1]+' '+y.slice(2)}),
+      datasets:[
+        {label:'Quote→Order %',data:convByMonth,borderColor:'#059669',backgroundColor:'rgba(5,150,105,.1)',
+          fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#059669'},
+        {label:'Appt→Order %',data:apptConvByMonth,borderColor:'#0891b2',backgroundColor:'rgba(8,145,178,.05)',
+          fill:false,tension:.3,pointRadius:4,pointBackgroundColor:'#0891b2',borderDash:[4,3]},
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:11}}}},
+      scales:{y:{min:0,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'#f3f4f6'}},
+              x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+}
+
+// ── PAGE 2: CONSULTANTS ──
+function renderConsultants() {
+  const { acts, jobs } = getFiltered();
+  const sortKey = document.getElementById('sortConsult')?.value || 'revenue';
+
+  // Build per-consultant stats
+  const cmap = {};
+  acts.forEach(a => {
+    const rep = _data.userMap[a.RepresentativeID];
+    const name = rep?.FullName || ((rep?.FirstName||'')+' '+(rep?.LastName||'')).trim() || `Rep ${a.RepresentativeID}`;
+    if(!cmap[name]) cmap[name] = {name, state:'—', appts:0, quotes:0, won:0, rev:0, pipe:0, discSum:0, discCount:0, gpSum:0};
+    cmap[name].appts++;
+  });
+  jobs.forEach(j => {
+    if(!cmap[j.rep]) cmap[j.rep] = {name:j.rep, state:j.state, appts:0, quotes:0, won:0, rev:0, pipe:0, discSum:0, discCount:0, gpSum:0};
+    const c = cmap[j.rep];
+    c.state = j.state;
+    c.quotes++;                          // every job = a quote (open + expired + converted)
+    if(j.hasWon){ c.won++; c.rev+=j.totalValue; c.gpSum+=j.gpPct; }
+    if(j.isQuoteOnly){ c.pipe+=j.totalValue; }
+    c.discSum+=j.avgDisc; c.discCount++;
+  });
+
+  let rows = Object.values(cmap).map(c => ({
+    ...c,
+    quoteConv: c.quotes ? c.won/c.quotes*100 : 0,   // Quote→Order
+    apptConv:  c.appts  ? c.won/c.appts*100  : 0,   // Appt→Order
+    disc: c.discCount ? c.discSum/c.discCount : 0,
+    gp:   c.won ? c.gpSum/c.won : 0,
+  }));
+
+  const sortFns = {revenue:(a,b)=>b.rev-a.rev, conv:(a,b)=>b.quoteConv-a.quoteConv,
+    appts:(a,b)=>b.appts-a.appts, quotes:(a,b)=>b.quotes-a.quotes, disc:(a,b)=>a.disc-b.disc};
+  rows.sort(sortFns[sortKey] || sortFns.revenue);
+
+  const maxRev = Math.max(...rows.map(r=>r.rev),1);
+  document.getElementById('consultBody').innerHTML = rows.map((c,i) => `
+    <tr onclick="drillConsultant('${c.name.replace(/'/g,"\\'")}')">
+      <td style="color:var(--muted);font-weight:700">${i+1}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
+        <span style="font-weight:600">${c.name}</span></div></td>
+      <td><span class="pill badge-blue">${c.state}</span></td>
+      <td class="num">${fmtN(c.appts)}</td>
+      <td class="num">${fmtN(c.quotes)}</td>
+      <td class="num" style="color:var(--green);font-weight:600">${fmtN(c.won)}</td>
+      <td class="pct" style="color:${c.quoteConv>=50?'#059669':c.quoteConv>=35?'#f59e0b':'#dc2626'};font-weight:700">${fmtP(c.quoteConv)}</td>
+      <td class="pct" style="color:${c.apptConv>=30?'#059669':c.apptConv>=20?'#f59e0b':'#dc2626'}">${c.appts?fmtP(c.apptConv):'—'}</td>
+      <td class="num" style="font-weight:700">${fmt$(c.rev)}</td>
+      <td class="pct" style="color:${c.disc>15?'#dc2626':c.disc>8?'#f59e0b':'#059669'}">${fmtP(c.disc)}</td>
+      <td class="num" style="color:var(--purple)">${fmt$(c.pipe)}</td>
+      <td style="font-size:11px">
+        <div class="bar-wrap"><div class="bar-fill" style="width:${c.rev/maxRev*100}%;background:${avatarColor(c.name)}"></div></div>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="12" class="empty">No data</td></tr>';
+}
+
+function drillConsultant(name) {
+  const { jobs } = getFiltered();
+  const cJobs = jobs.filter(j => j.rep === name);
+  const won    = cJobs.filter(j=>j.hasWon);
+  const openQ  = cJobs.filter(j=>j.isQuoteOnly);
+  const rev    = won.reduce((s,j)=>s+j.totalValue,0);
+  const qconv  = cJobs.length ? won.length/cJobs.length*100 : 0;   // Quote→Order
+  const disc   = cJobs.length ? cJobs.reduce((s,j)=>s+j.avgDisc,0)/cJobs.length : 0;
+  const gp     = won.length ? won.reduce((s,j)=>s+j.gpPct,0)/won.length : 0;
+
+  // Product breakdown
+  const prodMap = {};
+  cJobs.forEach(j => {
+    Object.entries(j.products).forEach(([p,v]) => {
+      if(!prodMap[p]) prodMap[p]={won:0,total:0,rev:0};
+      prodMap[p].total++; if(j.hasWon){prodMap[p].won++;prodMap[p].rev+=v.value;}
+    });
+  });
+  const prods = Object.entries(prodMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
+
+  // Segment breakdown
+  const segMap = {};
+  SEGMENTS.forEach(s => { segMap[s.name]={won:0,total:0,color:s.color}; });
+  cJobs.forEach(j => { segMap[j.seg].total++; if(j.hasWon) segMap[j.seg].won++; });
+
+  document.getElementById('consultDetail').innerHTML = `
+    <div class="card" style="border-left:4px solid ${avatarColor(name)}">
+      <div class="card-header">
+        <div class="card-title">
+          <div class="avatar" style="background:${avatarColor(name)}">${initials(name)}</div>
+          ${name} — Drill Down
+        </div>
+        <button onclick="document.getElementById('consultDetail').innerHTML=''" style="border:1px solid var(--border);background:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px">✕ Close</button>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:16px">
+        ${[
+          {l:'Total Quotes',v:fmtN(cJobs.length),accent:'#3b82f6'},
+          {l:'Orders',v:fmtN(won.length),accent:'#059669'},
+          {l:'Quote→Order',v:fmtP(qconv),accent:qconv>=50?'#059669':'#f59e0b'},
+          {l:'Revenue Won',v:fmt$(rev),accent:'#059669'},
+          {l:'Open Pipeline',v:fmt$(openQ.reduce((s,j)=>s+j.totalValue,0)),accent:'#7c3aed'},
+          {l:'Avg Discount',v:fmtP(disc),accent:disc>15?'#dc2626':'#059669'},
+        ].map(k=>`<div class="kpi-card" style="--accent:${k.accent}"><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div></div>`).join('')}
+      </div>
+      <div class="g2">
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px">Product Conversion</div>
+          <table class="data-table"><thead><tr><th>Product</th><th class="num">Jobs</th><th class="pct">Conv %</th><th class="num">Revenue</th></tr></thead><tbody>
+          ${prods.map(([p,v])=>`<tr><td>${p}</td><td class="num">${v.total}</td>
+            <td class="pct" style="color:${v.total?v.won/v.total>=.5?'#059669':'#f59e0b':'#94a3b8'}">${v.total?fmtP(v.won/v.total*100):'—'}</td>
+            <td class="num">${fmt$(v.rev)}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px">Price Segment Conversion</div>
+          ${SEGMENTS.map(s=>{
+            const sd=segMap[s.name]||{won:0,total:0};
+            const conv2=sd.total?sd.won/sd.total*100:0;
+            return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
+              <div style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0"></div>
+              <div style="flex:1;font-size:12px;font-weight:500">${s.name}</div>
+              <div style="font-size:11px;color:var(--muted)">${sd.won}/${sd.total}</div>
+              <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${conv2>=50?'#059669':'#f59e0b'};width:48px;text-align:right">${sd.total?fmtP(conv2):'—'}</div>
+            </div>`;}).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── PAGE 3: PRODUCT ──
+function renderProduct() {
+  const { jobs } = getFiltered();
+  // Count each job once per product group; total = all quotes (any stage)
+  const prodMap = {};
+  jobs.forEach(j => {
+    const seenProds = new Set();
+    j.lines.forEach(l => {
+      const p = l.prod||'Other';
+      if(!prodMap[p]) prodMap[p]={total:0,won:0,rev:0,discSum:0,dcnt:0,gpSum:0,gcnt:0};
+      if(!seenProds.has(p)) { prodMap[p].total++; seenProds.add(p); }  // count job once per product
+      if(j.hasWon){ prodMap[p].rev+=l.price; prodMap[p].gpSum+=l.gp2>0?l.gp2/l.price*100:0; prodMap[p].gcnt++; }
+      prodMap[p].discSum+=l.disc; prodMap[p].dcnt++;
+    });
+    // Mark won separately (once per product per job)
+    if(j.hasWon){ const ps=new Set(); j.lines.forEach(l=>{const p=l.prod||'Other';if(!ps.has(p)){prodMap[p].won++;ps.add(p);}}); }
+  });
+  const prods = Object.entries(prodMap).sort((a,b)=>b[1].rev-a[1].rev);
+
+  document.getElementById('productBody').innerHTML = prods.map(([p,v])=>{
+    const conv = v.total ? v.won/v.total*100 : 0;
+    const disc = v.dcnt ? v.discSum/v.dcnt : 0;
+    const gp   = v.gcnt ? v.gpSum/v.gcnt : 0;
+    const maxRev = prods[0]?.[1]?.rev || 1;
+    return `<tr>
+      <td style="font-weight:500">${p}</td>
+      <td class="num">${fmtN(v.total)}</td>
+      <td class="num" style="color:var(--green);font-weight:600">${fmtN(v.won)}</td>
+      <td class="pct" style="color:${conv>=50?'#059669':conv>=35?'#f59e0b':'#dc2626'};font-weight:700">${fmtP(conv)}</td>
+      <td><div class="bar-wrap"><div class="bar-fill" style="width:${conv}%;background:${conv>=50?'#059669':conv>=35?'#f59e0b':'#dc2626'}"></div></div></td>
+      <td class="num">${fmt$(v.rev)}</td>
+      <td class="pct" style="color:${disc>15?'#dc2626':disc>8?'#f59e0b':'#059669'}">${fmtP(disc)}</td>
+      <td class="pct" style="color:${gp>40?'#059669':'#f59e0b'}">${fmtP(gp)}</td>
+    </tr>`;}).join('') || '<tr><td colspan="8" class="empty">No data</td></tr>';
+
+  setTimeout(() => {
+    const top10 = prods.slice(0,12);
+    destroyChart('productConvChart');
+    CHARTS.productConvChart = new Chart(document.getElementById('productConvChart'),{
+      type:'bar',
+      data:{labels:top10.map(([p])=>p),datasets:[
+        {label:'Conv %',data:top10.map(([,v])=>v.total?v.won/v.total*100:0),
+          backgroundColor:top10.map(([,v])=>{const c=v.total?v.won/v.total*100:0;return c>=50?'rgba(5,150,105,.75)':c>=35?'rgba(245,158,11,.75)':'rgba(220,38,38,.75)';}),
+          borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{x:{min:0,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f3f4f6'}},y:{ticks:{font:{size:10}},grid:{display:false}}}}
+    });
+
+    destroyChart('productDiscChart');
+    CHARTS.productDiscChart = new Chart(document.getElementById('productDiscChart'),{
+      type:'bar',
+      data:{labels:top10.map(([p])=>p),datasets:[
+        {label:'Avg Discount %',data:top10.map(([,v])=>v.dcnt?v.discSum/v.dcnt:0),backgroundColor:'rgba(124,58,237,.6)',borderRadius:3},
+        {label:'Conv %',data:top10.map(([,v])=>v.total?v.won/v.total*100:0),backgroundColor:'rgba(5,150,105,.4)',borderRadius:3,type:'line',tension:.3,yAxisID:'y2',borderColor:'#059669',pointRadius:4},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top',labels:{font:{size:11}}}},
+        scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#f3f4f6'}},
+          y2:{position:'right',min:0,max:100,ticks:{callback:v=>v+'%'},grid:{display:false}},
+          x:{ticks:{font:{size:10}},grid:{display:false}}}}
+    });
+  },50);
+}
+
+// ── PAGE 4: SEGMENT ──
+function renderSegment() {
+  const { jobs } = getFiltered();
+
+  const segMap = {};
+  SEGMENTS.forEach(s => { segMap[s.name]={...s,won:0,total:0,rev:0,discSum:0,dcnt:0}; });
+  jobs.forEach(j => {
+    const s = segMap[j.seg]; if(!s) return;
+    s.total++;                                          // all jobs = quotes
+    if(j.hasWon){ s.won++; s.rev+=j.totalValue; }     // won = orders only
+    s.discSum+=j.avgDisc; s.dcnt++;
+  });
+
+  document.getElementById('segCards').innerHTML = SEGMENTS.map(s=>{
+    const d = segMap[s.name];
+    const conv = d.total ? d.won/d.total*100 : 0;
+    const disc = d.dcnt ? d.discSum/d.dcnt : 0;
+    return `<div class="seg-card" style="--seg-color:${s.color}">
+      <div class="seg-name">${s.name}</div>
+      <div class="seg-val" style="color:${s.color}">${fmtP(conv)}</div>
+      <div class="seg-sub">${d.won} won / ${d.total} quoted</div>
+      <div class="seg-sub">Rev: ${fmt$(d.rev)}</div>
+      <div class="seg-sub">Avg disc: ${fmtP(disc)}</div>
+    </div>`;}).join('');
+
+  setTimeout(() => {
+    const segs = SEGMENTS.map(s=>segMap[s.name]);
+    destroyChart('segConvChart');
+    CHARTS.segConvChart = new Chart(document.getElementById('segConvChart'),{
+      type:'bar',
+      data:{labels:SEGMENTS.map(s=>s.name),datasets:[
+        {label:'Won',data:segs.map(s=>s.won),backgroundColor:SEGMENTS.map(s=>s.color+'cc'),borderRadius:3},
+        {label:'Open Quotes',data:segs.map(s=>s.total-s.won),backgroundColor:'#f3f4f6',borderRadius:3},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}}},
+        scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#f3f4f6'}}}}
+    });
+
+    destroyChart('segDiscChart');
+    CHARTS.segDiscChart = new Chart(document.getElementById('segDiscChart'),{
+      type:'bar',
+      data:{labels:SEGMENTS.map(s=>s.name),datasets:[{
+        label:'Avg Discount %',data:segs.map(s=>s.dcnt?s.discSum/s.dcnt:0),
+        backgroundColor:SEGMENTS.map(s=>s.color+'bb'),borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+    });
+  },50);
+
+  // Heatmap: consultant × segment
+  const cmap = {};
+  jobs.forEach(j => {
+    if(!cmap[j.rep]) cmap[j.rep]={};
+    if(!cmap[j.rep][j.seg]) cmap[j.rep][j.seg]={won:0,total:0};
+    cmap[j.rep][j.seg].total++;
+    if(j.hasWon) cmap[j.rep][j.seg].won++;
+  });
+  const consultants = Object.keys(cmap).sort();
+
+  document.getElementById('segHeatmap').innerHTML = `
+    <div style="overflow-x:auto;padding:8px 0">
+      <div class="disc-heatmap">
+        <div class="hm-row">
+          <div class="hm-label"></div>
+          ${SEGMENTS.map(s=>`<div style="width:80px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">${s.name}</div>`).join('')}
+        </div>
+        ${consultants.map(name=>`
+          <div class="hm-row">
+            <div class="hm-label" title="${name}">${name.split(' ')[0]} ${(name.split(' ').pop()||'')[0]||''}.</div>
+            ${SEGMENTS.map(s=>{
+              const d = cmap[name]?.[s.name]||{won:0,total:0};
+              const conv = d.total ? d.won/d.total*100 : null;
+              const intensity = conv !== null ? conv/100 : 0;
+              const bg = d.total === 0 ? '#f9fafb' : `rgba(${conv>=50?'5,150,105':'220,38,38'},${0.15+intensity*0.75})`;
+              return `<div class="hm-cell" style="width:80px;background:${bg};color:${intensity>0.5?'#fff':'#374151'}">${d.total?fmtP(conv):'—'}</div>`;
+            }).join('')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  // Discount band table
+  const bandData = DISC_BANDS.map(b => {
+    const matching = jobs.filter(j => j.avgDisc >= b.min && j.avgDisc <= b.max);
+    const bWon = matching.filter(j=>j.hasWon);
+    return {...b, total:matching.length, won:bWon.length, rev:bWon.reduce((s,j)=>s+j.totalValue,0)};
+  });
+  const maxB = Math.max(...bandData.map(b=>b.total),1);
+  document.getElementById('discBandBody').innerHTML = bandData.map((b,i)=>{
+    const conv = b.total ? b.won/b.total*100 : 0;
+    const colors=['#059669','#10b981','#f59e0b','#fb923c','#f87171','#dc2626'];
+    return `<tr>
+      <td><span style="color:${colors[i]};font-weight:700;font-family:var(--mono)">${b.label}</span></td>
+      <td class="num">${fmtN(b.total)}</td>
+      <td class="num" style="color:var(--green);font-weight:600">${fmtN(b.won)}</td>
+      <td class="pct" style="color:${conv>=50?'#059669':conv>=35?'#f59e0b':'#dc2626'};font-weight:700">${b.total?fmtP(conv):'—'}</td>
+      <td><div class="bar-wrap"><div class="bar-fill" style="width:${b.total/maxB*100}%;background:${colors[i]}"></div></div></td>
+      <td class="num">${fmt$(b.rev)}</td>
+    </tr>`;}).join('');
+}
+
+// ── PAGE 5: STATE ──
+function renderState() {
+  const { acts, jobs } = getFiltered();
+
+  const smap = {};
+  acts.forEach(a => {
+    // Activities don't have state easily — use consultant's jobs to infer
+  });
+  jobs.forEach(j => {
+    const s = j.state||'Unknown';
+    if(!smap[s]) smap[s]={state:s,won:0,total:0,rev:0,discSum:0,dcnt:0,appts:0};
+    smap[s].total++;                                        // all jobs = total quotes
+    if(j.hasWon){ smap[s].won++; smap[s].rev+=j.totalValue; }  // won = orders
+    smap[s].discSum+=j.avgDisc; smap[s].dcnt++;
+  });
+  // Count appointments by state (via consultant's most common state)
+  const repState = {};
+  jobs.forEach(j => { repState[j.repId||j.rep] = j.state; });
+  acts.forEach(a => {
+    const st = repState[a.RepresentativeID] || 'Unknown';
+    if(smap[st]) smap[st].appts++;
+  });
+
+  const states = Object.values(smap).sort((a,b)=>b.rev-a.rev);
+  const maxRev = Math.max(...states.map(s=>s.rev),1);
+
+  document.getElementById('stateBody').innerHTML = states.map(s=>{
+    const conv = s.total ? s.won/s.total*100 : 0;
+    const disc = s.dcnt ? s.discSum/s.dcnt : 0;
+    return `<tr>
+      <td><span class="pill" style="background:${(STATE_COLORS[s.state]||'#64748b')}22;color:${STATE_COLORS[s.state]||'#64748b'};border:1px solid ${STATE_COLORS[s.state]||'#64748b'}44">${s.state}</span></td>
+      <td class="num">${fmtN(s.appts)}</td>
+      <td class="num">${fmtN(s.total)}</td>
+      <td class="num" style="color:var(--green);font-weight:600">${fmtN(s.won)}</td>
+      <td class="pct" style="color:${conv>=50?'#059669':conv>=35?'#f59e0b':'#dc2626'};font-weight:700">${fmtP(conv)}</td>
+      <td><div class="bar-wrap"><div class="bar-fill" style="width:${s.rev/maxRev*100}%;background:${STATE_COLORS[s.state]||'#64748b'}"></div></div></td>
+      <td class="num" style="font-weight:700">${fmt$(s.rev)}</td>
+      <td class="pct" style="color:${disc>15?'#dc2626':disc>8?'#f59e0b':'#059669'}">${fmtP(disc)}</td>
+    </tr>`;}).join('') || '<tr><td colspan="8" class="empty">No data</td></tr>';
+
+  setTimeout(() => {
+    destroyChart('stateChart');
+    CHARTS.stateChart = new Chart(document.getElementById('stateChart'),{
+      type:'bar',
+      data:{labels:states.map(s=>s.state),datasets:[
+        {label:'Won Revenue',data:states.map(s=>s.rev),backgroundColor:states.map(s=>(STATE_COLORS[s.state]||'#64748b')+'cc'),borderRadius:4},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{y:{ticks:{callback:v=>fmt$(v)},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+    });
+  },50);
+
+  // State × Consultant table
+  const csmap = {};
+  jobs.forEach(j => {
+    const key = j.state+'|'+j.rep;
+    if(!csmap[key]) csmap[key]={state:j.state,rep:j.rep,appts:0,won:0,total:0,rev:0,discSum:0,dcnt:0};
+    csmap[key].total++;                                          // all jobs = total quotes
+    if(j.hasWon){ csmap[key].won++; csmap[key].rev+=j.totalValue; }
+    csmap[key].discSum+=j.avgDisc; csmap[key].dcnt++;
+  });
+  const stateConsults = Object.values(csmap).sort((a,b)=>b.rev-a.rev);
+  document.getElementById('stateConsultBody').innerHTML = stateConsults.map(c=>{
+    const qconv = c.total ? c.won/c.total*100 : 0;   // Quote→Order
+    const disc  = c.dcnt  ? c.discSum/c.dcnt  : 0;
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" style="background:${avatarColor(c.rep)}">${initials(c.rep)}</div>
+        <span style="font-weight:500">${c.rep}</span></div></td>
+      <td><span class="pill" style="background:${(STATE_COLORS[c.state]||'#64748b')}22;color:${STATE_COLORS[c.state]||'#64748b'}">${c.state}</span></td>
+      <td class="num">${fmtN(c.appts)}</td>
+      <td class="num">${fmtN(c.total)}</td>
+      <td class="num" style="color:var(--green)">${fmtN(c.won)}</td>
+      <td class="pct" style="color:${qconv>=50?'#059669':qconv>=35?'#f59e0b':'#dc2626'};font-weight:700">${fmtP(qconv)}</td>
+      <td class="num">${fmt$(c.rev)}</td>
+      <td class="pct" style="color:${disc>15?'#dc2626':disc>8?'#f59e0b':'#059669'}">${fmtP(disc)}</td>
+    </tr>`;}).join('') || '<tr><td colspan="8" class="empty">No data</td></tr>';
+}
+
+// ── NAVIGATION ──
+function setPage(page, btn) {
+  _page = page;
+  document.querySelectorAll('.page-section').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+page)?.classList.add('active');
+  btn?.classList.add('active');
+  render();
+}
+
+function setPeriod(p, btn) {
+  _period = p;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function applyFilters() {
+  _state      = document.getElementById('stateFilter').value;
+  _consultant = document.getElementById('consultantFilter').value;
+  _actType    = document.getElementById('actTypeFilter').value;
+  render();
+}
+
+function setConsultSort(key) { _consultSort = key; renderConsultants(); }
+
+function render() {
+  if(!_data) return;
+  if(_page==='national')    renderNational();
+  else if(_page==='consultants') renderConsultants();
+  else if(_page==='product')     renderProduct();
+  else if(_page==='segment')     renderSegment();
+  else if(_page==='state')       renderState();
+}
+
+function setStatus(state, msg) {
+  const dot = document.getElementById('statusDot');
+  const lbl = document.getElementById('statusLabel');
+  dot.className = 'status-dot ' + state;
+  lbl.textContent = msg||state;
+}
+
+async function refreshData() {
+  const btn = document.getElementById('refreshBtn');
+  const ico = document.getElementById('refreshIcon');
+  btn.disabled = true;
+  ico.className = 'spin';
+  _data = null;
+  try {
+    await loadData();
+    render();
+  } catch(e) {
+    setStatus('error','Error — check console');
+    console.error(e);
+  }
+  ico.className = '';
+  btn.disabled = false;
+}
+
+// ── INIT ──
+(async () => {
+  try {
+    await loadData();
+    renderNational();
+  } catch(e) {
+    setStatus('error','Failed to load — check console');
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>

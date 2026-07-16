@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Average Order Value by Price Segment — Insyte</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:#1E3A5F; --blue:#2E6DB4; --teal:#0891B2; --green:#059669;
+    --amber:#D97706; --red:#DC2626; --purple:#7C3AED; --slate:#64748B;
+  }
+  body { font-family:'Inter',system-ui,sans-serif; background:#F1F5F9; }
+  .card  { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:20px 24px; }
+  .stitle{ font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#94A3B8; margin-bottom:10px; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:700; }
+  .badge-blue   { background:#DBEAFE; color:#1E40AF; }
+  .badge-green  { background:#D1FAE5; color:#065F46; }
+  .badge-amber  { background:#FEF3C7; color:#92400E; }
+  .badge-red    { background:#FEE2E2; color:#991B1B; }
+  .badge-purple { background:#EDE9FE; color:#5B21B6; }
+  .dt { width:100%; border-collapse:collapse; font-size:.82rem; }
+  .dt th { background:var(--navy); color:#fff; padding:8px 12px; text-align:left; font-size:.72rem; font-weight:600; position:sticky; top:0; }
+  .dt td { padding:8px 12px; border-bottom:1px solid #F1F5F9; }
+  .dt tr:hover td { background:#F8FAFC; }
+  .dt tr:last-child td { border-bottom:none; }
+  .dt .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .spin { width:20px; height:20px; border:3px solid #E2E8F0; border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #cfg { transition:max-height .3s,opacity .3s; overflow:hidden; }
+  #cfg.open { max-height:300px; opacity:1; }
+  #cfg.shut { max-height:0; opacity:0; }
+  input[type=text],input[type=date] { border:1px solid #E2E8F0; border-radius:6px; padding:5px 10px; font-size:.83rem; width:100%; }
+  input:focus { outline:2px solid #2E6DB4; border-color:transparent; }
+  .seg-bar { height:10px; border-radius:5px; }
+</style>
+</head>
+<body class="p-4 md:p-6">
+
+<!-- HEADER -->
+<div class="flex items-start justify-between flex-wrap gap-3 mb-5">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge-blue">Insyte Analytics</span>
+      <span class="badge badge-green">Order Intake · Ex-GST · Confirmed Only</span>
+      <span class="badge badge-amber">Filtered by OrderDate</span>
+    </div>
+    <h1 class="text-2xl font-black text-slate-800 leading-tight">Average Order Value by Price Segment</h1>
+    <p class="text-sm text-slate-500 mt-0.5">
+      Order intake — JobLines filtered by <code class="bg-slate-100 px-1 rounded text-xs">OrderDate</code> (confirmed jobs only).
+      Excludes cancelled, remake &amp; service lines. Revenue = <code class="bg-slate-100 px-1 rounded text-xs">DiscountedPriceExTax</code> (ex-GST).
+    </p>
+  </div>
+  <div class="flex gap-2 flex-wrap">
+    <button onclick="toggleCfg()" class="text-sm px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium">⚙ Config</button>
+    <button onclick="loadData()" class="text-sm px-4 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">▶ Run</button>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div id="cfg" class="shut mb-5">
+  <div class="card grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="col-span-2 md:col-span-4">
+      <label class="stitle">API Base URL</label>
+      <input id="c-base" type="text" value="https://api.myinsyte.com.au/v2">
+    </div>
+    <div class="col-span-2">
+      <label class="stitle">Email</label>
+      <input id="c-email" type="text" value="">
+    </div>
+    <div class="col-span-2">
+      <label class="stitle">API Key</label>
+      <input id="c-key" type="text" value="">
+    </div>
+    <div>
+      <label class="stitle">From Date</label>
+      <input id="c-from" type="date" value="2026-01-01">
+    </div>
+    <div>
+      <label class="stitle">To Date</label>
+      <input id="c-to" type="date" value="2026-06-26">
+    </div>
+    <div>
+      <label class="stitle">Compare From</label>
+      <input id="c-from2" type="date" value="2025-01-01">
+    </div>
+    <div>
+      <label class="stitle">Compare To</label>
+      <input id="c-to2" type="date" value="2025-06-26">
+    </div>
+  </div>
+</div>
+
+<!-- STATUS -->
+<div id="status-bar" class="card mb-5 hidden">
+  <div class="flex items-center gap-3">
+    <div class="spin" id="spinner"></div>
+    <span id="status-text" class="text-sm text-slate-600 font-medium"></span>
+    <span id="status-count" class="text-xs text-slate-400"></span>
+  </div>
+  <div class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+    <div id="progress-bar" class="h-full bg-blue-500 rounded-full transition-all duration-300" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div id="kpi-row" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4 mb-5"></div>
+
+<!-- MAIN CHARTS -->
+<div id="charts-row" class="hidden grid md:grid-cols-2 gap-4 mb-5">
+  <div class="card">
+    <div class="stitle">Average Order Value by Segment — 2026 vs 2025</div>
+    <canvas id="chart-aov" height="260"></canvas>
+  </div>
+  <div class="card">
+    <div class="stitle">Job Count by Segment — 2026 vs 2025</div>
+    <canvas id="chart-count" height="260"></canvas>
+  </div>
+</div>
+
+<div id="chart-revenue-wrap" class="hidden card mb-5">
+  <div class="stitle">Total Revenue by Segment ($, ex-GST) — 2026 vs 2025</div>
+  <canvas id="chart-revenue" height="130"></canvas>
+</div>
+
+<!-- SEGMENT TABLE -->
+<div id="table-wrap" class="hidden card mb-5">
+  <div class="stitle">Segment Breakdown Detail</div>
+  <div class="overflow-x-auto">
+    <table class="dt" id="seg-table">
+      <thead>
+        <tr>
+          <th>Segment</th>
+          <th class="num">2026 Jobs</th>
+          <th class="num">2026 Avg Order Value</th>
+          <th class="num">2026 Total Revenue</th>
+          <th class="num">2026 Avg GP%</th>
+          <th class="num">2025 Jobs</th>
+          <th class="num">2025 Avg Order Value</th>
+          <th class="num">2025 Total Revenue</th>
+          <th class="num">2025 Avg GP%</th>
+          <th class="num">AOV Change</th>
+          <th class="num">Job Δ</th>
+        </tr>
+      </thead>
+      <tbody id="seg-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DISTRIBUTION CHART -->
+<div id="chart-dist-wrap" class="hidden card mb-5">
+  <div class="stitle">Revenue Share by Segment (2026)</div>
+  <canvas id="chart-dist" height="140"></canvas>
+</div>
+
+<!-- JOB LIST -->
+<div id="job-table-wrap" class="hidden card">
+  <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+    <div class="stitle mb-0">All Jobs — Searchable</div>
+    <div class="flex gap-2 items-center">
+      <input type="text" id="job-search" placeholder="Search rep or ref…" style="width:200px" oninput="filterJobs()">
+      <select id="seg-filter" class="text-sm border border-slate-200 rounded-lg px-2 py-1.5" onchange="filterJobs()">
+        <option value="">All Segments</option>
+      </select>
+      <button onclick="exportCSV()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium">⬇ CSV</button>
+    </div>
+  </div>
+  <div class="overflow-x-auto" style="max-height:400px;overflow-y:auto">
+    <table class="dt" id="job-table">
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Segment</th>
+          <th>Rep</th>
+          <th class="num">Revenue (ex-GST)</th>
+          <th class="num">GP$</th>
+          <th class="num">GP%</th>
+          <th class="num">Discount%</th>
+          <th>Month</th>
+          <th>Year</th>
+        </tr>
+      </thead>
+      <tbody id="job-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PLACEHOLDER -->
+<div id="placeholder" class="card text-center py-16">
+  <div class="text-5xl mb-4">📊</div>
+  <div class="text-lg font-bold text-slate-700 mb-2">Average Order Value by Price Segment</div>
+  <p class="text-sm text-slate-500 max-w-md mx-auto mb-6">
+    Fetches all confirmed orders from Insyte, aggregates by job reference, and segments by total job value into
+    &lt;$1K · $1K–$2K · $2K–$3K · $3K–$5K · $5K–$10K · $10K+ brackets.
+  </p>
+  <button onclick="loadData()" class="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Load Data</button>
+</div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────
+const SEGMENTS = [
+  { label: '< $1K',      min: 0,      max: 1000,   color: '#94A3B8' },
+  { label: '$1K–$2K',   min: 1000,   max: 2000,   color: '#60A5FA' },
+  { label: '$2K–$3K',   min: 2000,   max: 3000,   color: '#2E6DB4' },
+  { label: '$3K–$5K',   min: 3000,   max: 5000,   color: '#0891B2' },
+  { label: '$5K–$10K',  min: 5000,   max: 10000,  color: '#059669' },
+  { label: '$10K+',     min: 10000,  max: Infinity, color: '#7C3AED' },
+];
+
+let allJobs26 = [], allJobs25 = [], chartInstances = {};
+
+function cfg() {
+  return {
+    base:  document.getElementById('c-base').value.trim().replace(/\/$/,''),
+    email: document.getElementById('c-email').value.trim(),
+    key:   document.getElementById('c-key').value.trim(),
+    from:  document.getElementById('c-from').value,
+    to:    document.getElementById('c-to').value,
+    from2: document.getElementById('c-from2').value,
+    to2:   document.getElementById('c-to2').value,
+  };
+}
+
+function toggleCfg() {
+  const el = document.getElementById('cfg');
+  el.classList.toggle('open'); el.classList.toggle('shut');
+}
+
+// ── API ────────────────────────────────────────────────────
+function auth(c) { return 'Basic ' + btoa(c.email + ':' + c.key); }
+
+async function apiFetch(c, path, retries = 4) {
+  const url = c.base + path;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await fetch(url, { headers: { Authorization: auth(c), Accept: 'application/json' } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+}
+
+async function fetchAll(c, path, label, onProgress) {
+  const PAGE = 500, rows = [];
+  let skip = 0, pg = 1;
+  const sep = path.includes('?') ? '&' : '?';
+  while (true) {
+    status(`${label} — page ${pg}…`);
+    const data = await apiFetch(c, `${path}${sep}$top=${PAGE}&$skip=${skip}`);
+    const page = data.value ?? (Array.isArray(data) ? data : []);
+    rows.push(...page);
+    if (onProgress) onProgress(rows.length);
+    if (page.length < PAGE) break;
+    skip += PAGE; pg++;
+  }
+  return rows;
+}
+
+async function fetchJobsBatch(c, ids, onProgress) {
+  const CHUNK = 15, WAVE = 5, map = {};
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
+  for (let i = 0; i < chunks.length; i += WAVE) {
+    const wave = chunks.slice(i, i + WAVE);
+    await Promise.all(wave.map(async ch => {
+      const f = encodeURIComponent(ch.map(id => `ID eq ${id}`).join(' or '));
+      const data = await apiFetch(c, `/Jobs?$filter=${f}&$top=${ch.length * 2}`);
+      const rows = data.value ?? (Array.isArray(data) ? data : []);
+      rows.forEach(j => { map[j.ID] = j; });
+    }));
+    if (onProgress) onProgress(Math.min((i + WAVE) * CHUNK, ids.length), ids.length);
+  }
+  return map;
+}
+
+// ── AGGREGATION ────────────────────────────────────────────
+// Aggregate by JobID — each confirmed job counted once.
+// DiscountedPriceExTax = 0 means fully discounted (keep as 0);
+// only fall back to StandardPriceExTax when the field is null/undefined.
+function safeDisc(l) {
+  return l.DiscountedPriceExTax != null ? l.DiscountedPriceExTax : (l.StandardPriceExTax || 0);
+}
+
+const EXCLUDE_STATUS = new Set(['status_job_line_cancelled']);
+const EXCLUDE_TYPE   = new Set(['type_job_line_remake', 'type_job_line_service']);
+
+function buildJobs(lines, jobMap, userMap) {
+  const byJob = {};
+  for (const l of lines) {
+    if (!l.JobID) continue;                        // skip orphan lines
+    if (EXCLUDE_STATUS.has(l.Status))   continue; // skip cancelled
+    if (EXCLUDE_TYPE.has(l.LineType))   continue; // skip remakes & service calls
+    const job = jobMap[l.JobID] || {};
+    const key = String(l.JobID);                   // one entry per JobID — no revision merging
+    if (!byJob[key]) {
+      byJob[key] = {
+        ref:   job.Reference || key,
+        year:  (l.OrderDate || '').slice(0, 4),
+        month: (l.OrderDate || '').slice(0, 7),
+        rep:   userMap[job.SalesRepID] || `Rep ${job.SalesRepID || '?'}`,
+        std: 0, disc: 0, revenue: 0, cost: 0, gp: 0,
+      };
+    }
+    const std  = l.StandardPriceExTax || 0;
+    const disc = safeDisc(l);                      // 0 stays 0; null → std
+    const cost = (l.DiscountedCostExTax != null ? l.DiscountedCostExTax : (l.StandardCostExTax || 0))
+               + (l.StandardIntallCostExTax || 0)
+               + (l.StandardDeliveryCostExTax || 0);
+    byJob[key].std     += std;
+    byJob[key].disc    += disc;
+    byJob[key].revenue += disc;
+    byJob[key].cost    += cost;
+    byJob[key].gp      += disc - cost;
+  }
+  return Object.values(byJob).map(j => {
+    const disc_pct = j.std > 0 ? Math.max(0, Math.min(100, (1 - j.disc / j.std) * 100)) : 0;
+    const gp_pct   = j.revenue > 0 ? j.gp / j.revenue * 100 : 0;
+    const seg = SEGMENTS.findIndex(s => j.revenue >= s.min && j.revenue < s.max);
+    return { ...j, disc_pct: +disc_pct.toFixed(1), gp_pct: +gp_pct.toFixed(1), seg: seg < 0 ? SEGMENTS.length - 1 : seg };
+  });
+}
+
+function segStats(jobs) {
+  return SEGMENTS.map((s, i) => {
+    const grp = jobs.filter(j => j.seg === i);
+    const rev = grp.reduce((a, j) => a + j.revenue, 0);
+    const gp  = grp.reduce((a, j) => a + j.gp, 0);
+    return {
+      label: s.label, count: grp.length,
+      aov:   grp.length ? rev / grp.length : 0,
+      rev, gp,
+      gp_pct: rev > 0 ? gp / rev * 100 : 0,
+    };
+  });
+}
+
+// ── STATUS ─────────────────────────────────────────────────
+function status(msg, pct) {
+  document.getElementById('status-text').textContent = msg;
+  if (pct !== undefined) document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+// ── LOAD DATA ──────────────────────────────────────────────
+async function loadData() {
+  const c = cfg();
+  const sb = document.getElementById('status-bar');
+  const ph = document.getElementById('placeholder');
+  sb.classList.remove('hidden'); ph.classList.add('hidden');
+  ['kpi-row','charts-row','chart-revenue-wrap','table-wrap','chart-dist-wrap','job-table-wrap']
+    .forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('spinner').style.display = '';
+  document.getElementById('progress-bar').style.width = '0%';
+
+  try {
+    // Users
+    status('Loading users…', 5);
+    const usersRaw = await fetchAll(c, '/Users', 'Users');
+    const userMap = {};
+    usersRaw.forEach(u => { userMap[u.ID] = u.FullName || `${u.FirstName||''} ${u.LastName||''}`.trim() || `Rep ${u.ID}`; });
+
+    // 2026 job lines
+    status('Loading 2026 job lines…', 15);
+    const df = (f, t) => encodeURIComponent(`OrderDate ge ${f}T00:00:00Z and OrderDate le ${t}T23:59:59Z`);
+    const l26 = await fetchAll(c, `/JobLines?$filter=${df(c.from, c.to)}`, '2026 Lines', n => {
+      document.getElementById('status-count').textContent = `${n.toLocaleString()} lines`;
+    });
+    document.getElementById('progress-bar').style.width = '35%';
+
+    // 2025 job lines
+    status('Loading 2025 job lines…', 35);
+    const l25 = await fetchAll(c, `/JobLines?$filter=${df(c.from2, c.to2)}`, '2025 Lines', n => {
+      document.getElementById('status-count').textContent = `${n.toLocaleString()} lines`;
+    });
+    document.getElementById('progress-bar').style.width = '55%';
+
+    // Fetch jobs
+    status('Loading job details…', 55);
+    const allIds = [...new Set([...l26, ...l25].map(l => l.JobID).filter(Boolean))];
+    document.getElementById('status-count').textContent = `0 / ${allIds.length.toLocaleString()} jobs`;
+    const jobMap = await fetchJobsBatch(c, allIds, (done, total) => {
+      document.getElementById('status-count').textContent = `${done.toLocaleString()} / ${total.toLocaleString()} jobs`;
+      document.getElementById('progress-bar').style.width = (55 + (done / total) * 35) + '%';
+    });
+
+    status('Aggregating…', 95);
+    allJobs26 = buildJobs(l26, jobMap, userMap);
+    allJobs25 = buildJobs(l25, jobMap, userMap);
+
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('status-count').textContent = `${allJobs26.length.toLocaleString()} 2026 jobs · ${allJobs25.length.toLocaleString()} 2025 jobs`;
+    status('Done ✓', 100);
+
+    render(c);
+  } catch (err) {
+    status('Error: ' + err.message, 0);
+    document.getElementById('spinner').style.display = 'none';
+    console.error(err);
+  }
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function fmt(v)  { return v >= 1e6 ? `$${(v/1e6).toFixed(2)}M` : v >= 1e3 ? `$${(v/1e3).toFixed(1)}K` : `$${Math.round(v).toLocaleString()}`; }
+function fmtFull(v){ return '$' + Math.round(v).toLocaleString(); }
+function fp(v)   { return v.toFixed(1) + '%'; }
+function delta(a, b, dollars = true) {
+  if (!b) return '—';
+  const d = a - b;
+  const pct = ((a - b) / b * 100).toFixed(1);
+  const sign = d >= 0 ? '+' : '';
+  const col = d >= 0 ? '#059669' : '#DC2626';
+  const val = dollars ? (sign + fmt(Math.abs(d))) : (sign + fmtFull(Math.abs(d)));
+  return `<span style="color:${col};font-weight:700">${sign}${pct}%</span>`;
+}
+
+function render(c) {
+  const s26 = segStats(allJobs26);
+  const s25 = segStats(allJobs25);
+
+  // KPIs
+  const totRev26 = s26.reduce((a, s) => a + s.rev, 0);
+  const totRev25 = s25.reduce((a, s) => a + s.rev, 0);
+  const totJobs26 = allJobs26.length, totJobs25 = allJobs25.length;
+  const aovAll26 = totJobs26 ? totRev26 / totJobs26 : 0;
+  const aovAll25 = totJobs25 ? totRev25 / totJobs25 : 0;
+  const topSeg26 = s26.reduce((a, s) => s.rev > a.rev ? s : a, s26[0]);
+
+  const kpiRow = document.getElementById('kpi-row');
+  kpiRow.classList.remove('hidden');
+  kpiRow.innerHTML = `
+    ${kpiCard('Total Revenue (ex-GST)', fmt(totRev26), `vs ${fmt(totRev25)}`, totRev26, totRev25, '#2E6DB4')}
+    ${kpiCard('Total Jobs (Confirmed)', totJobs26.toLocaleString(), `vs ${totJobs25.toLocaleString()} prior year`, totJobs26, totJobs25, '#059669')}
+    ${kpiCard('Overall Avg Order Value', fmt(aovAll26), `vs ${fmt(aovAll25)} prior year`, aovAll26, aovAll25, '#7C3AED')}
+    ${kpiCard('Highest Rev Segment', topSeg26.label, fmt(topSeg26.rev) + ' total revenue', topSeg26.rev, 0, '#0891B2', true)}
+  `;
+
+  // Charts
+  document.getElementById('charts-row').classList.remove('hidden');
+  document.getElementById('chart-revenue-wrap').classList.remove('hidden');
+
+  const labels = SEGMENTS.map(s => s.label);
+  const colors = SEGMENTS.map(s => s.color);
+
+  makeChart('chart-aov', 'bar', labels,
+    [{ label: '2026 AOV', data: s26.map(s => Math.round(s.aov)), backgroundColor: colors },
+     { label: '2025 AOV', data: s25.map(s => Math.round(s.aov)), backgroundColor: colors.map(c => c + '55') }],
+    { prefix: '$', grouped: true });
+
+  makeChart('chart-count', 'bar', labels,
+    [{ label: '2026 Jobs', data: s26.map(s => s.count), backgroundColor: colors },
+     { label: '2025 Jobs', data: s25.map(s => s.count), backgroundColor: colors.map(c => c + '55') }],
+    { prefix: '', grouped: true });
+
+  makeChart('chart-revenue', 'bar', labels,
+    [{ label: '2026 Revenue', data: s26.map(s => Math.round(s.rev)), backgroundColor: colors },
+     { label: '2025 Revenue', data: s25.map(s => Math.round(s.rev)), backgroundColor: colors.map(c => c + '55') }],
+    { prefix: '$', grouped: true });
+
+  // Segment table
+  document.getElementById('table-wrap').classList.remove('hidden');
+  const tbody = document.getElementById('seg-body');
+  tbody.innerHTML = s26.map((s, i) => {
+    const s2 = s25[i];
+    const aovChange = s2.count ? ((s.aov - s2.aov) / s2.aov * 100).toFixed(1) : null;
+    const jobChange = s2.count ? s.count - s2.count : null;
+    const aovCol = aovChange !== null ? (parseFloat(aovChange) >= 0 ? '#059669' : '#DC2626') : '#94A3B8';
+    const jobCol = jobChange !== null ? (jobChange >= 0 ? '#059669' : '#DC2626') : '#94A3B8';
+    const dot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${SEGMENTS[i].color};margin-right:6px"></span>`;
+    return `<tr>
+      <td><b>${dot}${s.label}</b></td>
+      <td class="num">${s.count.toLocaleString()}</td>
+      <td class="num"><b>${fmtFull(s.aov)}</b></td>
+      <td class="num">${fmt(s.rev)}</td>
+      <td class="num">${fp(s.gp_pct)}</td>
+      <td class="num">${s2.count.toLocaleString()}</td>
+      <td class="num">${fmtFull(s2.aov)}</td>
+      <td class="num">${fmt(s2.rev)}</td>
+      <td class="num">${fp(s2.gp_pct)}</td>
+      <td class="num" style="color:${aovCol};font-weight:700">${aovChange !== null ? (parseFloat(aovChange)>=0?'+':'')+aovChange+'%' : '—'}</td>
+      <td class="num" style="color:${jobCol};font-weight:700">${jobChange !== null ? (jobChange>=0?'+':'')+jobChange : '—'}</td>
+    </tr>`;
+  }).join('') +
+  `<tr style="background:#F8FAFC;font-weight:700;border-top:2px solid #E2E8F0">
+    <td>TOTAL</td>
+    <td class="num">${totJobs26.toLocaleString()}</td>
+    <td class="num">${fmtFull(aovAll26)}</td>
+    <td class="num">${fmt(totRev26)}</td>
+    <td class="num">${fp(allJobs26.reduce((a,j)=>a+j.gp,0)/totRev26*100)}</td>
+    <td class="num">${totJobs25.toLocaleString()}</td>
+    <td class="num">${fmtFull(aovAll25)}</td>
+    <td class="num">${fmt(totRev25)}</td>
+    <td class="num">—</td>
+    <td class="num">${delta(aovAll26,aovAll25)}</td>
+    <td class="num" style="color:${totJobs26>=totJobs25?'#059669':'#DC2626'};font-weight:700">${totJobs26>=totJobs25?'+':''}${totJobs26-totJobs25}</td>
+  </tr>`;
+
+  // Revenue share doughnut
+  document.getElementById('chart-dist-wrap').classList.remove('hidden');
+  makeChart('chart-dist', 'doughnut', labels,
+    [{ data: s26.map(s => Math.round(s.rev)), backgroundColor: colors }],
+    { prefix: '$', pie: true });
+
+  // Job filter dropdown
+  const sel = document.getElementById('seg-filter');
+  sel.innerHTML = '<option value="">All Segments</option>' +
+    SEGMENTS.map((s, i) => `<option value="${i}">${s.label}</option>`).join('');
+
+  document.getElementById('job-table-wrap').classList.remove('hidden');
+  renderJobTable(allJobs26, '2026');
+}
+
+function renderJobTable(jobs) {
+  const body = document.getElementById('job-body');
+  body.innerHTML = jobs.slice(0, 1000).map(j => {
+    const s = SEGMENTS[j.seg];
+    const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${s.color};margin-right:5px"></span>`;
+    const gpCol = j.gp_pct >= 40 ? '#059669' : j.gp_pct >= 25 ? '#D97706' : '#DC2626';
+    return `<tr>
+      <td class="font-mono text-xs">${j.ref}</td>
+      <td>${dot}<span style="font-size:.75rem;font-weight:600">${s.label}</span></td>
+      <td>${j.rep}</td>
+      <td class="num font-semibold">${fmtFull(j.revenue)}</td>
+      <td class="num">${fmtFull(j.gp)}</td>
+      <td class="num" style="color:${gpCol};font-weight:700">${fp(j.gp_pct)}</td>
+      <td class="num">${fp(j.disc_pct)}</td>
+      <td>${j.month}</td>
+      <td>${j.year}</td>
+    </tr>`;
+  }).join('');
+  if (jobs.length > 1000) {
+    body.innerHTML += `<tr><td colspan="9" class="text-center text-slate-400 text-xs py-2">Showing first 1,000 of ${jobs.length.toLocaleString()} jobs — use segment filter or search to narrow</td></tr>`;
+  }
+}
+
+function filterJobs() {
+  const q = document.getElementById('job-search').value.toLowerCase();
+  const seg = document.getElementById('seg-filter').value;
+  let jobs = allJobs26.filter(j => {
+    const matchSeg = seg === '' || j.seg === +seg;
+    const matchQ   = !q || j.ref.toLowerCase().includes(q) || j.rep.toLowerCase().includes(q);
+    return matchSeg && matchQ;
+  });
+  renderJobTable(jobs);
+}
+
+// ── CHART HELPER ──────────────────────────────────────────
+function makeChart(id, type, labels, datasets, opts = {}) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); }
+  const ctx = document.getElementById(id).getContext('2d');
+  const isBar = type === 'bar';
+  chartInstances[id] = new Chart(ctx, {
+    type,
+    data: { labels, datasets: datasets.map(d => ({ ...d, borderWidth: 0, borderRadius: isBar ? 4 : 0, barPercentage: opts.grouped ? 0.7 : 0.85, categoryPercentage: 0.8 })) },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: isBar, position: 'bottom', labels: { font: { size: 11 }, padding: 12 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed[isBar ? 'y' : ''] ?? ctx.parsed;
+              if (opts.prefix === '$') return ` ${ctx.dataset.label}: $${Math.round(v).toLocaleString()}`;
+              return ` ${ctx.dataset.label}: ${Math.round(v).toLocaleString()}`;
+            }
+          }
+        }
+      },
+      scales: isBar ? {
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+        y: {
+          ticks: {
+            font: { size: 11 }, color: '#64748B',
+            callback: v => opts.prefix === '$' ? '$' + (v >= 1000 ? (v/1000).toFixed(0)+'K' : v) : v
+          },
+          grid: { color: '#F1F5F9' },
+        }
+      } : undefined,
+    }
+  });
+}
+
+// ── KPI CARD ──────────────────────────────────────────────
+function kpiCard(label, val, sub, v26, v25, col, noChange = false) {
+  let badge = '';
+  if (!noChange && v25) {
+    const pct = ((v26 - v25) / v25 * 100);
+    const up = pct >= 0;
+    const cls = up ? 'badge-green' : 'badge-red';
+    badge = `<span class="badge ${cls} mt-1">${up?'▲':'▼'} ${Math.abs(pct).toFixed(1)}% YoY</span>`;
+  }
+  return `<div class="card">
+    <div class="stitle">${label}</div>
+    <div class="text-2xl font-black" style="color:${col}">${val}</div>
+    <div class="text-xs text-slate-500 mt-0.5">${sub}</div>
+    ${badge}
+  </div>`;
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────
+function exportCSV() {
+  const q = document.getElementById('job-search').value.toLowerCase();
+  const seg = document.getElementById('seg-filter').value;
+  const jobs = allJobs26.filter(j => {
+    return (seg === '' || j.seg === +seg) && (!q || j.ref.toLowerCase().includes(q) || j.rep.toLowerCase().includes(q));
+  });
+  const header = 'Reference,Segment,Rep,Revenue,GP$,GP%,Discount%,Month,Year\n';
+  const rows = jobs.map(j =>
+    `${j.ref},${SEGMENTS[j.seg].label},${j.rep},${j.revenue.toFixed(2)},${j.gp.toFixed(2)},${j.gp_pct.toFixed(1)},${j.disc_pct.toFixed(1)},${j.month},${j.year}`
+  ).join('\n');
+  const blob = new Blob([header + rows], { type: 'text/csv' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'aov_segments.csv' });
+  a.click();
+}
+</script>
+</body>
+</html>

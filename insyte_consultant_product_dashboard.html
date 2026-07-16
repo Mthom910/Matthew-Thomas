@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultant Performance &amp; Product Sales Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:   #1E3A5F;
+    --blue:   #2E6DB4;
+    --teal:   #0E9F8E;
+    --green:  #1A7A4A;
+    --amber:  #D97706;
+    --red:    #DC2626;
+    --purple: #7C3AED;
+    --slate:  #64748B;
+    --light:  #F1F5F9;
+  }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #F1F5F9; }
+
+  .kpi-card { background:#fff; border-radius:12px; padding:18px 20px; box-shadow:0 1px 4px rgba(0,0,0,.07); }
+  .kpi-num  { font-size:1.85rem; font-weight:800; line-height:1; }
+  .kpi-sub  { font-size:.75rem; color:#64748B; margin-top:4px; }
+  .section-title { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#94A3B8; margin-bottom:12px; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:20px; }
+
+  .dash-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+  .dash-table th { background:var(--navy); color:#fff; padding:8px 10px; text-align:left; font-weight:600; font-size:.72rem; cursor:pointer; user-select:none; white-space:nowrap; }
+  .dash-table th:hover { background:#2a4a73; }
+  .dash-table th.sorted::after { content:' \25BE'; opacity:.8; }
+  .dash-table td { padding:7px 10px; border-bottom:1px solid #E2E8F0; white-space:nowrap; }
+  .dash-table tr:hover td { background:#F8FAFC; }
+  .dash-table tr:last-child td { border-bottom:none; }
+
+  .inline-bar { height:6px; border-radius:3px; background:#E2E8F0; overflow:hidden; }
+  .inline-bar-fill { height:100%; border-radius:3px; }
+
+  .funnel-wrap { display:flex; flex-direction:column; align-items:center; width:100%; gap:4px; }
+  .funnel-bar { height:52px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; padding:0 20px; width:100%; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+  .funnel-bar span.flabel { color:#fff; font-weight:700; font-size:.9rem; }
+  .funnel-bar span.fcount { color:#fff; font-weight:800; font-size:1.35rem; }
+  .funnel-conv { display:flex; align-items:center; gap:8px; font-size:.75rem; color:#475569; padding:2px 0 2px 24px; }
+  .funnel-conv .pill { padding:2px 9px; border-radius:99px; font-weight:700; font-size:.72rem; }
+  .pill-good { background:#D1FAE5; color:#065F46; }
+  .pill-mid  { background:#FEF3C7; color:#92400E; }
+  .pill-bad  { background:#FEE2E2; color:#991B1B; }
+
+  .attach-card { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px; text-align:center; }
+  .attach-num { font-size:1.6rem; font-weight:800; color:var(--purple); }
+  .attach-lbl { font-size:.72rem; color:#64748B; margin-top:2px; }
+
+  .insight-card { background:#FFFBEB; border:1px solid #FCD34D; border-radius:10px; padding:12px 16px; font-size:.82rem; }
+  .insight-card b { color:#92400E; }
+
+  #config-panel { transition:max-height .3s ease, opacity .3s ease; overflow:hidden; }
+  #config-panel.hidden-panel { max-height:0; opacity:0; }
+  #config-panel.shown-panel  { max-height:400px; opacity:1; }
+
+  .spinner { width:22px; height:22px; border:3px solid #E2E8F0; border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  #toast { position:fixed; bottom:24px; right:24px; z-index:9999; }
+  .toast-msg { padding:10px 18px; border-radius:8px; font-size:.85rem; font-weight:600; margin-top:6px; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,.2); }
+
+  .navpill { padding:6px 14px; border-radius:99px; font-size:.8rem; font-weight:600; background:#fff; border:1px solid #E2E8F0; color:#334155; }
+  .navpill:hover { background:#F1F5F9; }
+
+  ::-webkit-scrollbar { height:8px; width:8px; }
+  ::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:4px; }
+</style>
+</head>
+<body class="min-h-screen p-4 md:p-6">
+
+<!-- ══════════════════════════ HEADER ══ -->
+<div class="flex items-center justify-between mb-3 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl font-black text-slate-800">Consultant Performance &amp; Product Sales</h1>
+    <p class="text-sm text-slate-500 mt-0.5">Leads &rarr; Appointments &rarr; Orders funnel by consultant, plus product / fabric / parts sales analysis</p>
+  </div>
+  <div class="flex items-center gap-3 flex-wrap">
+    <div id="last-updated" class="text-xs text-slate-400"></div>
+    <div id="spin-wrap" class="hidden"><div class="spinner"></div></div>
+    <button onclick="loadData()" id="load-btn" class="px-4 py-2 rounded-lg text-white text-sm font-semibold shadow hover:opacity-90" style="background:var(--blue)">&#8635; Load Data</button>
+    <button onclick="toggleConfig()" class="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white hover:bg-slate-50">&#9881; Config</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════ CONFIG ══ -->
+<div id="config-panel" class="shown-panel">
+  <div class="bg-white rounded-xl shadow p-5 mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+    <div class="lg:col-span-2">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">API Base URL</label>
+      <input id="cfg-base" type="text" value="https://api.myinsyte.com.au/v2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+      <input id="cfg-email" type="text" value="" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+    </div>
+    <div class="lg:col-span-2">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">API Key</label>
+      <input id="cfg-key" type="password" value="" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">From</label>
+        <input id="cfg-from" type="date" value="2026-01-01" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">To</label>
+        <input id="cfg-to" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+    </div>
+    <div class="lg:col-span-6 flex items-center justify-between">
+      <div id="load-status" class="text-xs text-slate-500"></div>
+      <button onclick="saveConfig(); loadData();" class="px-5 py-2 rounded-lg text-white text-sm font-semibold shadow hover:opacity-90" style="background:var(--green)">Save &amp; Load Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ QUICK NAV ══ -->
+<div class="flex gap-2 mb-4">
+  <a href="#sec-consultants" class="navpill">&#128100; Consultant Performance</a>
+  <a href="#sec-products" class="navpill">&#128230; Product Sales Analysis</a>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1 — CONSULTANT PERFORMANCE                              -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<h2 id="sec-consultants" class="text-lg font-bold text-slate-700 mb-3 mt-2 pt-2">1. Sales Consultant Performance</h2>
+
+<div id="kpi-row-c" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4">
+  <div class="kpi-card"><div class="section-title">Leads Assigned</div><div class="kpi-num text-slate-800" id="kc-leads">&mdash;</div><div class="kpi-sub" id="kc-leads-sub">&mdash;</div></div>
+  <div class="kpi-card"><div class="section-title">Appointments</div><div class="kpi-num" style="color:var(--blue)" id="kc-appts">&mdash;</div><div class="kpi-sub" id="kc-appts-sub">of leads</div></div>
+  <div class="kpi-card"><div class="section-title">Orders Won</div><div class="kpi-num" style="color:var(--green)" id="kc-orders">&mdash;</div><div class="kpi-sub" id="kc-orders-sub">of appts</div></div>
+  <div class="kpi-card"><div class="section-title">Appointment &rarr; Order</div><div class="kpi-num" style="color:var(--teal)" id="kc-e2e">&mdash;%</div><div class="kpi-sub">appt conversion rate</div></div>
+  <div class="kpi-card"><div class="section-title">Order Revenue</div><div class="kpi-num text-slate-800" id="kc-rev">&mdash;</div><div class="kpi-sub" id="kc-gp">GP &mdash;</div></div>
+  <div class="kpi-card border-2" style="border-color:var(--purple)"><div class="section-title" style="color:var(--purple)">of which Service</div><div class="kpi-num" style="color:var(--purple)" id="kc-service">&mdash;</div><div class="kpi-sub" id="kc-service-sub">&mdash;% of order revenue</div></div>
+  <div class="kpi-card"><div class="section-title">AOV / Avg Discount</div><div class="kpi-num" style="color:var(--amber)" id="kc-aov">&mdash;</div><div class="kpi-sub" id="kc-disc">disc &mdash;%</div></div>
+</div>
+
+<div class="card mb-4" style="background:#F8FAFC; border:1px dashed #CBD5E1;">
+  <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+    <div class="section-title mb-0">Excluded From Revenue &amp; Discount Totals &mdash; Tracked Separately</div>
+    <div class="text-xs text-slate-400">Unconfirmed quotes aren&rsquo;t real orders yet; remake lines are free warranty replacements at ~100% discount &mdash; both were skewing Avg Discount above, so they&rsquo;re pulled out here instead.</div>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="attach-card" style="text-align:left; display:flex; justify-content:space-between; align-items:center;">
+      <div><div class="attach-lbl" style="margin-top:0">Unconfirmed Quotes</div><div class="attach-num" style="color:var(--slate)" id="kc-unconfirmed">&mdash;</div></div>
+      <div class="text-xs text-slate-400 text-right" id="kc-unconfirmed-sub">&mdash; lines</div>
+    </div>
+    <div class="attach-card" style="text-align:left; display:flex; justify-content:space-between; align-items:center;">
+      <div><div class="attach-lbl" style="margin-top:0">Remake Lines</div><div class="attach-num" style="color:var(--slate)" id="kc-remake">&mdash;</div></div>
+      <div class="text-xs text-slate-400 text-right" id="kc-remake-sub">&mdash; lines</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+  <div class="card lg:col-span-1">
+    <div class="section-title">Overall Funnel</div>
+    <div id="funnel-container" class="funnel-wrap mt-2">
+      <div class="text-slate-400 text-sm text-center py-8">Load data to view funnel</div>
+    </div>
+  </div>
+  <div class="card lg:col-span-2">
+    <div class="section-title">Revenue by Consultant (top 15)</div>
+    <canvas id="chart-rep-rev" height="200"></canvas>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card">
+    <div class="section-title">Conversion Rates by Consultant (top 15 by leads)</div>
+    <canvas id="chart-rep-conv" height="230"></canvas>
+  </div>
+  <div class="card">
+    <div class="section-title">AOV vs Discount % by Consultant (bubble = revenue)</div>
+    <canvas id="chart-rep-scatter" height="230"></canvas>
+  </div>
+</div>
+
+<div id="insight-strip" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+
+<div class="card mb-6">
+  <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+    <div>
+      <div class="section-title mb-0">Consultant Leaderboard</div>
+      <div class="text-xs text-slate-400 mt-0.5">Excludes accounts with &lt;5 appointments &amp; &lt;5 orders (lead-intake / call-centre staff, not field consultants) &mdash; see &ldquo;Leads Assigned&rdquo; KPI above for the full book</div>
+    </div>
+    <input id="rep-search" type="text" placeholder="Search consultant&hellip;" oninput="renderConsultantTable()" class="text-xs border border-slate-200 rounded px-3 py-1.5 w-52 focus:outline-none focus:ring-2 focus:ring-blue-300">
+  </div>
+  <div style="max-height:460px; overflow:auto">
+    <table class="dash-table" id="consultant-table">
+      <thead>
+        <tr>
+          <th data-key="rep">Consultant</th>
+          <th data-key="leads" class="text-right">Leads</th>
+          <th data-key="appts" class="text-right">Appts</th>
+          <th data-key="orders" class="text-right">Orders</th>
+          <th data-key="convLeadAppt" class="text-right">Lead&rarr;Appt%</th>
+          <th data-key="convApptOrder" class="text-right">Appt&rarr;Order%</th>
+          <th data-key="convLeadOrder" class="text-right">Lead&rarr;Order%</th>
+          <th data-key="revenue" class="text-right sorted">Revenue</th>
+          <th data-key="aov" class="text-right">AOV</th>
+          <th data-key="avgDisc" class="text-right">Avg Disc%</th>
+          <th data-key="gpPct" class="text-right">GP%</th>
+        </tr>
+      </thead>
+      <tbody id="consultant-tbody"><tr><td colspan="11" class="text-slate-400 text-xs py-6 text-center">Load data to populate</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2 — PRODUCT SALES ANALYSIS                              -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<h2 id="sec-products" class="text-lg font-bold text-slate-700 mb-1 mt-2 pt-2 border-t border-slate-200">2. Product Sales Analysis</h2>
+<p class="text-xs text-slate-400 mb-3">Excludes cancelled, unconfirmed-quote, and remake lines &mdash; see the excluded-totals panel in section 1 for those figures.</p>
+
+<div id="kpi-row-p" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4">
+  <div class="kpi-card"><div class="section-title">Lines Sold</div><div class="kpi-num text-slate-800" id="kp-lines">&mdash;</div><div class="kpi-sub" id="kp-units">&mdash; units</div></div>
+  <div class="kpi-card"><div class="section-title">Product Revenue</div><div class="kpi-num" style="color:var(--blue)" id="kp-rev">&mdash;</div><div class="kpi-sub" id="kp-avgline">avg line &mdash;</div></div>
+  <div class="kpi-card border-2" style="border-color:var(--purple)"><div class="section-title" style="color:var(--purple)">of which Service</div><div class="kpi-num" style="color:var(--purple)" id="kp-service">&mdash;</div><div class="kpi-sub" id="kp-service-sub">&mdash;% of product revenue</div></div>
+  <div class="kpi-card"><div class="section-title">Avg Discount</div><div class="kpi-num" style="color:var(--amber)" id="kp-disc">&mdash;%</div><div class="kpi-sub">across all lines</div></div>
+  <div class="kpi-card"><div class="section-title">Distinct Products</div><div class="kpi-num text-slate-800" id="kp-nprod">&mdash;</div><div class="kpi-sub">product types sold</div></div>
+  <div class="kpi-card"><div class="section-title">Distinct Fabrics</div><div class="kpi-num" style="color:var(--teal)" id="kp-nfab">&mdash;</div><div class="kpi-sub">fabric options sold</div></div>
+  <div class="kpi-card"><div class="section-title">Suppliers</div><div class="kpi-num" style="color:var(--purple)" id="kp-nsup">&mdash;</div><div class="kpi-sub">distinct suppliers</div></div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card">
+    <div class="section-title">Top Products by Revenue</div>
+    <canvas id="chart-products" height="260"></canvas>
+  </div>
+  <div class="card">
+    <div class="section-title">Top Suppliers by Revenue</div>
+    <canvas id="chart-suppliers" height="260"></canvas>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+    <div class="section-title mb-0">Product Leaderboard</div>
+    <input id="product-search" type="text" placeholder="Search product&hellip;" oninput="renderProductTable()" class="text-xs border border-slate-200 rounded px-3 py-1.5 w-52 focus:outline-none focus:ring-2 focus:ring-blue-300">
+  </div>
+  <div style="max-height:400px; overflow:auto">
+    <table class="dash-table" id="product-table">
+      <thead>
+        <tr>
+          <th data-key="product">Product</th>
+          <th data-key="suppliers">Supplier(s)</th>
+          <th data-key="count" class="text-right">Lines</th>
+          <th data-key="qty" class="text-right">Units</th>
+          <th data-key="revenue" class="text-right sorted">Revenue</th>
+          <th data-key="aov" class="text-right">Avg Price</th>
+          <th data-key="avgDisc" class="text-right">Avg Disc%</th>
+          <th>Top Fabric</th>
+        </tr>
+      </thead>
+      <tbody id="product-tbody"><tr><td colspan="8" class="text-slate-400 text-xs py-6 text-center">Load data to populate</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card">
+    <div class="section-title">Top Fabrics by Revenue</div>
+    <canvas id="chart-fabrics" height="280"></canvas>
+  </div>
+  <div class="card">
+    <div style="max-height:340px; overflow:auto">
+      <table class="dash-table" id="fabric-table">
+        <thead><tr><th>Fabric</th><th class="text-right">Units</th><th class="text-right">Revenue</th><th class="text-right">Avg Disc%</th></tr></thead>
+        <tbody id="fabric-tbody"><tr><td colspan="4" class="text-slate-400 text-xs py-6 text-center">Load data to populate</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="section-title">Attach Rate &mdash; Key Parts &amp; Accessories</div>
+  <div id="attach-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="text-slate-400 text-sm">Load data to populate</div>
+  </div>
+</div>
+
+<div class="card mb-6">
+  <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+    <div class="section-title mb-0">Attribute Explorer &mdash; which options / parts are selling</div>
+    <select id="attr-select" onchange="renderAttributeExplorer()" class="text-xs border border-slate-200 rounded px-2 py-1.5"></select>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <canvas id="chart-attr" height="260"></canvas>
+    <div style="max-height:320px; overflow:auto">
+      <table class="dash-table" id="attr-table">
+        <thead><tr><th>Value</th><th class="text-right">Lines</th><th class="text-right">Units</th><th class="text-right">Revenue</th></tr></thead>
+        <tbody id="attr-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+const LS = 'insyte_consultant_product_cfg';
+
+function getConfig() {
+  return {
+    base:  document.getElementById('cfg-base').value.trim().replace(/\/$/, ''),
+    email: document.getElementById('cfg-email').value.trim(),
+    key:   document.getElementById('cfg-key').value.trim(),
+    from:  document.getElementById('cfg-from').value,
+    to:    document.getElementById('cfg-to').value,
+  };
+}
+function saveConfig() { localStorage.setItem(LS, JSON.stringify(getConfig())); }
+function loadConfig() {
+  const today = new Date().toISOString().slice(0,10);
+  const saved = JSON.parse(localStorage.getItem(LS) || '{}');
+  const cfg = { from: '2026-01-01', to: today, ...saved };
+  document.getElementById('cfg-from').value = cfg.from;
+  document.getElementById('cfg-to').value   = cfg.to;
+  if (cfg.base)  document.getElementById('cfg-base').value  = cfg.base;
+  if (cfg.email) document.getElementById('cfg-email').value = cfg.email;
+  if (cfg.key)   document.getElementById('cfg-key').value   = cfg.key;
+}
+function toggleConfig() {
+  const p = document.getElementById('config-panel');
+  p.classList.toggle('hidden-panel'); p.classList.toggle('shown-panel');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════════
+function authHeader(c) { return 'Basic ' + btoa(c.email + ':' + c.key); }
+async function apiGet(c, path) {
+  const res = await fetch(c.base + path, { headers: { Authorization: authHeader(c), Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path.split('?')[0]}`);
+  return res.json();
+}
+// Insyte uses $skip pagination, not @odata.nextLink
+async function fetchAll(c, path, label) {
+  const PAGE = 500;
+  const clean = path.replace(/([&?])\$top=\d+/gi, '$1').replace(/([&?])\$skip=\d+/gi, '$1').replace(/[?&]+$/, '');
+  const sep = clean.includes('?') ? '&' : '?';
+  let rows = [], skip = 0, page = 1;
+  while (true) {
+    status(`${label}: page ${page} (${rows.length.toLocaleString()} so far)…`);
+    const data = await apiGet(c, `${clean}${sep}$top=${PAGE}&$skip=${skip}`);
+    const pg = data.value || (Array.isArray(data) ? data : []);
+    rows = rows.concat(pg);
+    if (pg.length < PAGE) break;
+    skip += PAGE; page++;
+  }
+  return rows;
+}
+function dateFilter(field, from, to) {
+  const p = [];
+  if (from) p.push(`${field} ge ${from}T00:00:00Z`);
+  if (to)   p.push(`${field} le ${to}T23:59:59Z`);
+  return p.join(' and ');
+}
+function status(msg) { document.getElementById('load-status').textContent = msg; }
+function toast(msg, color) {
+  const el = document.createElement('div');
+  el.className = 'toast-msg';
+  el.style.background = color === 'red' ? 'var(--red)' : color === 'amber' ? 'var(--amber)' : 'var(--green)';
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let STATE = { users:{}, opps:[], acts:[], lines:[], jobMap:{}, orders:[], validLines:[], repStats:[], productStats:[], supplierStats:[], attrData:{}, fabricStats:[], serviceRevenue:0, serviceLineCount:0, unconfirmedLines:[], remakeLines:[], unconfirmedRevenue:0, remakeRevenue:0 };
+let CHARTS = {};
+let SORT_C = { key:'revenue', dir:-1 };
+let SORT_P = { key:'revenue', dir:-1 };
+
+// Cancelled lines are always excluded. Unconfirmed-stage quotes and remake
+// (warranty/free-replacement) lines are ALSO pulled out of the core revenue
+// total — they're not really "sales" and remake lines in particular carry a
+// near-100% discount that, even at a tiny dollar amount, drags the simple
+// average discount% up a lot (575 remake/service/alter lines in one month's
+// data pulled avg discount from ~35% to ~47%). They're not dropped though —
+// see STATE.unconfirmedRevenue / STATE.remakeRevenue and the "excluded"
+// panel in the UI. This means Order Revenue will run slightly BELOW what
+// Insyte's raw native export shows (that export includes both) — the
+// tradeoff was requested explicitly to keep the discount% metric meaningful.
+// Service work (isServiceLine) stays IN the core total, just labeled.
+const EXCLUDE_LINE_STATUS = new Set(['status_job_line_cancelled']);
+const EXCLUDE_LINE_STAGE  = new Set(['stage_job_line_unconfirmed']);
+const EXCLUDE_LINE_TYPE   = new Set(['type_job_line_remake']);
+const NEGATIVE_VALS = /^(none|no|n\/a|nil|)$/i;
+
+function isServiceLine(l, job) {
+  return (job && job.JobType === 'type_job_service') || l.LineType === 'type_job_line_service';
+}
+
+function safeDisc(l) { return (l.DiscountedPriceExTax != null) ? l.DiscountedPriceExTax : (l.StandardPriceExTax || 0); }
+function safeCost(l) {
+  let c = l.DiscountedCostExTax; if (c == null) c = l.StandardCostExTax || 0;
+  return c + (l.StandardIntallCostExTax || 0) + (l.StandardDeliveryCostExTax || 0);
+}
+function baseRef(ref) { return String(ref || '').replace(/-\d+$/, ''); }
+function discPct(std, disc) { return std > 0 ? Math.max(0, Math.min(100, (1 - disc/std) * 100)) : 0; }
+function fmtMoney(n) { return '$' + Math.round(n || 0).toLocaleString(); }
+function fmtInt(n) { return Math.round(n || 0).toLocaleString(); }
+function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
+function pctColor(n, good, mid) { return n >= good ? 'var(--green)' : n >= mid ? 'var(--amber)' : 'var(--red)'; }
+
+// ═══════════════════════════════════════════════════════════════
+// LOAD DATA
+// ═══════════════════════════════════════════════════════════════
+async function loadData() {
+  const c = getConfig();
+  if (!c.email || !c.key) { toast('Enter API credentials', 'amber'); return; }
+  document.getElementById('load-btn').disabled = true;
+  document.getElementById('spin-wrap').classList.remove('hidden');
+  try {
+    // Users
+    const users = await fetchAll(c, '/Users', 'Users');
+    STATE.users = {};
+    users.forEach(u => { STATE.users[u.ID] = u.FullName || `${u.FirstName||''} ${u.LastName||''}`.trim() || `Rep ${u.ID}`; });
+
+    // Leads (Opportunities)
+    const oppFilter = encodeURIComponent(dateFilter('LeadDate', c.from, c.to));
+    STATE.opps = await fetchAll(c, `/Opportunities?$filter=${oppFilter}`, 'Leads');
+
+    // Appointments (Activities)
+    const actFilter = encodeURIComponent(dateFilter('Start', c.from, c.to) + " and ActivityType eq 'Sales Appointment'");
+    STATE.acts = await fetchAll(c, `/Activities?$filter=${actFilter}`, 'Appointments');
+
+    // Order lines (JobLines)
+    const lineFilter = encodeURIComponent(dateFilter('OrderDate', c.from, c.to));
+    STATE.lines = await fetchAll(c, `/JobLines?$filter=${lineFilter}`, 'Job Lines');
+
+    // Batch-fetch parent Jobs for the lines
+    const jobIds = [...new Set(STATE.lines.map(l => l.JobID).filter(Boolean))];
+    STATE.jobMap = {};
+    const CHUNK = 20;
+    for (let i = 0; i < jobIds.length; i += CHUNK) {
+      const chunk = jobIds.slice(i, i + CHUNK);
+      status(`Jobs: ${Math.min(i+CHUNK, jobIds.length).toLocaleString()}/${jobIds.length.toLocaleString()}…`);
+      const fstr = encodeURIComponent(chunk.map(id => `ID eq ${id}`).join(' or '));
+      try {
+        const data = await apiGet(c, `/Jobs?$filter=${fstr}&$top=${CHUNK*2}`);
+        (data.value || []).forEach(j => { STATE.jobMap[j.ID] = j; });
+      } catch (e) { console.warn('job chunk failed', e); }
+    }
+
+    process();
+    renderAll();
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    toast(`Loaded ${STATE.opps.length.toLocaleString()} leads · ${STATE.acts.length.toLocaleString()} appts · ${STATE.lines.length.toLocaleString()} lines`, 'green');
+  } catch (e) {
+    console.error(e);
+    toast('Error: ' + e.message, 'red');
+  }
+  document.getElementById('load-btn').disabled = false;
+  document.getElementById('spin-wrap').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROCESSING
+// ═══════════════════════════════════════════════════════════════
+function process() {
+  // Core, revenue-bearing lines — excludes cancelled, unconfirmed-stage, and
+  // remake lines. Unconfirmed/remake are tracked separately below rather than
+  // dropped outright, see STATE.unconfirmedRevenue / STATE.remakeRevenue.
+  const nonCancelled = STATE.lines.filter(l => l.JobID && !EXCLUDE_LINE_STATUS.has(l.Status));
+  STATE.unconfirmedLines = nonCancelled.filter(l => EXCLUDE_LINE_STAGE.has(l.Stage));
+  STATE.remakeLines = nonCancelled.filter(l => !EXCLUDE_LINE_STAGE.has(l.Stage) && EXCLUDE_LINE_TYPE.has(l.LineType));
+  STATE.validLines = nonCancelled.filter(l => !EXCLUDE_LINE_STAGE.has(l.Stage) && !EXCLUDE_LINE_TYPE.has(l.LineType));
+
+  STATE.unconfirmedRevenue = STATE.unconfirmedLines.reduce((s,l) => s + safeDisc(l), 0);
+  STATE.remakeRevenue = STATE.remakeLines.reduce((s,l) => s + safeDisc(l), 0);
+
+  // Orders = unique jobs (grouped by base reference, stripping -N suffix)
+  const byKey = {};
+  STATE.validLines.forEach(l => {
+    const job = STATE.jobMap[l.JobID] || {};
+    const key = baseRef(job.Reference || String(l.JobID));
+    if (!byKey[key]) byKey[key] = { jobId: l.JobID, repId: job.SalesRepID, rep: STATE.users[job.SalesRepID] || (job.SalesRepID ? `Rep ${job.SalesRepID}` : 'Unassigned'), std:0, disc:0, cost:0, serviceDisc:0 };
+    byKey[key].std  += l.StandardPriceExTax || 0;
+    byKey[key].disc += safeDisc(l);
+    byKey[key].cost += safeCost(l);
+    if (isServiceLine(l, job)) byKey[key].serviceDisc += safeDisc(l);
+  });
+  STATE.orders = Object.values(byKey).map(o => {
+    const revenue = o.disc, gp = revenue - o.cost;
+    return { ...o, revenue, gp, discPct: discPct(o.std, o.disc), gpPct: revenue ? gp/revenue*100 : 0, serviceRevenue: o.serviceDisc };
+  });
+
+  // Service revenue called out separately — see isServiceLine()
+  STATE.serviceRevenue = STATE.validLines.reduce((s,l) => s + (isServiceLine(l, STATE.jobMap[l.JobID]) ? safeDisc(l) : 0), 0);
+  STATE.serviceLineCount = STATE.validLines.filter(l => isServiceLine(l, STATE.jobMap[l.JobID])).length;
+
+  // Consultant funnel stats
+  const stats = {};
+  function ensure(id) {
+    if (!stats[id]) stats[id] = { repId:id, rep: STATE.users[id] || `Rep ${id}`, leads:0, leadsWon:0, leadsLost:0, leadsOpen:0, appts:0, apptsClosed:0, orders:0, revenue:0, gp:0, discSum:0, discCount:0 };
+    return stats[id];
+  }
+  STATE.opps.forEach(o => {
+    if (!o.RepresentativeID) return;
+    const s = ensure(o.RepresentativeID);
+    s.leads++;
+    if (o.Status === 'status_lead_won') s.leadsWon++;
+    else if (o.Status === 'status_lead_lost') s.leadsLost++;
+    else s.leadsOpen++;
+  });
+  STATE.acts.forEach(a => {
+    if (!a.RepresentativeID || a.Cancelled) return;
+    const s = ensure(a.RepresentativeID);
+    s.appts++;
+    if (a.Closed) s.apptsClosed++;
+  });
+  STATE.orders.forEach(o => {
+    if (!o.repId) return;
+    const s = ensure(o.repId);
+    s.orders++; s.revenue += o.revenue; s.gp += o.gp;
+    s.discSum += o.discPct; s.discCount++;
+  });
+  STATE.repStats = Object.values(stats)
+    .filter(s => s.leads > 0 || s.appts > 0 || s.orders > 0)
+    .map(s => ({
+      ...s,
+      aov: s.orders ? s.revenue/s.orders : 0,
+      avgDisc: s.discCount ? s.discSum/s.discCount : 0,
+      gpPct: s.revenue ? s.gp/s.revenue*100 : 0,
+      convLeadAppt: s.leads ? s.appts/s.leads*100 : 0,
+      convApptOrder: s.appts ? s.orders/s.appts*100 : 0,
+      convLeadOrder: s.leads ? s.orders/s.leads*100 : 0,
+    }));
+
+  // Product stats (from valid lines)
+  const byProduct = {};
+  STATE.validLines.forEach(l => {
+    const key = l.Product || 'Unspecified';
+    if (!byProduct[key]) byProduct[key] = { product:key, count:0, qty:0, revenue:0, discSum:0, suppliers:new Set(), fabricRev:{} };
+    const p = byProduct[key];
+    const std = l.StandardPriceExTax || 0, disc = safeDisc(l);
+    p.count++; p.qty += l.Qty || 0; p.revenue += disc; p.discSum += discPct(std, disc);
+    if (l.Supplier) p.suppliers.add(l.Supplier);
+    const fab = fabricOf(l);
+    if (fab) p.fabricRev[fab] = (p.fabricRev[fab] || 0) + disc;
+  });
+  STATE.productStats = Object.values(byProduct).map(p => {
+    let topFabric = '';
+    let best = -1;
+    for (const f in p.fabricRev) { if (p.fabricRev[f] > best) { best = p.fabricRev[f]; topFabric = f; } }
+    return { product: p.product, count: p.count, qty: p.qty, revenue: p.revenue, aov: p.revenue/p.count, avgDisc: p.discSum/p.count, suppliers: [...p.suppliers].join(', '), topFabric };
+  });
+
+  // Supplier stats
+  const bySupplier = {};
+  STATE.validLines.forEach(l => {
+    const key = l.Supplier || 'Unspecified';
+    if (!bySupplier[key]) bySupplier[key] = { supplier:key, count:0, qty:0, revenue:0 };
+    bySupplier[key].count++; bySupplier[key].qty += l.Qty || 0; bySupplier[key].revenue += safeDisc(l);
+  });
+  STATE.supplierStats = Object.values(bySupplier);
+
+  // Attribute stats — parse DisplayOption1..10 "Key: Value" pairs
+  const byKeyAttr = {};
+  STATE.validLines.forEach(l => {
+    const lineDiscPct = discPct(l.StandardPriceExTax || 0, safeDisc(l));
+    parseDisplayOptions(l).forEach(([key, val]) => {
+      if (!byKeyAttr[key]) byKeyAttr[key] = { total:0, values:{} };
+      byKeyAttr[key].total++;
+      if (!byKeyAttr[key].values[val]) byKeyAttr[key].values[val] = { count:0, qty:0, revenue:0, discSum:0 };
+      const v = byKeyAttr[key].values[val];
+      v.count++; v.qty += l.Qty || 0; v.revenue += safeDisc(l); v.discSum += lineDiscPct;
+    });
+  });
+  STATE.attrData = byKeyAttr;
+
+  // Fabric leaderboard (dedicated — from 'Fabric' key if present)
+  const fabKey = byKeyAttr['Fabric'];
+  STATE.fabricStats = fabKey ? Object.entries(fabKey.values).map(([fabric, v]) => ({
+    fabric, qty: v.qty, revenue: v.revenue, count: v.count, avgDisc: v.count ? v.discSum/v.count : 0,
+  })) : [];
+}
+
+// Names with big lead volume but ~0 appointments are call-centre / lead-intake
+// staff, not sales consultants who run appointments — exclude them from the
+// consultant performance views (leaderboard/charts) so tiny-sample noise
+// (e.g. 1 appt → 2 orders = 200%) doesn't dominate. Top-line KPI cards still
+// reflect the full, unfiltered book of leads.
+const MIN_ACTIVE = 5;
+function activeConsultants() {
+  return STATE.repStats.filter(r => r.appts >= MIN_ACTIVE || r.orders >= MIN_ACTIVE);
+}
+
+function parseDisplayOptions(line) {
+  const out = [];
+  for (let i = 1; i <= 10; i++) {
+    const raw = line['DisplayOption' + i];
+    if (!raw) continue;
+    const idx = raw.indexOf(':');
+    if (idx < 0) continue;
+    const key = raw.slice(0, idx).trim();
+    const val = raw.slice(idx + 1).trim();
+    if (!key) continue;
+    out.push([key, val || '(blank)']);
+  }
+  return out;
+}
+function fabricOf(line) {
+  for (let i = 1; i <= 10; i++) {
+    const raw = line['DisplayOption' + i];
+    if (raw && /^fabric\s*:/i.test(raw)) return raw.slice(raw.indexOf(':') + 1).trim();
+  }
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderAll() {
+  renderConsultantKPIs();
+  renderFunnel();
+  renderRepRevChart();
+  renderRepConvChart();
+  renderRepScatterChart();
+  renderInsights();
+  renderConsultantTable();
+
+  renderProductKPIs();
+  renderProductChart();
+  renderSupplierChart();
+  renderProductTable();
+  renderFabricSection();
+  renderAttachCards();
+  populateAttrSelect();
+  renderAttributeExplorer();
+}
+
+// ── Consultant KPIs ──
+function renderConsultantKPIs() {
+  const totalLeads = STATE.opps.length;
+  const totalAppts = STATE.acts.filter(a => !a.Cancelled).length;
+  const totalOrders = STATE.orders.length;
+  const revenue = STATE.orders.reduce((s,o) => s + o.revenue, 0);
+  const gp = STATE.orders.reduce((s,o) => s + o.gp, 0);
+  const avgDisc = totalOrders ? STATE.orders.reduce((s,o) => s + o.discPct, 0) / totalOrders : 0;
+  const aov = totalOrders ? revenue/totalOrders : 0;
+
+  document.getElementById('kc-leads').textContent = fmtInt(totalLeads);
+  document.getElementById('kc-leads-sub').textContent = `${STATE.opps.filter(o=>o.Status==='status_lead_won').length.toLocaleString()} won · ${STATE.opps.filter(o=>o.Status==='status_lead_lost').length.toLocaleString()} lost`;
+  document.getElementById('kc-appts').textContent = fmtInt(totalAppts);
+  document.getElementById('kc-appts-sub').textContent = fmtPct(totalLeads? totalAppts/totalLeads*100:0) + ' of leads';
+  document.getElementById('kc-orders').textContent = fmtInt(totalOrders);
+  document.getElementById('kc-orders-sub').textContent = fmtPct(totalAppts? totalOrders/totalAppts*100:0) + ' of appts';
+  document.getElementById('kc-e2e').textContent = fmtPct(totalAppts? totalOrders/totalAppts*100:0);
+  document.getElementById('kc-rev').textContent = fmtMoney(revenue);
+  document.getElementById('kc-gp').textContent = 'GP ' + fmtMoney(gp) + ` (${fmtPct(revenue?gp/revenue*100:0)})`;
+  document.getElementById('kc-service').textContent = fmtMoney(STATE.serviceRevenue);
+  document.getElementById('kc-service-sub').textContent = fmtPct(revenue ? STATE.serviceRevenue/revenue*100 : 0) + ' of order revenue';
+  document.getElementById('kc-aov').textContent = fmtMoney(aov);
+  document.getElementById('kc-disc').textContent = 'disc ' + fmtPct(avgDisc);
+
+  document.getElementById('kc-unconfirmed').textContent = fmtMoney(STATE.unconfirmedRevenue);
+  document.getElementById('kc-unconfirmed-sub').textContent = fmtInt(STATE.unconfirmedLines.length) + ' lines';
+  document.getElementById('kc-remake').textContent = fmtMoney(STATE.remakeRevenue);
+  document.getElementById('kc-remake-sub').textContent = fmtInt(STATE.remakeLines.length) + ' lines';
+}
+
+// ── Funnel ──
+function renderFunnel() {
+  const totalLeads = STATE.opps.length;
+  const totalAppts = STATE.acts.filter(a => !a.Cancelled).length;
+  const totalOrders = STATE.orders.length;
+  const stages = [
+    { label:'Leads Assigned', count: totalLeads, color:'var(--slate)' },
+    { label:'Appointments',   count: totalAppts, color:'var(--blue)' },
+    { label:'Orders Won',     count: totalOrders, color:'var(--green)' },
+  ];
+  const maxCount = Math.max(1, totalLeads);
+  let html = '';
+  stages.forEach((s, i) => {
+    const width = Math.max(18, (s.count / maxCount) * 100);
+    html += `<div class="funnel-bar" style="width:${width}%;background:${s.color}">
+      <span class="flabel">${s.label}</span><span class="fcount">${s.count.toLocaleString()}</span>
+    </div>`;
+    if (i < stages.length - 1) {
+      const next = stages[i+1];
+      const conv = s.count ? (next.count/s.count*100) : 0;
+      const cls = conv >= 40 ? 'pill-good' : conv >= 15 ? 'pill-mid' : 'pill-bad';
+      html += `<div class="funnel-conv"><span>&darr; conversion</span><span class="pill ${cls}">${conv.toFixed(1)}%</span></div>`;
+    }
+  });
+  document.getElementById('funnel-container').innerHTML = html;
+}
+
+// ── Charts (consultant) ──
+function destroyChart(id) { if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; } }
+
+function renderRepRevChart() {
+  const top = [...activeConsultants()].sort((a,b) => b.revenue - a.revenue).slice(0, 15);
+  destroyChart('rep-rev');
+  CHARTS['rep-rev'] = new Chart(document.getElementById('chart-rep-rev'), {
+    type: 'bar',
+    data: { labels: top.map(r => r.rep), datasets: [{ label:'Revenue', data: top.map(r => Math.round(r.revenue)), backgroundColor:'#2E6DB4', borderRadius:4 }] },
+    options: { responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => '$'+ctx.parsed.y.toLocaleString() } } },
+      scales:{ x:{ ticks:{ maxRotation:60, minRotation:40, font:{size:10} } }, y:{ ticks:{ callback: v => '$'+v.toLocaleString() } } } }
+  });
+}
+function renderRepConvChart() {
+  const top = [...activeConsultants()].sort((a,b) => b.leads - a.leads).slice(0, 15);
+  destroyChart('rep-conv');
+  CHARTS['rep-conv'] = new Chart(document.getElementById('chart-rep-conv'), {
+    type: 'bar',
+    data: { labels: top.map(r => r.rep), datasets: [
+      { label:'Lead→Appt %', data: top.map(r => r.convLeadAppt.toFixed(1)), backgroundColor:'#2E6DB4' },
+      { label:'Appt→Order %', data: top.map(r => r.convApptOrder.toFixed(1)), backgroundColor:'#0E9F8E' },
+      { label:'Lead→Order %', data: top.map(r => r.convLeadOrder.toFixed(1)), backgroundColor:'#1A7A4A' },
+    ]},
+    options: { responsive:true, plugins:{ legend:{position:'bottom'} }, scales:{ x:{ ticks:{ maxRotation:60, minRotation:40, font:{size:10} } }, y:{ ticks:{ callback:v=>v+'%' } } } }
+  });
+}
+function renderRepScatterChart() {
+  const data = activeConsultants().filter(r => r.orders > 0).map(r => ({ x: r.avgDisc, y: r.aov, r: Math.max(4, Math.min(30, Math.sqrt(r.revenue)/40)), rep: r.rep }));
+  destroyChart('rep-scatter');
+  CHARTS['rep-scatter'] = new Chart(document.getElementById('chart-rep-scatter'), {
+    type: 'bubble',
+    data: { datasets: [{ label:'Consultants', data, backgroundColor:'rgba(124,58,237,0.55)' }] },
+    options: { responsive:true, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => `${ctx.raw.rep}: AOV $${Math.round(ctx.raw.y).toLocaleString()}, disc ${ctx.raw.x.toFixed(1)}%` } } },
+      scales:{ x:{ title:{display:true,text:'Avg Discount %'} }, y:{ title:{display:true,text:'AOV ($)'}, ticks:{ callback:v=>'$'+v.toLocaleString() } } } }
+  });
+}
+
+function renderInsights() {
+  const rs = activeConsultants();
+  if (!rs.length) { document.getElementById('insight-strip').innerHTML = ''; return; }
+  const topRev = [...rs].sort((a,b)=>b.revenue-a.revenue)[0];
+  const topConv = [...rs].filter(r=>r.leads>=5).sort((a,b)=>b.convLeadOrder-a.convLeadOrder)[0];
+  const topDisc = [...rs].filter(r=>r.orders>=3).sort((a,b)=>b.avgDisc-a.avgDisc)[0];
+  const topAov = [...rs].filter(r=>r.orders>=3).sort((a,b)=>b.aov-a.aov)[0];
+  const cards = [];
+  if (topRev) cards.push(`<div class="insight-card">&#127942; <b>${topRev.rep}</b> leads revenue with ${fmtMoney(topRev.revenue)} across ${topRev.orders} orders.</div>`);
+  if (topConv) cards.push(`<div class="insight-card">&#128200; <b>${topConv.rep}</b> has the best lead&rarr;order close rate at ${fmtPct(topConv.convLeadOrder)}.</div>`);
+  if (topAov) cards.push(`<div class="insight-card">&#128176; <b>${topAov.rep}</b> has the highest AOV at ${fmtMoney(topAov.aov)}.</div>`);
+  if (topDisc) cards.push(`<div class="insight-card">&#9888;&#65039; <b>${topDisc.rep}</b> discounts the most at ${fmtPct(topDisc.avgDisc)} avg &mdash; review for margin coaching.</div>`);
+  document.getElementById('insight-strip').innerHTML = cards.join('');
+}
+
+// ── Consultant table ──
+function renderConsultantTable() {
+  const search = document.getElementById('rep-search').value.toLowerCase();
+  let rows = activeConsultants().filter(r => r.rep.toLowerCase().includes(search));
+  rows.sort((a,b) => (a[SORT_C.key] > b[SORT_C.key] ? 1 : -1) * SORT_C.dir);
+  const tbody = document.getElementById('consultant-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="11" class="text-slate-400 text-xs py-6 text-center">No data</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td class="font-semibold text-slate-700">${r.rep}</td>
+    <td class="text-right">${fmtInt(r.leads)}</td>
+    <td class="text-right">${fmtInt(r.appts)}</td>
+    <td class="text-right">${fmtInt(r.orders)}</td>
+    <td class="text-right" style="color:${pctColor(r.convLeadAppt,40,20)}">${fmtPct(r.convLeadAppt)}</td>
+    <td class="text-right" style="color:${pctColor(r.convApptOrder,40,20)}">${fmtPct(r.convApptOrder)}</td>
+    <td class="text-right" style="color:${pctColor(r.convLeadOrder,15,5)}">${fmtPct(r.convLeadOrder)}</td>
+    <td class="text-right font-semibold">${fmtMoney(r.revenue)}</td>
+    <td class="text-right">${fmtMoney(r.aov)}</td>
+    <td class="text-right">${fmtPct(r.avgDisc)}</td>
+    <td class="text-right">${fmtPct(r.gpPct)}</td>
+  </tr>`).join('');
+}
+document.getElementById('consultant-table').querySelector('thead').addEventListener('click', e => {
+  const th = e.target.closest('th'); if (!th) return;
+  const key = th.dataset.key;
+  document.querySelectorAll('#consultant-table th').forEach(t => t.classList.remove('sorted'));
+  if (SORT_C.key === key) SORT_C.dir *= -1; else { SORT_C.key = key; SORT_C.dir = -1; }
+  th.classList.add('sorted');
+  renderConsultantTable();
+});
+
+// ── Product KPIs ──
+function renderProductKPIs() {
+  const lines = STATE.validLines;
+  const revenue = lines.reduce((s,l) => s + safeDisc(l), 0);
+  const units = lines.reduce((s,l) => s + (l.Qty || 0), 0);
+  const avgDisc = STATE.productStats.length ? STATE.productStats.reduce((s,p)=>s+p.avgDisc*p.count,0) / (lines.length||1) : 0;
+  document.getElementById('kp-lines').textContent = fmtInt(lines.length);
+  document.getElementById('kp-units').textContent = fmtInt(units) + ' units';
+  document.getElementById('kp-rev').textContent = fmtMoney(revenue);
+  document.getElementById('kp-avgline').textContent = 'avg line ' + fmtMoney(lines.length?revenue/lines.length:0);
+  document.getElementById('kp-service').textContent = fmtMoney(STATE.serviceRevenue);
+  document.getElementById('kp-service-sub').textContent = fmtPct(revenue ? STATE.serviceRevenue/revenue*100 : 0) + ' of product revenue';
+  document.getElementById('kp-disc').textContent = fmtPct(avgDisc);
+  document.getElementById('kp-nprod').textContent = fmtInt(STATE.productStats.length);
+  document.getElementById('kp-nfab').textContent = fmtInt(STATE.fabricStats.length);
+  document.getElementById('kp-nsup').textContent = fmtInt(STATE.supplierStats.length);
+}
+
+function renderProductChart() {
+  const top = [...STATE.productStats].sort((a,b)=>b.revenue-a.revenue).slice(0,15);
+  destroyChart('products');
+  CHARTS['products'] = new Chart(document.getElementById('chart-products'), {
+    type:'bar',
+    data:{ labels: top.map(p=>p.product), datasets:[{ label:'Revenue', data: top.map(p=>Math.round(p.revenue)), backgroundColor:'#0E9F8E', borderRadius:4 }] },
+    options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}, tooltip:{callbacks:{label: ctx => '$'+ctx.parsed.x.toLocaleString()}}}, scales:{ x:{ ticks:{ callback:v=>'$'+v.toLocaleString() } } } }
+  });
+}
+function renderSupplierChart() {
+  const top = [...STATE.supplierStats].sort((a,b)=>b.revenue-a.revenue).slice(0,10);
+  destroyChart('suppliers');
+  const palette = ['#1E3A5F','#2E6DB4','#0E9F8E','#1A7A4A','#D97706','#DC2626','#7C3AED','#64748B','#0891B2','#DB2777'];
+  CHARTS['suppliers'] = new Chart(document.getElementById('chart-suppliers'), {
+    type:'doughnut',
+    data:{ labels: top.map(s=>s.supplier), datasets:[{ data: top.map(s=>Math.round(s.revenue)), backgroundColor: palette }] },
+    options:{ responsive:true, plugins:{ legend:{position:'right', labels:{font:{size:10}}}, tooltip:{callbacks:{label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString()}`}} } }
+  });
+}
+
+function renderProductTable() {
+  const search = document.getElementById('product-search').value.toLowerCase();
+  let rows = STATE.productStats.filter(p => p.product.toLowerCase().includes(search));
+  rows.sort((a,b) => (a[SORT_P.key] > b[SORT_P.key] ? 1 : -1) * SORT_P.dir);
+  const tbody = document.getElementById('product-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-slate-400 text-xs py-6 text-center">No data</td></tr>'; return; }
+  tbody.innerHTML = rows.slice(0,200).map(p => `<tr>
+    <td class="font-semibold text-slate-700">${p.product}</td>
+    <td class="text-slate-500">${p.suppliers}</td>
+    <td class="text-right">${fmtInt(p.count)}</td>
+    <td class="text-right">${fmtInt(p.qty)}</td>
+    <td class="text-right font-semibold">${fmtMoney(p.revenue)}</td>
+    <td class="text-right">${fmtMoney(p.aov)}</td>
+    <td class="text-right">${fmtPct(p.avgDisc)}</td>
+    <td class="text-slate-500">${p.topFabric || '&mdash;'}</td>
+  </tr>`).join('');
+}
+document.getElementById('product-table').querySelector('thead').addEventListener('click', e => {
+  const th = e.target.closest('th'); if (!th) return;
+  const key = th.dataset.key;
+  document.querySelectorAll('#product-table th').forEach(t => t.classList.remove('sorted'));
+  if (SORT_P.key === key) SORT_P.dir *= -1; else { SORT_P.key = key; SORT_P.dir = -1; }
+  th.classList.add('sorted');
+  renderProductTable();
+});
+
+function renderFabricSection() {
+  const top = [...STATE.fabricStats].sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+  destroyChart('fabrics');
+  CHARTS['fabrics'] = new Chart(document.getElementById('chart-fabrics'), {
+    type:'bar',
+    data:{ labels: top.map(f=>f.fabric.length>35?f.fabric.slice(0,35)+'…':f.fabric), datasets:[{ label:'Revenue', data: top.map(f=>Math.round(f.revenue)), backgroundColor:'#7C3AED', borderRadius:4 }] },
+    options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}, tooltip:{callbacks:{label: ctx => '$'+ctx.parsed.x.toLocaleString()}}}, scales:{ x:{ ticks:{ callback:v=>'$'+v.toLocaleString() } } } }
+  });
+  const tbody = document.getElementById('fabric-tbody');
+  if (!top.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-slate-400 text-xs py-6 text-center">No fabric data found</td></tr>'; return; }
+  tbody.innerHTML = top.map(f => `<tr>
+    <td class="font-semibold text-slate-700">${f.fabric}</td>
+    <td class="text-right">${fmtInt(f.qty)}</td>
+    <td class="text-right font-semibold">${fmtMoney(f.revenue)}</td>
+    <td class="text-right">${fmtPct(f.avgDisc)}</td>
+  </tr>`).join('');
+}
+
+function attachRate(key, positiveTest) {
+  const data = STATE.attrData[key];
+  const denom = STATE.validLines.length;
+  if (!data || !denom) return null;
+  let positive = 0;
+  for (const [val, v] of Object.entries(data.values)) if (positiveTest(val)) positive += v.count;
+  return positive / denom * 100;
+}
+function renderAttachCards() {
+  const isPositive = v => v && !NEGATIVE_VALS.test(v.trim()) && v.trim() !== '(blank)';
+  const defs = [
+    { key:'Motors', label:'Motorised' },
+    { key:'Cassette', label:'Cassette Fitted' },
+    { key:'Extension Brackets', label:'Extension Brackets' },
+    { key:'Bracket Covers', label:'Bracket Covers' },
+  ];
+  const html = defs.map(d => {
+    const rate = attachRate(d.key, isPositive);
+    return `<div class="attach-card"><div class="attach-num">${rate==null?'n/a':rate.toFixed(1)+'%'}</div><div class="attach-lbl">${d.label}</div></div>`;
+  }).join('');
+  document.getElementById('attach-cards').innerHTML = html;
+}
+
+function populateAttrSelect() {
+  const sel = document.getElementById('attr-select');
+  const keys = Object.entries(STATE.attrData).sort((a,b)=>b[1].total-a[1].total).map(([k])=>k);
+  const current = sel.value;
+  sel.innerHTML = keys.map(k => `<option value="${k}">${k} (${STATE.attrData[k].total.toLocaleString()} lines)</option>`).join('');
+  if (keys.includes(current)) sel.value = current;
+  else if (keys.includes('Fabric')) sel.value = 'Fabric';
+}
+function renderAttributeExplorer() {
+  const key = document.getElementById('attr-select').value;
+  const data = STATE.attrData[key];
+  if (!data) return;
+  const top = Object.entries(data.values).map(([value, v]) => ({ value, ...v })).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+  destroyChart('attr');
+  CHARTS['attr'] = new Chart(document.getElementById('chart-attr'), {
+    type:'bar',
+    data:{ labels: top.map(v=>v.value.length>28?v.value.slice(0,28)+'…':v.value), datasets:[{ label:'Revenue', data: top.map(v=>Math.round(v.revenue)), backgroundColor:'#D97706', borderRadius:4 }] },
+    options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}, tooltip:{callbacks:{label: ctx => '$'+ctx.parsed.x.toLocaleString()}}}, scales:{ x:{ ticks:{ callback:v=>'$'+v.toLocaleString() } } } }
+  });
+  document.getElementById('attr-tbody').innerHTML = top.map(v => `<tr>
+    <td class="font-semibold text-slate-700">${v.value}</td>
+    <td class="text-right">${fmtInt(v.count)}</td>
+    <td class="text-right">${fmtInt(v.qty)}</td>
+    <td class="text-right font-semibold">${fmtMoney(v.revenue)}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+loadConfig();
+</script>
+</body>
+</html>

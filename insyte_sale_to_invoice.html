@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sale → Invoice Timeline</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#F1F5F9;margin:0;}
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:18px 20px;}
+.stitle{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:8px;}
+.kpi{padding:14px 16px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.kv{font-size:1.6rem;font-weight:800;line-height:1.1;}
+.ks{font-size:.7rem;color:#64748B;margin-top:3px;}
+
+.dt{width:100%;border-collapse:collapse;font-size:.8rem;}
+.dt th{background:#1E3A5F;color:#fff;padding:8px 12px;text-align:left;font-size:.7rem;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2;}
+.dt td{padding:6px 12px;border-bottom:1px solid #F1F5F9;}
+.dt tr:hover td{background:#F8FAFC;}
+.dt .r{text-align:right;font-variant-numeric:tabular-nums;}
+.dt tr.pending td{background:#FFFBEB!important;}
+.dt tr.late td{background:#FFF1F2!important;}
+.dt tr.fast td{background:#F0FDF4!important;}
+
+/* Status pill */
+.pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:.68rem;font-weight:700;white-space:nowrap;}
+.p-inv{background:#D1FAE5;color:#065F46;}
+.p-pend{background:#FEF3C7;color:#92400E;}
+.p-late{background:#FEE2E2;color:#991B1B;}
+.p-part{background:#DBEAFE;color:#1E40AF;}
+
+/* Inline bar */
+.ib{display:inline-block;height:7px;border-radius:4px;vertical-align:middle;}
+
+/* Spinner */
+.spin{width:16px;height:16px;border:3px solid #E2E8F0;border-top-color:#2E6DB4;border-radius:50%;animation:s .7s linear infinite;}
+@keyframes s{to{transform:rotate(360deg);}}
+
+/* Toast */
+#toast{position:fixed;bottom:14px;right:14px;z-index:9999;}
+.tmsg{padding:7px 13px;border-radius:7px;font-size:.8rem;font-weight:600;margin-top:4px;transition:opacity .3s;}
+
+/* Buckets */
+.bucket{border-radius:8px;padding:10px 12px;text-align:center;}
+
+/* Timeline entry */
+.tl-job{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F1F5F9;}
+.tl-name{width:130px;font-size:.73rem;font-weight:600;color:#1E3A5F;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.tl-bar-wrap{flex:1;position:relative;height:14px;}
+.tl-rail{position:absolute;top:50%;transform:translateY(-50%);left:0;right:0;height:3px;background:#E2E8F0;border-radius:2px;}
+.tl-seg{position:absolute;top:0;height:100%;border-radius:4px;}
+.tl-seg.sold{background:#2E6DB4;}
+.tl-seg.gap{background:repeating-linear-gradient(90deg,#FCD34D 0,#FCD34D 3px,transparent 3px,transparent 7px);}
+.tl-seg.inv{background:#059669;}
+.tl-seg.pend{background:repeating-linear-gradient(90deg,#D97706 0,#D97706 3px,transparent 3px,transparent 7px);}
+.tl-dot{position:absolute;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;border:2px solid #fff;}
+.tl-lbl{width:50px;font-size:.7rem;text-align:right;flex-shrink:0;color:#64748B;}
+</style>
+</head>
+<body class="p-4 md:p-5">
+
+<!-- HEADER -->
+<div class="flex items-start justify-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 class="text-xl font-black text-slate-800 leading-tight">Sale → Invoice Pipeline</h1>
+    <p class="text-xs text-slate-500 mt-0.5">From order date to invoice date — how long does it actually take?</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <div id="sw" class="hidden"><div class="spin"></div></div>
+    <span id="lstatus" class="text-xs text-slate-500 font-medium min-w-28"></span>
+    <span id="lu" class="text-xs text-slate-400"></span>
+    <button onclick="loadData()" class="px-3 py-1.5 text-sm font-semibold text-white rounded-lg shadow" style="background:#2E6DB4">&#8635; Load</button>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div class="card mb-4">
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    <div class="lg:col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">API Base URL</label>
+      <input id="c-base" value="https://api.myinsyte.com.au/v2" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+      <input id="c-email" value="" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">API Key</label>
+      <input id="c-key" type="password" value="" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Sold — From</label>
+      <input id="c-from" type="date" value="2026-01-01" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Sold — To</label>
+      <input id="c-to" type="date" value="2026-01-31" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div class="col-span-2 md:col-span-4 lg:col-span-6 flex flex-wrap gap-2 items-center border-t border-slate-100 pt-3">
+      <span class="text-xs text-slate-500 font-semibold">Quick:</span>
+      <button onclick="setMth(0)"  class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Jan 2026</button>
+      <button onclick="setMth(1)"  class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Feb 2026</button>
+      <button onclick="setMth(2)"  class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Mar 2026</button>
+      <button onclick="setMth(3)"  class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Apr 2026</button>
+      <button onclick="setMth(4)"  class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">May 2026</button>
+      <button onclick="setMth(5)"  class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Jun 2026</button>
+      <div class="ml-auto flex items-center gap-2">
+        <label class="text-xs text-slate-500 font-semibold">Min job value:</label>
+        <input id="c-minval" type="number" value="0" min="0" placeholder="0" class="w-20 border border-slate-200 rounded-lg px-2 py-1 text-sm">
+        <label class="text-xs text-slate-500 font-semibold ml-2">Rep:</label>
+        <select id="c-rep" onchange="renderAll()" class="border border-slate-200 rounded-lg px-2 py-1 text-sm bg-white">
+          <option value="">All</option>
+        </select>
+        <button onclick="loadData()" class="px-4 py-1.5 text-sm font-semibold text-white rounded-lg" style="background:#059669">Load</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+  <div class="kpi"><div class="stitle">Jobs Sold</div><div class="kv text-blue-600" id="k-sold">—</div><div class="ks">in period</div></div>
+  <div class="kpi"><div class="stitle">Invoiced</div><div class="kv text-green-600" id="k-inv">—</div><div class="ks" id="k-inv-pct">—% of jobs</div></div>
+  <div class="kpi"><div class="stitle">Pending Invoice</div><div class="kv text-amber-500" id="k-pend">—</div><div class="ks" id="k-pend-val">still open</div></div>
+  <div class="kpi"><div class="stitle">Avg Days to Invoice</div><div class="kv text-slate-700" id="k-avg">—</div><div class="ks">from order date</div></div>
+  <div class="kpi"><div class="stitle">Median Days</div><div class="kv text-slate-700" id="k-med">—</div><div class="ks">50th percentile</div></div>
+  <div class="kpi"><div class="stitle">Revenue Invoiced</div><div class="kv text-green-600" id="k-rev-inv">—</div><div class="ks" id="k-rev-pend">— pending</div></div>
+</div>
+
+<!-- LEAD TIME BUCKETS -->
+<div class="card mb-4">
+  <div class="stitle">Lead Time Buckets — Days from Sale to Invoice</div>
+  <div id="buckets" class="grid grid-cols-3 md:grid-cols-6 gap-3 mt-1"></div>
+</div>
+
+<!-- TIMELINE + DISTRIBUTION -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+
+  <!-- Visual Timeline (top 40 by value) -->
+  <div class="card lg:col-span-2">
+    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+      <div class="stitle mb-0">Job Timeline — Sale date → Invoice date</div>
+      <div class="flex gap-3 items-center text-xs flex-wrap">
+        <span class="flex items-center gap-1"><span class="ib w-4" style="background:#2E6DB4"></span> Sold</span>
+        <span class="flex items-center gap-1"><span class="ib w-4" style="background:#FCD34D"></span> In pipeline</span>
+        <span class="flex items-center gap-1"><span class="ib w-4" style="background:#059669"></span> Invoiced</span>
+        <span class="text-slate-400">|</span>
+        <select id="tl-sort" onchange="renderTimeline()" class="border border-slate-200 rounded px-1 py-0.5 bg-white text-xs">
+          <option value="val">Sort: Value</option>
+          <option value="days">Sort: Lead time</option>
+          <option value="date">Sort: Order date</option>
+        </select>
+        <select id="tl-n" onchange="renderTimeline()" class="border border-slate-200 rounded px-1 py-0.5 bg-white text-xs">
+          <option value="40">Top 40</option><option value="60">Top 60</option><option value="100">Top 100</option><option value="99999">All</option>
+        </select>
+      </div>
+    </div>
+    <div id="tl-legend" class="flex gap-4 text-xs text-slate-400 mb-1 ml-[138px]" style="font-size:.65rem;"></div>
+    <div id="timeline-wrap" style="max-height:480px;overflow-y:auto;">
+      <div class="text-slate-400 text-xs text-center py-6">Load data to view timeline</div>
+    </div>
+  </div>
+
+  <!-- Lead time distribution -->
+  <div class="card">
+    <div class="stitle">Lead Time Distribution</div>
+    <canvas id="dist-chart" height="280"></canvas>
+    <div id="dist-stats" class="mt-3 space-y-1 text-xs text-slate-600"></div>
+  </div>
+</div>
+
+<!-- Charts row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card">
+    <div class="stitle">Avg Days to Invoice by Rep</div>
+    <canvas id="rep-chart" height="220"></canvas>
+  </div>
+  <div class="card">
+    <div class="stitle">Lead Time vs Job Value (scatter)</div>
+    <canvas id="scatter-chart" height="220"></canvas>
+  </div>
+</div>
+
+<!-- Cumulative invoiced over time -->
+<div class="card mb-4">
+  <div class="stitle">Cumulative % of January Jobs Invoiced — Over Time</div>
+  <canvas id="cum-chart" height="160"></canvas>
+</div>
+
+<!-- Full job table -->
+<div class="card mb-4">
+  <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+    <div class="stitle mb-0">All Jobs — Sale to Invoice Detail</div>
+    <div class="flex gap-2 items-center flex-wrap">
+      <input id="search" type="text" placeholder="Search job ref / rep…" oninput="renderTable()" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm w-48">
+      <select id="tbl-filter" onchange="renderTable()" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+        <option value="">All statuses</option>
+        <option value="invoiced">Invoiced</option>
+        <option value="pending">Pending</option>
+        <option value="overdue">Pending > 60 days</option>
+      </select>
+      <select id="tbl-sort" onchange="renderTable()" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+        <option value="days_desc">Sort: Most days</option>
+        <option value="days_asc">Sort: Fewest days</option>
+        <option value="val_desc">Sort: Highest value</option>
+        <option value="date_asc">Sort: Order date</option>
+      </select>
+      <button onclick="exportCSV()" class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">&#8595; CSV</button>
+    </div>
+  </div>
+  <div style="max-height:420px;overflow-y:auto;">
+    <table class="dt">
+      <thead><tr>
+        <th>Job Ref</th><th>Rep</th><th>Order Date</th><th class="r">Value (ex tax)</th>
+        <th>Invoice Date</th><th class="r">Days</th><th>Status</th><th>Lead Time Visual</th>
+      </tr></thead>
+      <tbody id="job-tbody"><tr><td colspan="8" class="text-center text-slate-400 py-6 text-xs">No data loaded</td></tr></tbody>
+    </table>
+  </div>
+  <div id="tbl-count" class="text-xs text-slate-400 mt-2"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── UTILS ──────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const set = (id,v) => { const e=$(id); if(e) e.textContent=v; };
+const fmt  = (n,d=0) => n==null?'—':n.toLocaleString('en-AU',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtM = n => {
+  if(n==null||isNaN(n)) return '—';
+  const abs=Math.abs(n);
+  if(abs>=1e6) return '$'+fmt(n/1e6,2)+'M';
+  if(abs>=1e3) return '$'+fmt(n/1e3,1)+'K';
+  return '$'+fmt(n,0);
+};
+const fmtDate = iso => { if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}); };
+const daysBetween = (a,b) => { if(!a||!b) return null; return Math.round((new Date(b)-new Date(a))/(864e5)); };
+const today = () => new Date().toISOString().slice(0,10);
+
+function median(arr){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2); }
+function percentile(arr,p){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); return s[Math.floor(s.length*p/100)]||0; }
+
+function toast(msg,type='blue'){
+  const c={green:'#D1FAE5 #065F46',red:'#FEE2E2 #991B1B',amber:'#FEF3C7 #92400E',blue:'#DBEAFE #1E40AF'};
+  const [bg,tx]=(c[type]||c.blue).split(' ');
+  const el=document.createElement('div'); el.className='tmsg';
+  el.style.cssText=`background:${bg};color:${tx}`; el.textContent=msg;
+  $('toast').appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),400); },4000);
+}
+function status(msg){ $('lstatus').textContent=msg; }
+
+// ── DATE HELPERS ────────────────────────────────────────────────────
+function setMth(m){
+  const y=2026;
+  const last=new Date(y,m+1,0).getDate();
+  $('c-from').value=`${y}-${String(m+1).padStart(2,'0')}-01`;
+  $('c-to').value  =`${y}-${String(m+1).padStart(2,'0')}-${last}`;
+}
+
+// ── API ─────────────────────────────────────────────────────────────
+const auth=()=>'Basic '+btoa($('c-email').value.trim()+':'+$('c-key').value.trim());
+const base=()=>$('c-base').value.trim().replace(/\/$/,'');
+async function apiGet(path){
+  const r=await fetch(base()+path,{headers:{Authorization:auth(),Accept:'application/json'}});
+  if(!r.ok) throw new Error(r.status+' '+path.split('?')[0]);
+  return r.json();
+}
+async function fetchAll(path,lbl){
+  const PAGE=500; const sep=path.includes('?')?'&':'?';
+  let rows=[],skip=0,pg=1;
+  while(true){
+    status(`${lbl} p${pg}…`);
+    const d=await apiGet(`${path}${sep}$top=${PAGE}&$skip=${skip}`);
+    const p=d.value||(Array.isArray(d)?d:[]);
+    rows=rows.concat(p); if(p.length<PAGE) break;
+    skip+=PAGE; pg++;
+  }
+  return rows;
+}
+async function batchJobs(ids){
+  const MAP={},CHUNK=15,WAVE=5;
+  const chunks=[]; for(let i=0;i<ids.length;i+=CHUNK) chunks.push(ids.slice(i,i+CHUNK));
+  for(let i=0;i<chunks.length;i+=WAVE){
+    status(`Jobs ${Math.min((i+WAVE)*CHUNK,ids.length)}/${ids.length}…`);
+    await Promise.all(chunks.slice(i,i+WAVE).map(ch=>{
+      const f=encodeURIComponent(ch.map(id=>`ID eq ${id}`).join(' or '));
+      return fetchAll(`/Jobs?$filter=${f}`,'J').then(rows=>rows.forEach(j=>MAP[j.ID]=j));
+    }));
+  }
+  return MAP;
+}
+
+// ── STATE ───────────────────────────────────────────────────────────
+let JOBS_DATA=[];   // one row per unique job
+let _charts={};
+
+async function loadData(){
+  const from=$('c-from').value, to=$('c-to').value;
+  if(!from||!to){ toast('Set both From and To dates','amber'); return; }
+  $('sw').classList.remove('hidden');
+  try{
+    // 1. Users
+    status('Users…');
+    const users=await fetchAll('/Users','U');
+    const USERS={}; users.forEach(u=>USERS[u.ID]=(u.FullName||`${u.FirstName||''} ${u.LastName||''}`.trim()||`Rep ${u.ID}`));
+
+    // 2. Job lines for the sold period
+    status('Job lines…');
+    const linesFilter=encodeURIComponent(`OrderDate ge ${from}T00:00:00Z and OrderDate le ${to}T23:59:59Z`);
+    const lines=await fetchAll(`/JobLines?$filter=${linesFilter}`,'Lines');
+
+    // 3. Batch fetch Jobs
+    const jobIds=[...new Set(lines.map(l=>l.JobID).filter(Boolean))];
+    const JOB_MAP=jobIds.length ? await batchJobs(jobIds) : {};
+
+    // 4. Aggregate to job level (sum ex-tax, get earliest OrderDate per job)
+    const byJob={};
+    lines.forEach(l=>{
+      const jid=l.JobID;
+      if(!jid) return;
+      const job=JOB_MAP[jid]||{};
+      const ref=String(job.Reference||jid).replace(/-\d+$/,'');
+      if(!byJob[ref]) byJob[ref]={
+        ref, jobId:jid, repId:job.SalesRepID,
+        rep:USERS[job.SalesRepID]||`Rep ${job.SalesRepID||'?'}`,
+        orderDate: null, salesExTax:0, lines:0,
+      };
+      byJob[ref].salesExTax += l.DiscountedPriceExTax||l.StandardPriceExTax||0;
+      byJob[ref].lines++;
+      const od=l.OrderDate;
+      if(od && (!byJob[ref].orderDate || od < byJob[ref].orderDate)) byJob[ref].orderDate=od;
+    });
+
+    // 5. Invoices — fetch from sold period onwards (no upper bound) to catch future invoices
+    status('Invoices…');
+    const invFilter=encodeURIComponent(`InvoiceDate ge ${from}T00:00:00Z`);
+    const invoices=await fetchAll(`/Invoices?$filter=${invFilter}`,'Inv');
+
+    // Build invoice map by JobID → earliest InvoiceDate + total invoiced
+    const INV_BY_JOB={};
+    invoices.forEach(inv=>{
+      const jid=inv.JobID||inv.JobId;
+      if(!jid) return;
+      if(!INV_BY_JOB[jid]) INV_BY_JOB[jid]={firstDate:null,totalAmt:0,count:0};
+      const id=inv.InvoiceDate;
+      if(id&&(!INV_BY_JOB[jid].firstDate||id<INV_BY_JOB[jid].firstDate)) INV_BY_JOB[jid].firstDate=id;
+      INV_BY_JOB[jid].totalAmt+=(inv.TotalAmountExTax||inv.TotalExTax||inv.TotalAmount||0);
+      INV_BY_JOB[jid].count++;
+    });
+
+    // 6. Merge invoice data onto jobs
+    JOBS_DATA=Object.values(byJob).map(j=>{
+      const inv=INV_BY_JOB[j.jobId];
+      const invDate=inv?.firstDate?.slice(0,10)||null;
+      const daysToInv=invDate?daysBetween(j.orderDate?.slice(0,10), invDate):null;
+      const daysOpen=j.orderDate?daysBetween(j.orderDate.slice(0,10), today()):null;
+      return {
+        ...j,
+        orderDate: j.orderDate?.slice(0,10)||null,
+        invoiceDate: invDate,
+        daysToInvoice: daysToInv,
+        daysOpen: daysOpen,
+        invoicedAmt: inv?.totalAmt||0,
+        invoiceCount: inv?.count||0,
+        status: invDate ? (daysToInv<=14?'fast':daysToInv<=60?'invoiced':'late_inv') : (daysOpen>60?'overdue':'pending'),
+      };
+    });
+
+    // Populate rep filter
+    const reps=[...new Set(JOBS_DATA.map(j=>j.rep))].sort();
+    const repSel=$('c-rep');
+    const cur=repSel.value;
+    repSel.innerHTML='<option value="">All</option>'+reps.map(r=>`<option${r===cur?' selected':''}>${r}</option>`).join('');
+
+    status('');
+    renderAll();
+    $('lu').textContent='Updated '+new Date().toLocaleTimeString();
+    toast(`${JOBS_DATA.length.toLocaleString()} jobs loaded · ${invoices.length.toLocaleString()} invoices matched`,'green');
+  }catch(e){ console.error(e); toast('Error: '+e.message,'red'); status('Error'); }
+  $('sw').classList.add('hidden');
+}
+
+// ── FILTER ─────────────────────────────────────────────────────────
+function filteredJobs(){
+  const minVal=parseFloat($('c-minval').value)||0;
+  const repF=$('c-rep').value;
+  return JOBS_DATA.filter(j=>
+    j.salesExTax>=minVal &&
+    (!repF||j.rep===repF)
+  );
+}
+
+// ── RENDER ALL ──────────────────────────────────────────────────────
+function renderAll(){
+  const jobs=filteredJobs();
+  renderKPIs(jobs);
+  renderBuckets(jobs);
+  renderTimeline();
+  renderDistribution(jobs);
+  renderRepChart(jobs);
+  renderScatter(jobs);
+  renderCumulative(jobs);
+  renderTable();
+}
+
+// ── KPIs ───────────────────────────────────────────────────────────
+function renderKPIs(jobs){
+  const invJobs=jobs.filter(j=>j.invoiceDate);
+  const pendJobs=jobs.filter(j=>!j.invoiceDate);
+  const daysArr=invJobs.map(j=>j.daysToInvoice).filter(d=>d!=null&&d>=0);
+  const avg=daysArr.length?Math.round(daysArr.reduce((s,d)=>s+d,0)/daysArr.length):null;
+  const med=daysArr.length?median(daysArr):null;
+  const revInv=invJobs.reduce((s,j)=>s+j.salesExTax,0);
+  const revPend=pendJobs.reduce((s,j)=>s+j.salesExTax,0);
+  const invPct=jobs.length?Math.round(invJobs.length/jobs.length*100):0;
+
+  set('k-sold',fmt(jobs.length));
+  set('k-inv',fmt(invJobs.length));
+  set('k-inv-pct',invPct+'% of jobs');
+  set('k-pend',fmt(pendJobs.length));
+  set('k-pend-val',fmtM(revPend)+' pending');
+  set('k-avg',avg!=null?avg+' days':'—');
+  set('k-med',med!=null?med+' days':'—');
+  set('k-rev-inv',fmtM(revInv));
+  set('k-rev-pend',fmtM(revPend)+' pending');
+}
+
+// ── BUCKETS ────────────────────────────────────────────────────────
+const BUCKS=[
+  {label:'≤7 days',  min:0,  max:8,  col:'#059669', bg:'#D1FAE5', tx:'#065F46'},
+  {label:'8–14d',    min:8,  max:15, col:'#10B981', bg:'#ECFDF5', tx:'#064E3B'},
+  {label:'15–30d',   min:15, max:31, col:'#3B82F6', bg:'#DBEAFE', tx:'#1E40AF'},
+  {label:'31–60d',   min:31, max:61, col:'#F59E0B', bg:'#FEF3C7', tx:'#92400E'},
+  {label:'61–90d',   min:61, max:91, col:'#EF4444', bg:'#FEE2E2', tx:'#991B1B'},
+  {label:'90d+',     min:91, max:1e6,col:'#7C3AED', bg:'#EDE9FE', tx:'#5B21B6'},
+];
+
+function renderBuckets(jobs){
+  const invJobs=jobs.filter(j=>j.invoiceDate&&j.daysToInvoice!=null&&j.daysToInvoice>=0);
+  const pending=jobs.filter(j=>!j.invoiceDate);
+  $('buckets').innerHTML=BUCKS.map(b=>{
+    const cnt=invJobs.filter(j=>j.daysToInvoice>=b.min&&j.daysToInvoice<b.max).length;
+    const val=invJobs.filter(j=>j.daysToInvoice>=b.min&&j.daysToInvoice<b.max).reduce((s,j)=>s+j.salesExTax,0);
+    const pct=invJobs.length?Math.round(cnt/invJobs.length*100):0;
+    return `<div class="bucket" style="background:${b.bg};border:1px solid ${b.col}22">
+      <div class="text-lg font-black" style="color:${b.col}">${cnt}</div>
+      <div class="text-xs font-bold mt-0.5" style="color:${b.tx}">${b.label}</div>
+      <div class="text-xs mt-1" style="color:${b.tx}">${fmtM(val)}</div>
+      <div class="text-xs opacity-60" style="color:${b.tx}">${pct}% of invoiced</div>
+    </div>`;
+  }).concat([`<div class="bucket" style="background:#FFFBEB;border:1px dashed #D97706">
+    <div class="text-lg font-black text-amber-500">${pending.length}</div>
+    <div class="text-xs font-bold mt-0.5 text-amber-700">Pending</div>
+    <div class="text-xs mt-1 text-amber-600">${fmtM(pending.reduce((s,j)=>s+j.salesExTax,0))}</div>
+    <div class="text-xs opacity-60 text-amber-600">not yet invoiced</div>
+  </div>`]).join('');
+}
+
+// ── TIMELINE ──────────────────────────────────────────────────────
+function renderTimeline(){
+  const jobs=filteredJobs();
+  const sort=$('tl-sort').value||'val';
+  const n=parseInt($('tl-n').value)||40;
+
+  // Sort
+  let sorted=[...jobs];
+  if(sort==='val')  sorted.sort((a,b)=>b.salesExTax-a.salesExTax);
+  if(sort==='days') sorted.sort((a,b)=>(b.daysToInvoice??b.daysOpen??0)-(a.daysToInvoice??a.daysOpen??0));
+  if(sort==='date') sorted.sort((a,b)=>(a.orderDate||'').localeCompare(b.orderDate||''));
+  const display=sorted.slice(0,n);
+
+  if(!display.length){ $('timeline-wrap').innerHTML='<div class="text-xs text-slate-400 text-center py-4">No data</div>'; return; }
+
+  // Timeline scale
+  const dates=display.map(j=>j.orderDate).filter(Boolean);
+  const invDates=display.map(j=>j.invoiceDate).filter(Boolean);
+  const allDates=[...dates,...invDates];
+  const minDate=new Date(Math.min(...allDates.map(d=>new Date(d))));
+  const maxDate=new Date(Math.max(...allDates.map(d=>new Date(d)), new Date()));
+  const totalSpan=Math.max(1,(maxDate-minDate)/864e5);
+
+  const pos=d=>d?Math.max(0,Math.min(100,(new Date(d)-minDate)/864e5/totalSpan*100)):null;
+
+  // Legend dates
+  const ticks=5;
+  $('tl-legend').innerHTML=Array.from({length:ticks},(_,i)=>{
+    const d=new Date(minDate.getTime()+(maxDate-minDate)*i/(ticks-1));
+    return `<span style="position:absolute;left:${i/(ticks-1)*100}%;transform:translateX(-50%)">${d.toLocaleDateString('en-AU',{day:'2-digit',month:'short'})}</span>`;
+  }).join('');
+  $('tl-legend').style.position='relative'; $('tl-legend').style.height='14px';
+
+  $('timeline-wrap').innerHTML=display.map(j=>{
+    const p0=pos(j.orderDate)??0;
+    const p1=j.invoiceDate?pos(j.invoiceDate):pos(today())||100;
+    const span=Math.max(1,p1-p0);
+    const invd=j.daysToInvoice!=null?j.daysToInvoice+'d':(j.daysOpen+'d open');
+    const statusCol=j.invoiceDate?(j.daysToInvoice<=14?'#059669':j.daysToInvoice<=60?'#2E6DB4':'#EF4444'):'#D97706';
+    const isInv=!!j.invoiceDate;
+    return `<div class="tl-job" title="${j.ref} — ${j.rep} — ${fmtM(j.salesExTax)}">
+      <div class="tl-name" title="${j.ref} (${j.rep})">${j.ref}</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-rail"></div>
+        <div class="tl-seg ${isInv?'gap':'pend'}" style="left:${p0}%;width:${span}%;opacity:.35"></div>
+        <div class="tl-seg sold" style="left:${p0}%;width:2px;min-width:2px;"></div>
+        ${isInv?`<div class="tl-seg inv" style="left:${Math.max(0,p1-0.5)}%;width:2px;min-width:2px;"></div>`:''}
+        <div class="tl-dot" style="left:${p0}%;background:#2E6DB4"></div>
+        ${isInv?`<div class="tl-dot" style="left:${p1}%;background:#059669"></div>`:''}
+      </div>
+      <div class="tl-lbl" style="color:${statusCol}">${invd}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── DISTRIBUTION CHART ─────────────────────────────────────────────
+function renderDistribution(jobs){
+  const invJobs=jobs.filter(j=>j.daysToInvoice!=null&&j.daysToInvoice>=0);
+  const labels=BUCKS.map(b=>b.label);
+  const counts=BUCKS.map(b=>invJobs.filter(j=>j.daysToInvoice>=b.min&&j.daysToInvoice<b.max).length);
+  const daysArr=invJobs.map(j=>j.daysToInvoice);
+
+  if(_charts.dist) _charts.dist.destroy();
+  _charts.dist=new Chart($('dist-chart').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[{
+      label:'Jobs',data:counts,
+      backgroundColor:BUCKS.map(b=>b.col+'CC'),
+      borderColor:BUCKS.map(b=>b.col),borderWidth:1,
+    }]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{y:{title:{display:true,text:'# Jobs',font:{size:10}},ticks:{stepSize:1}}}}
+  });
+
+  if(daysArr.length){
+    const avg=Math.round(daysArr.reduce((s,d)=>s+d,0)/daysArr.length);
+    const med=median(daysArr);
+    const p90=percentile(daysArr,90);
+    $('dist-stats').innerHTML=`
+      <div class="flex justify-between"><span class="font-semibold">Average</span><span>${avg} days</span></div>
+      <div class="flex justify-between"><span class="font-semibold">Median</span><span>${med} days</span></div>
+      <div class="flex justify-between"><span class="font-semibold">90th pctile</span><span>${p90} days</span></div>
+      <div class="flex justify-between"><span class="font-semibold">Fastest</span><span>${Math.min(...daysArr)} days</span></div>
+      <div class="flex justify-between"><span class="font-semibold">Slowest</span><span>${Math.max(...daysArr)} days</span></div>
+    `;
+  }
+}
+
+// ── REP CHART ──────────────────────────────────────────────────────
+function renderRepChart(jobs){
+  const byRep={};
+  jobs.forEach(j=>{
+    if(!byRep[j.rep]) byRep[j.rep]={rep:j.rep,days:[],count:0};
+    if(j.daysToInvoice!=null&&j.daysToInvoice>=0) byRep[j.rep].days.push(j.daysToInvoice);
+    byRep[j.rep].count++;
+  });
+  const rows=Object.values(byRep).filter(r=>r.days.length>0).sort((a,b)=>{
+    const aa=a.days.reduce((s,d)=>s+d,0)/a.days.length;
+    const bb=b.days.reduce((s,d)=>s+d,0)/b.days.length;
+    return aa-bb;
+  });
+  const labels=rows.map(r=>r.rep.split(' ')[0]);
+  const avgs=rows.map(r=>Math.round(r.days.reduce((s,d)=>s+d,0)/r.days.length));
+  const meds=rows.map(r=>median(r.days));
+
+  if(_charts.rep) _charts.rep.destroy();
+  _charts.rep=new Chart($('rep-chart').getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Avg days',data:avgs,backgroundColor:'rgba(46,109,180,.65)',borderColor:'#2E6DB4',borderWidth:1},
+      {type:'line',label:'Median',data:meds,borderColor:'#059669',backgroundColor:'transparent',tension:.3,pointRadius:4},
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+      scales:{y:{title:{display:true,text:'Days',font:{size:10}}}}}
+  });
+}
+
+// ── SCATTER ────────────────────────────────────────────────────────
+function renderScatter(jobs){
+  const invJobs=jobs.filter(j=>j.daysToInvoice!=null&&j.daysToInvoice>=0&&j.salesExTax>0);
+  const data=invJobs.map(j=>({x:j.salesExTax, y:j.daysToInvoice, r:j.ref}));
+
+  if(_charts.sc) _charts.sc.destroy();
+  _charts.sc=new Chart($('scatter-chart').getContext('2d'),{
+    type:'scatter',
+    data:{datasets:[{
+      label:'Job',data,
+      backgroundColor:'rgba(46,109,180,.5)',
+      pointRadius:4,pointHoverRadius:6,
+    }]},
+    options:{responsive:true,plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:d=>`${d.raw.r}: ${fmtM(d.raw.x)} → ${d.raw.y}d`}}
+    },scales:{
+      x:{title:{display:true,text:'Job Value (ex tax)',font:{size:10}},ticks:{callback:v=>fmtM(v)}},
+      y:{title:{display:true,text:'Days to Invoice',font:{size:10}}},
+    }}
+  });
+}
+
+// ── CUMULATIVE ─────────────────────────────────────────────────────
+function renderCumulative(jobs){
+  const invJobs=jobs.filter(j=>j.invoiceDate&&j.daysToInvoice!=null&&j.daysToInvoice>=0);
+  if(!invJobs.length) return;
+  const maxD=Math.min(180, Math.max(...invJobs.map(j=>j.daysToInvoice)));
+  const labels=Array.from({length:maxD+1},(_,i)=>i);
+  const cumPct=labels.map(d=>Math.round(invJobs.filter(j=>j.daysToInvoice<=d).length/jobs.length*100));
+  const revPct=labels.map(d=>Math.round(invJobs.filter(j=>j.daysToInvoice<=d).reduce((s,j)=>s+j.salesExTax,0)/jobs.reduce((s,j)=>s+j.salesExTax,0)*100));
+
+  if(_charts.cum) _charts.cum.destroy();
+  _charts.cum=new Chart($('cum-chart').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'% Jobs invoiced',data:cumPct,borderColor:'#2E6DB4',backgroundColor:'rgba(46,109,180,.1)',fill:true,tension:.3,pointRadius:0},
+      {label:'% Revenue invoiced',data:revPct,borderColor:'#059669',backgroundColor:'rgba(5,150,105,.08)',fill:true,tension:.3,pointRadius:0,borderDash:[4,2]},
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+      scales:{
+        x:{title:{display:true,text:'Days after order date',font:{size:10}},ticks:{maxTicksLimit:12}},
+        y:{min:0,max:100,title:{display:true,text:'% Invoiced',font:{size:10}},ticks:{callback:v=>v+'%'}},
+      }}
+  });
+}
+
+// ── TABLE ──────────────────────────────────────────────────────────
+function renderTable(){
+  let jobs=filteredJobs();
+  const search=($('search').value||'').toLowerCase();
+  if(search) jobs=jobs.filter(j=>j.ref.toLowerCase().includes(search)||j.rep.toLowerCase().includes(search));
+  const filt=$('tbl-filter').value;
+  if(filt==='invoiced') jobs=jobs.filter(j=>j.invoiceDate);
+  if(filt==='pending')  jobs=jobs.filter(j=>!j.invoiceDate);
+  if(filt==='overdue')  jobs=jobs.filter(j=>!j.invoiceDate&&j.daysOpen>60);
+
+  const sortBy=$('tbl-sort').value||'days_desc';
+  if(sortBy==='days_desc') jobs.sort((a,b)=>(b.daysToInvoice??b.daysOpen??-1)-(a.daysToInvoice??a.daysOpen??-1));
+  if(sortBy==='days_asc')  jobs.sort((a,b)=>(a.daysToInvoice??a.daysOpen??999)-(b.daysToInvoice??b.daysOpen??999));
+  if(sortBy==='val_desc')  jobs.sort((a,b)=>b.salesExTax-a.salesExTax);
+  if(sortBy==='date_asc')  jobs.sort((a,b)=>(a.orderDate||'').localeCompare(b.orderDate||''));
+
+  const maxV=jobs.length?Math.max(...jobs.map(j=>j.salesExTax)):1;
+  const allInv=filteredJobs().filter(j=>j.invoiceDate);
+  const maxD=allInv.length?Math.max(...allInv.map(j=>j.daysToInvoice||0)):60;
+
+  $('job-tbody').innerHTML=jobs.slice(0,500).map(j=>{
+    const dVal=j.daysToInvoice;
+    const dOpen=j.daysOpen;
+    const dDisp=dVal!=null?dVal:dOpen;
+    const barW=maxD>0?Math.min(100,Math.round((dVal??0)/maxD*100)):0;
+    const barCol=dVal!=null?(dVal<=14?'#059669':dVal<=60?'#3B82F6':'#EF4444'):'#FCD34D';
+    let pill='', trCls='';
+    if(j.invoiceDate){
+      if(dVal<=14){ pill=`<span class="pill p-inv">&#10003; ${dVal}d — Fast</span>`; trCls='fast'; }
+      else if(dVal<=60){ pill=`<span class="pill p-inv">Invoiced ${dVal}d</span>`; }
+      else{ pill=`<span class="pill p-late">Invoiced ${dVal}d</span>`; trCls='late'; }
+    } else {
+      if(dOpen>60){ pill=`<span class="pill p-late">&#9888; ${dOpen}d — Overdue</span>`; trCls='late'; }
+      else{ pill=`<span class="pill p-pend">Pending ${dOpen}d</span>`; trCls='pending'; }
+    }
+    const barStyle=`<div class="ib" style="width:${barW}%;max-width:100px;height:7px;border-radius:3px;background:${barCol};"></div>`;
+    return `<tr class="${trCls}">
+      <td class="font-semibold text-slate-700">${j.ref}</td>
+      <td>${j.rep}</td>
+      <td>${fmtDate(j.orderDate)}</td>
+      <td class="r">${fmtM(j.salesExTax)}</td>
+      <td>${fmtDate(j.invoiceDate)}</td>
+      <td class="r font-bold" style="color:${barCol}">${dDisp!=null?dDisp+'d':'—'}</td>
+      <td>${pill}</td>
+      <td>${barStyle} <span class="text-xs text-slate-400">${dDisp!=null?dDisp+'d':''}</span></td>
+    </tr>`;
+  }).join('');
+
+  $('tbl-count').textContent=jobs.length>500?`Showing 500 of ${jobs.length} — export CSV for full data`:
+    `${jobs.length} job${jobs.length!==1?'s':''} shown`;
+}
+
+// ── EXPORT CSV ─────────────────────────────────────────────────────
+function exportCSV(){
+  const jobs=filteredJobs();
+  const hdr=['Job Ref','Rep','Order Date','Sales Ex Tax','Invoice Date','Days to Invoice','Status','Days Open'];
+  const rows=jobs.map(j=>[
+    `"${j.ref}"`,`"${j.rep}"`,j.orderDate||'',j.salesExTax.toFixed(2),
+    j.invoiceDate||'',j.daysToInvoice??'',j.status,j.daysOpen??'',
+  ].join(','));
+  const csv=[hdr.join(','),...rows].join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`sale_to_invoice_${$('c-from').value}.csv`; a.click();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────
+setMth(0); // Default to January 2026
+</script>
+</body>
+</html>

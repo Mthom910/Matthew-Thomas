@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DC Commission Payments — Insyte</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root { --navy:#1E3A5F; --blue:#2E6DB4; --teal:#0891B2; --green:#059669; --amber:#D97706; --red:#DC2626; --purple:#7C3AED; --slate:#64748B; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#F1F5F9; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:20px 24px; }
+  .stitle { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#94A3B8; margin-bottom:10px; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:700; }
+  .badge-blue   { background:#DBEAFE; color:#1E40AF; }
+  .badge-green  { background:#D1FAE5; color:#065F46; }
+  .badge-amber  { background:#FEF3C7; color:#92400E; }
+  .badge-red    { background:#FEE2E2; color:#991B1B; }
+  .badge-purple { background:#EDE9FE; color:#5B21B6; }
+  .dt { width:100%; border-collapse:collapse; font-size:.82rem; }
+  .dt th { background:var(--navy); color:#fff; padding:8px 12px; text-align:left; font-size:.72rem; font-weight:600; position:sticky; top:0; }
+  .dt td { padding:8px 12px; border-bottom:1px solid #F1F5F9; vertical-align:top; }
+  .dt tr:hover td { background:#F8FAFC; }
+  .dt .num { text-align:right; font-variant-numeric:tabular-nums; }
+  input[type=date],select,input[type=text] { border:1px solid #E2E8F0; border-radius:6px; padding:5px 10px; font-size:.83rem; }
+  #cfg { transition:max-height .3s,opacity .3s; overflow:hidden; }
+  #cfg.open { max-height:300px; opacity:1; }
+  #cfg.shut { max-height:0; opacity:0; }
+  .spin { width:20px;height:20px;border:3px solid #E2E8F0;border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body class="p-4 md:p-6">
+
+<!-- HEADER -->
+<div class="flex items-start justify-between flex-wrap gap-3 mb-5">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge-purple">Commission Analysis</span>
+      <span class="badge badge-blue">@victoryblinds Contacts</span>
+      <span class="badge badge-green">Payments Endpoint</span>
+    </div>
+    <h1 class="text-2xl font-black text-slate-800 leading-tight">DC Contractor Commission Payments</h1>
+    <p class="text-sm text-slate-500 mt-0.5">Actual payments to Victory Blinds DC contacts · 2026 vs 2025 YTD · Insyte Payments endpoint</p>
+  </div>
+  <div class="flex gap-2 flex-wrap">
+    <button onclick="toggleCfg()" class="text-sm px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium">⚙ Config</button>
+    <button onclick="loadData()" class="text-sm px-4 py-1.5 rounded-lg bg-purple-600 text-white font-semibold hover:bg-purple-700">▶ Load Live Data</button>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div id="cfg" class="shut mb-5">
+  <div class="card grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="col-span-2 md:col-span-4"><label class="stitle">API Base URL</label><input id="c-base" type="text" value="https://api.myinsyte.com.au/v2" class="w-full"></div>
+    <div class="col-span-2"><label class="stitle">Email</label><input id="c-email" type="text" value="" class="w-full"></div>
+    <div class="col-span-2"><label class="stitle">API Key</label><input id="c-key" type="text" value="" class="w-full"></div>
+    <div><label class="stitle">2026 From</label><input id="c-from" type="date" value="2026-01-01" class="w-full"></div>
+    <div><label class="stitle">2026 To</label><input id="c-to" type="date" value="2026-06-26" class="w-full"></div>
+    <div><label class="stitle">2025 From</label><input id="c-from2" type="date" value="2025-01-01" class="w-full"></div>
+    <div><label class="stitle">2025 To</label><input id="c-to2" type="date" value="2025-06-26" class="w-full"></div>
+  </div>
+</div>
+
+<!-- STATUS -->
+<div id="status-bar" class="card mb-5 hidden">
+  <div class="flex items-center gap-3">
+    <div class="spin" id="spinner"></div>
+    <span id="status-text" class="text-sm text-slate-600 font-medium"></span>
+  </div>
+  <div class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+    <div id="prog" class="h-full bg-purple-500 rounded-full transition-all duration-300" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div id="kpi-row" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4 mb-5"></div>
+
+<!-- PAYMENT TYPE BREAKDOWN -->
+<div id="type-row" class="hidden grid md:grid-cols-2 gap-4 mb-5">
+  <div class="card">
+    <div class="stitle">Monthly Commission Payments — 2026 vs 2025</div>
+    <canvas id="chart-monthly" height="220"></canvas>
+  </div>
+  <div class="card">
+    <div class="stitle">Commission by Contractor — 2026</div>
+    <canvas id="chart-by-dc" height="220"></canvas>
+  </div>
+</div>
+
+<!-- REFUND NOTE -->
+<div id="refund-note" class="hidden card mb-5 border-l-4 border-amber-400 bg-amber-50">
+  <div class="flex items-start gap-3">
+    <span class="text-2xl">⚠</span>
+    <div>
+      <div class="font-bold text-amber-800 mb-1">Refunds detected in payment data</div>
+      <div id="refund-detail" class="text-sm text-amber-700"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTRACTOR TABLE -->
+<div id="table-wrap" class="hidden card mb-5">
+  <div class="stitle">Commission Payments by Contractor</div>
+  <div class="overflow-x-auto">
+    <table class="dt">
+      <thead>
+        <tr>
+          <th>Contractor</th>
+          <th>Email</th>
+          <th class="num">2026 Payments</th>
+          <th class="num">2026 Total Paid</th>
+          <th class="num">2026 Avg / Payment</th>
+          <th class="num">2025 Total Paid</th>
+          <th class="num">YoY Change</th>
+          <th>Months Active 2026</th>
+        </tr>
+      </thead>
+      <tbody id="dc-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ALL PAYMENTS TABLE -->
+<div id="pay-table-wrap" class="hidden card mb-5">
+  <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+    <div class="stitle mb-0">All DC Payments — Searchable</div>
+    <div class="flex gap-2 items-center">
+      <select id="year-filter" class="text-sm" onchange="filterPayments()">
+        <option value="2026">2026</option><option value="2025">2025</option><option value="all">Both years</option>
+      </select>
+      <select id="dc-filter" class="text-sm" onchange="filterPayments()"><option value="">All contractors</option></select>
+      <button onclick="exportCSV()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium">⬇ CSV</button>
+    </div>
+  </div>
+  <div style="max-height:380px;overflow-y:auto">
+    <table class="dt">
+      <thead><tr>
+        <th>Date</th><th>Contractor</th><th>Email</th>
+        <th class="num">Amount</th><th>Status</th><th>Type</th>
+        <th>Receipt</th><th>Notes</th>
+      </tr></thead>
+      <tbody id="pay-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PLACEHOLDER -->
+<div id="ph" class="card text-center py-16">
+  <div class="text-5xl mb-4">💼</div>
+  <div class="text-lg font-bold text-slate-700 mb-2">DC Contractor Commission Payments</div>
+  <p class="text-sm text-slate-500 max-w-md mx-auto mb-6">Fetches all payments in the period, identifies DC contractors by @victoryblinds email domain, and analyses actual commission payments vs prior year.</p>
+  <button onclick="loadData()" class="px-6 py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700">Load Data</button>
+</div>
+
+<script>
+const DC_DOMAINS = ['victoryblinds.net.au', 'victoryblinds.com.au'];
+const MONTHS_26 = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
+const MONTHS_25 = ['2025-01','2025-02','2025-03','2025-04','2025-05','2025-06'];
+const MON_LABELS = ['Jan','Feb','Mar','Apr','May','Jun'];
+
+let STATE = { pay26: [], pay25: [], dcContacts: {}, charts: {} };
+
+function cfg() {
+  return {
+    base:  document.getElementById('c-base').value.trim().replace(/\/$/,''),
+    email: document.getElementById('c-email').value.trim(),
+    key:   document.getElementById('c-key').value.trim(),
+    from:  document.getElementById('c-from').value,
+    to:    document.getElementById('c-to').value,
+    from2: document.getElementById('c-from2').value,
+    to2:   document.getElementById('c-to2').value,
+  };
+}
+function toggleCfg() { const e=document.getElementById('cfg'); e.classList.toggle('open'); e.classList.toggle('shut'); }
+function status(msg, pct) {
+  document.getElementById('status-text').textContent = msg;
+  if (pct !== undefined) document.getElementById('prog').style.width = pct + '%';
+}
+function auth(c) { return 'Basic ' + btoa(c.email + ':' + c.key); }
+async function apiFetch(c, path, retries=4) {
+  for (let i=0;i<retries;i++) {
+    try {
+      const r = await fetch(c.base + path, {headers:{Authorization:auth(c),Accept:'application/json'}});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch(e) { if (i===retries-1) throw e; await new Promise(r=>setTimeout(r,600*(i+1))); }
+  }
+}
+async function fetchAll(c, path, label) {
+  const PAGE=500, rows=[], sep=path.includes('?')?'&':'?';
+  let skip=0, pg=1;
+  while(true) {
+    status(`${label} — page ${pg}…`);
+    const data = await apiFetch(c, `${path}${sep}$top=${PAGE}&$skip=${skip}`);
+    const page = data.value ?? (Array.isArray(data)?data:[]);
+    rows.push(...page);
+    if (page.length < PAGE) break;
+    skip+=PAGE; pg++;
+  }
+  return rows;
+}
+async function fetchContacts(c, ids) {
+  const CHUNK=15, map={};
+  for (let i=0;i<ids.length;i+=CHUNK) {
+    const chunk=ids.slice(i,i+CHUNK);
+    const f=encodeURIComponent(chunk.map(id=>`ID eq ${id}`).join(' or '));
+    try {
+      const data = await apiFetch(c, `/Contacts?$filter=${f}&$top=${CHUNK*2}`);
+      (data.value||[]).forEach(ct=>{ map[ct.ID]=ct; });
+    } catch(e) {}
+  }
+  return map;
+}
+
+function isDC(c) {
+  const email = (c.Email||'').toLowerCase();
+  return DC_DOMAINS.some(d => email.endsWith('@'+d) || email.includes('@'+d));
+}
+function fullName(c) { return `${c.FirstName||''} ${c.LastName||''}`.trim(); }
+
+async function loadData() {
+  const c = cfg();
+  document.getElementById('ph').classList.add('hidden');
+  document.getElementById('status-bar').classList.remove('hidden');
+  ['kpi-row','type-row','refund-note','table-wrap','pay-table-wrap'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('spinner').style.display='';
+
+  try {
+    const df = (f,t) => encodeURIComponent(`Date ge ${f}T00:00:00Z and Date le ${t}T23:59:59Z`);
+    status('Loading 2026 payments…', 10);
+    const p26 = await fetchAll(c, `/Payments?$filter=${df(c.from,c.to)}`, '2026 payments');
+    status('Loading 2025 payments…', 30);
+    const p25 = await fetchAll(c, `/Payments?$filter=${df(c.from2,c.to2)}`, '2025 payments');
+    status('Loading contact details…', 50);
+    const allIds = [...new Set([...p26,...p25].map(p=>p.ContactID).filter(Boolean))];
+    const contactMap = await fetchContacts(c, allIds);
+    status('Identifying DC contractors…', 85);
+    const dcContacts = Object.fromEntries(Object.entries(contactMap).filter(([,ct])=>isDC(ct)));
+    const dcIds = new Set(Object.keys(dcContacts).map(Number));
+    const dcPay26 = p26.filter(p=>dcIds.has(p.ContactID));
+    const dcPay25 = p25.filter(p=>dcIds.has(p.ContactID));
+    document.getElementById('spinner').style.display='none';
+    status('Done', 100);
+    STATE = { pay26:dcPay26, pay25:dcPay25, dcContacts, allPay26:p26 };
+    render(p26, dcPay26, dcPay25, dcContacts);
+  } catch(err) {
+    status('Error: '+err.message);
+    document.getElementById('spinner').style.display='none';
+    console.error(err);
+  }
+}
+
+function fmt(v){ const a=Math.abs(v); return (v<0?'-':'')+'$'+(a>=1e6?(a/1e6).toFixed(2)+'M':a>=1e3?(a/1e3).toFixed(1)+'K':a.toFixed(0)); }
+function fmtFull(v){ return (v<0?'-':'')+'$'+Math.abs(v).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fp(v){ return v.toFixed(1)+'%'; }
+
+function render(allPay26, pay26, pay25, dcContacts) {
+  const tot26 = pay26.reduce((a,p)=>a+(p.Amount||0),0);
+  const tot25 = pay25.reduce((a,p)=>a+(p.Amount||0),0);
+  const dcCount = Object.keys(dcContacts).length;
+  const refunds26 = allPay26.filter(p=>p.Type==='type_payment_refund');
+  const refundTotal = refunds26.reduce((a,p)=>a+(p.Amount||0),0);
+  const pmt26count = pay26.length, pmt25count = pay25.length;
+
+  // KPIs
+  document.getElementById('kpi-row').classList.remove('hidden');
+  const yoy = tot25 ? ((tot26-tot25)/tot25*100).toFixed(1) : null;
+  document.getElementById('kpi-row').innerHTML = [
+    kpiCard('Total Commission Paid 2026', fmtFull(tot26), `${pmt26count} payments to ${dcCount} contractors`, yoy, '#7C3AED'),
+    kpiCard('Prior Year (2025 YTD)', fmtFull(tot25), `${pmt25count} payments`, null, '#94A3B8'),
+    kpiCard('YoY Change', yoy!==null?(yoy>0?'+':'')+yoy+'%':'—', `${fmtFull(tot26-tot25)} difference`, null, tot26>=tot25?'#059669':'#DC2626'),
+    kpiCard('Refunds in Period', fmtFull(refundTotal), `${refunds26.length} refund transactions`, null, '#DC2626'),
+  ].join('');
+
+  // Refund note
+  if (refunds26.length > 0) {
+    document.getElementById('refund-note').classList.remove('hidden');
+    document.getElementById('refund-detail').textContent =
+      `${refunds26.length} refunds totalling ${fmtFull(refundTotal)} were processed in the 2026 period. ` +
+      `These represent money returned to customers and reduce net collected revenue.`;
+  }
+
+  // Monthly chart
+  const monthly26 = {}, monthly25 = {};
+  pay26.forEach(p=>{ const m=(p.Date||'').slice(0,7); monthly26[m]=(monthly26[m]||0)+(p.Amount||0); });
+  pay25.forEach(p=>{ const m=(p.Date||'').slice(0,7); monthly25[m]=(monthly25[m]||0)+(p.Amount||0); });
+
+  document.getElementById('type-row').classList.remove('hidden');
+  makeChart('chart-monthly', 'bar', MON_LABELS, [
+    {label:'2026 Paid', data: MONTHS_26.map(m=>Math.round(monthly26[m]||0)), backgroundColor:'#7C3AED'},
+    {label:'2025 Paid', data: MONTHS_25.map(m=>Math.round(monthly25[m]||0)), backgroundColor:'#C4B5FD'},
+  ]);
+
+  // By DC contractor chart (2026)
+  const byDC26 = {};
+  pay26.forEach(p=>{
+    const ct = dcContacts[p.ContactID];
+    const key = ct ? fullName(ct) : `Contact ${p.ContactID}`;
+    byDC26[key] = (byDC26[key]||0) + (p.Amount||0);
+  });
+  const sorted26 = Object.entries(byDC26).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  const colors26 = ['#7C3AED','#2E6DB4','#0891B2','#059669','#D97706','#DC2626','#8B5CF6','#3B82F6','#06B6D4','#10B981','#F59E0B','#EF4444'];
+  makeChart('chart-by-dc', 'bar', sorted26.map(([k])=>k.length>18?k.slice(0,16)+'…':k),
+    [{label:'2026 Commission', data:sorted26.map(([,v])=>Math.round(v)), backgroundColor:colors26}], {horizontal:true});
+
+  // Contractor table
+  document.getElementById('table-wrap').classList.remove('hidden');
+  const byDC25 = {};
+  pay25.forEach(p=>{
+    const ct = dcContacts[p.ContactID];
+    const key = ct ? fullName(ct) : `Contact ${p.ContactID}`;
+    byDC25[key] = (byDC25[key]||0) + (p.Amount||0);
+  });
+  const byDCMonths = {};
+  pay26.forEach(p=>{
+    const ct = dcContacts[p.ContactID];
+    const key = ct ? fullName(ct) : `Contact ${p.ContactID}`;
+    const email = ct ? (ct.Email||'') : '';
+    if (!byDCMonths[key]) byDCMonths[key]={count:0,total:0,months:new Set(),email};
+    byDCMonths[key].count++;
+    byDCMonths[key].total += (p.Amount||0);
+    byDCMonths[key].months.add((p.Date||'').slice(0,7));
+  });
+
+  const tbody = document.getElementById('dc-tbody');
+  const rows = Object.entries(byDCMonths).sort((a,b)=>b[1].total-a[1].total);
+  tbody.innerHTML = rows.map(([name,d]) => {
+    const p25t = byDC25[name]||0;
+    const diff = d.total - p25t;
+    const diffCol = diff>=0?'color:#059669':'color:#DC2626';
+    const avg = d.count ? d.total/d.count : 0;
+    const mos = [...d.months].sort().map(m=>m.slice(5)).join(', ');
+    return `<tr>
+      <td><b>${name}</b></td>
+      <td class="text-xs text-slate-500">${d.email}</td>
+      <td class="num">${d.count}</td>
+      <td class="num font-bold" style="color:#7C3AED">${fmtFull(d.total)}</td>
+      <td class="num text-slate-500">${fmtFull(avg)}</td>
+      <td class="num text-slate-500">${p25t ? fmtFull(p25t) : '—'}</td>
+      <td class="num font-bold" style="${diffCol}">${p25t?(diff>=0?'+':'')+fmtFull(diff):'—'}</td>
+      <td class="text-xs text-slate-500">${mos}</td>
+    </tr>`;
+  }).join('') + `<tr class="bg-slate-50 font-bold border-t-2 border-slate-200">
+    <td colspan="2">TOTAL</td>
+    <td class="num">${pay26.length}</td>
+    <td class="num" style="color:#7C3AED">${fmtFull(tot26)}</td>
+    <td class="num text-slate-500">${fmtFull(pay26.length?tot26/pay26.length:0)}</td>
+    <td class="num text-slate-500">${fmtFull(tot25)}</td>
+    <td class="num font-bold" style="${(tot26-tot25)>=0?'color:#059669':'color:#DC2626'}">${((tot26-tot25)>=0?'+':'')+fmtFull(tot26-tot25)}</td>
+    <td></td>
+  </tr>`;
+
+  // Payment detail table
+  document.getElementById('pay-table-wrap').classList.remove('hidden');
+  const sel = document.getElementById('dc-filter');
+  sel.innerHTML = '<option value="">All contractors</option>' +
+    rows.map(([name])=>`<option value="${name}">${name}</option>`).join('');
+  renderPayTable([...pay26.map(p=>({...p,yr:'2026'})),...pay25.map(p=>({...p,yr:'2025'}))], dcContacts);
+}
+
+function renderPayTable(payments, dcContacts) {
+  const yr = document.getElementById('year-filter')?.value || '2026';
+  const dc = document.getElementById('dc-filter')?.value || '';
+  const filtered = payments.filter(p => {
+    if (yr !== 'all' && p.yr !== yr) return false;
+    if (dc) {
+      const ct = STATE.dcContacts[p.ContactID];
+      const name = ct ? fullName(ct) : '';
+      if (name !== dc) return false;
+    }
+    return true;
+  }).sort((a,b)=>(b.Date||'').localeCompare(a.Date||''));
+
+  const tbody = document.getElementById('pay-tbody');
+  const stCol = {'status_payment_confirmed':'#059669','status_payment_cancelled':'#DC2626','status_payment_draft':'#D97706'};
+  tbody.innerHTML = filtered.slice(0,500).map(p=>{
+    const ct = STATE.dcContacts[p.ContactID];
+    const name = ct ? fullName(ct) : `Contact ${p.ContactID}`;
+    const email = ct ? (ct.Email||'') : '';
+    const amt = p.Amount||0;
+    const aCol = amt<0?'color:#DC2626;font-weight:700':'font-weight:600';
+    const sCol = stCol[p.Status]||'#64748B';
+    const notes = (p.Notes||'').slice(0,60);
+    return `<tr>
+      <td class="font-mono text-xs">${(p.Date||'').slice(0,10)}</td>
+      <td><b>${name}</b><span class="text-xs text-slate-400 block">${p.yr}</span></td>
+      <td class="text-xs text-slate-400">${email}</td>
+      <td class="num" style="${aCol}">${fmtFull(amt)}</td>
+      <td><span class="text-xs font-semibold" style="color:${sCol}">${(p.Status||'').replace('status_payment_','')}</span></td>
+      <td class="text-xs text-slate-500">${(p.Type||'').replace('type_payment_','')}</td>
+      <td class="font-mono text-xs text-slate-400">${p.ReceiptNumber||''}</td>
+      <td class="text-xs text-slate-400" style="max-width:200px;word-break:break-word">${notes}</td>
+    </tr>`;
+  }).join('');
+  if (filtered.length > 500)
+    tbody.innerHTML += `<tr><td colspan="8" class="text-center text-slate-400 text-xs py-2">Showing 500 of ${filtered.length}</td></tr>`;
+}
+
+function filterPayments() {
+  renderPayTable([...STATE.pay26.map(p=>({...p,yr:'2026'})),...STATE.pay25.map(p=>({...p,yr:'2025'}))], STATE.dcContacts);
+}
+
+function kpiCard(label, val, sub, yoy, col) {
+  const badge = yoy!==null ? `<span class="badge ${parseFloat(yoy)>=0?'badge-green':'badge-red'} mt-1">${parseFloat(yoy)>=0?'▲':'▼'} ${Math.abs(parseFloat(yoy)).toFixed(1)}% YoY</span>` : '';
+  return `<div class="card"><div class="stitle">${label}</div>
+    <div class="text-2xl font-black" style="color:${col}">${val}</div>
+    <div class="text-xs text-slate-500 mt-0.5">${sub}</div>${badge}</div>`;
+}
+
+function makeChart(id, type, labels, datasets, opts={}) {
+  if (STATE.charts[id]) STATE.charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  const isBar = type==='bar';
+  STATE.charts[id] = new Chart(ctx, {
+    type,
+    data: { labels, datasets: datasets.map(d=>({...d, borderWidth:0, borderRadius:4,
+      ...(opts.horizontal ? {} : {barPercentage:0.7, categoryPercentage:0.8})})) },
+    options: {
+      indexAxis: opts.horizontal ? 'y' : 'x',
+      responsive:true, maintainAspectRatio:true,
+      plugins: {
+        legend: {display:datasets.length>1, position:'bottom', labels:{font:{size:11},padding:10}},
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${Math.round(Math.abs(ctx.parsed[opts.horizontal?'x':'y'])).toLocaleString()}` } }
+      },
+      scales: {
+        x: { ticks:{font:{size:10},color:'#64748B',callback:v=>opts.horizontal?'$'+(Math.abs(v)>=1000?(Math.abs(v)/1000).toFixed(0)+'K':v):v}, grid:{display:opts.horizontal} },
+        y: { ticks:{font:{size:10},color:'#64748B',callback:v=>opts.horizontal?v:'$'+(Math.abs(v)>=1000?(Math.abs(v)/1000).toFixed(0)+'K':v)}, grid:{display:!opts.horizontal,color:'#F1F5F9'} }
+      }
+    }
+  });
+}
+
+function exportCSV() {
+  const rows = [...STATE.pay26.map(p=>({...p,yr:'2026'})),...STATE.pay25.map(p=>({...p,yr:'2025'}))];
+  const yr = document.getElementById('year-filter').value;
+  const dc = document.getElementById('dc-filter').value;
+  const filtered = rows.filter(p=>{
+    if (yr!=='all'&&p.yr!==yr) return false;
+    if (dc) { const ct=STATE.dcContacts[p.ContactID]; if(!ct||fullName(ct)!==dc) return false; }
+    return true;
+  });
+  const hdr = 'Date,Year,Contractor,Email,Amount,Status,Type,Receipt,Notes\n';
+  const body = filtered.map(p=>{
+    const ct=STATE.dcContacts[p.ContactID];
+    const name=ct?fullName(ct):`Contact ${p.ContactID}`;
+    const email=ct?(ct.Email||')':'';
+    return `${(p.Date||'').slice(0,10)},${p.yr},"${name}","${email}",${p.Amount||0},${p.Status||''},${p.Type||''},${p.ReceiptNumber||'},"${(p.Notes||'').replace(/"/g,"'")}"`;
+  }).join('\n');
+  const blob=new Blob([hdr+body],{type:'text/csv'});
+  Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:'dc_commission_payments.csv'}).click();
+}
+</script>
+</body>
+</html>

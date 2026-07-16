@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Executive Sales Dashboard — Insyte</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          brand: { 50:'#f0f9ff', 500:'#0ea5e9', 600:'#0284c7', 700:'#0369a1' },
+          surface: { DEFAULT:'#0f172a', card:'#1e293b', border:'#334155', muted:'#475569' }
+        },
+        fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+      }
+    }
+  }
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1e293b; }
+  ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+  /* KPI card gradient borders */
+  .kpi-card { position: relative; }
+  .kpi-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 12px;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--accent) 0%, transparent 60%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Loader */
+  .spinner {
+    border: 2px solid #334155;
+    border-top-color: #0ea5e9;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    animation: spin .7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Pulse skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  /* Badge */
+  .badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600;
+           padding:2px 8px; border-radius:99px; }
+  .badge-up   { background:#052e16; color:#4ade80; }
+  .badge-down { background:#450a0a; color:#f87171; }
+  .badge-flat { background:#172554; color:#93c5fd; }
+
+  /* Table */
+  .data-table { width:100%; border-collapse:collapse; }
+  .data-table th { padding:10px 14px; text-align:left; font-size:11px; font-weight:600;
+                   text-transform:uppercase; letter-spacing:.05em; color:#64748b;
+                   border-bottom:1px solid #334155; white-space:nowrap; }
+  .data-table td { padding:10px 14px; font-size:13px; color:#cbd5e1; border-bottom:1px solid #1e293b; }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:#1e293b; }
+  .data-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* Config panel */
+  #configPanel { max-height:0; overflow:hidden; transition:max-height .3s ease; }
+  #configPanel.open { max-height:500px; }
+
+  /* Filter pills */
+  .filter-pill { cursor:pointer; padding:5px 14px; border-radius:99px; font-size:12px;
+                 font-weight:500; border:1px solid #334155; color:#94a3b8;
+                 transition:all .15s; white-space:nowrap; }
+  .filter-pill.active { background:#0ea5e9; border-color:#0ea5e9; color:#fff; }
+  .filter-pill:hover:not(.active) { border-color:#64748b; color:#e2e8f0; }
+
+  /* Status dot */
+  .status-dot { width:8px; height:8px; border-radius:50%; }
+  .status-dot.live    { background:#4ade80; box-shadow:0 0 0 3px #052e1680; animation:pulse-dot 2s infinite; }
+  .status-dot.loading { background:#f59e0b; }
+  .status-dot.error   { background:#ef4444; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  /* Responsive grid */
+  .chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:900px) { .chart-grid { grid-template-columns:1fr; } }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  @media(max-width:900px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:500px) { .kpi-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body class="bg-[#0f172a] text-slate-100 min-h-screen">
+
+<!-- ══════════════════════════════════════════════════════ HEADER -->
+<header class="bg-[#0f172a] border-b border-slate-800 sticky top-0 z-50">
+  <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-4 flex-wrap">
+
+    <!-- Logo + title -->
+    <div class="flex items-center gap-3 mr-auto">
+      <div class="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white text-sm font-bold">E</div>
+      <div>
+        <div class="font-700 text-white text-sm leading-tight">Executive Sales</div>
+        <div class="text-xs text-slate-500 leading-tight">Order Intake Dashboard</div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="flex items-center gap-2 text-xs text-slate-400">
+      <div id="statusDot" class="status-dot loading"></div>
+      <span id="statusText">Not loaded</span>
+    </div>
+
+    <!-- Last refreshed -->
+    <span id="lastRefreshed" class="text-xs text-slate-500 hidden">–</span>
+
+    <!-- Auto-refresh toggle -->
+    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
+      <div class="relative">
+        <input type="checkbox" id="autoRefresh" class="sr-only">
+        <div class="w-8 h-4 bg-slate-700 rounded-full"></div>
+        <div id="autoRefreshKnob" class="absolute left-0.5 top-0.5 w-3 h-3 bg-slate-400 rounded-full transition-all"></div>
+      </div>
+      Auto (5m)
+    </label>
+
+    <!-- Refresh -->
+    <button onclick="loadData()" id="refreshBtn"
+      class="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-600 px-3 py-1.5 rounded-lg transition">
+      <span id="refreshIcon">↻</span> Refresh
+    </button>
+
+    <!-- Config toggle -->
+    <button onclick="toggleConfig()"
+      class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition border border-slate-700">
+      ⚙ Config
+    </button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════ CONFIG PANEL -->
+<div id="configPanel" class="bg-slate-900 border-b border-slate-800">
+  <div class="max-w-[1600px] mx-auto px-6 py-5">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+
+      <div>
+        <label class="block text-xs font-500 text-slate-400 mb-1">OData Base URL</label>
+        <input id="cfgBase" type="url" placeholder="https://api.myinsyte.com.au/v2"
+          class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white
+                 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+      </div>
+
+      <div>
+        <label class="block text-xs font-500 text-slate-400 mb-1">Email (username)</label>
+        <input id="cfgEmail" type="email" placeholder="user@company.com"
+          class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white
+                 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+      </div>
+
+      <div>
+        <label class="block text-xs font-500 text-slate-400 mb-1">API Key</label>
+        <input id="cfgKey" type="password" placeholder="••••••••••••••••"
+          class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white
+                 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+      </div>
+
+      <div>
+        <label class="block text-xs font-500 text-slate-400 mb-1">Monthly Target ($)</label>
+        <input id="cfgTarget" type="number" placeholder="500000"
+          class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white
+                 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+      </div>
+
+      <div class="md:col-span-4 flex gap-3 flex-wrap">
+        <button onclick="saveConfig()"
+          class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-600 px-4 py-2 rounded-lg transition">
+          Save Config
+        </button>
+        <button onclick="testConnection()"
+          class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-600 px-4 py-2 rounded-lg transition">
+          Test Connection
+        </button>
+        <span id="testResult" class="text-xs self-center text-slate-400"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ FILTER BAR -->
+<div class="bg-slate-900/60 border-b border-slate-800">
+  <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-4 flex-wrap">
+
+    <!-- Date range pills -->
+    <div class="flex gap-2 flex-wrap">
+      <span class="text-xs text-slate-500 self-center mr-1">Period:</span>
+      <button class="filter-pill active" data-period="ytd"   onclick="setPeriod(this)">YTD</button>
+      <button class="filter-pill"        data-period="q"     onclick="setPeriod(this)">This Quarter</button>
+      <button class="filter-pill"        data-period="m"     onclick="setPeriod(this)">This Month</button>
+      <button class="filter-pill"        data-period="90"    onclick="setPeriod(this)">Last 90d</button>
+      <button class="filter-pill"        data-period="30"    onclick="setPeriod(this)">Last 30d</button>
+      <button class="filter-pill"        data-period="ly"    onclick="setPeriod(this)">Last Year</button>
+      <button class="filter-pill"        data-period="all"   onclick="setPeriod(this)">All</button>
+    </div>
+
+    <div class="h-4 w-px bg-slate-700"></div>
+
+    <!-- State filter -->
+    <select id="stateFilter" onchange="applyFilters()"
+      class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-300
+             focus:outline-none focus:border-sky-500 transition cursor-pointer">
+      <option value="all">All States</option>
+    </select>
+
+    <!-- Rep filter -->
+    <select id="repFilter" onchange="applyFilters()"
+      class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-300
+             focus:outline-none focus:border-sky-500 transition cursor-pointer">
+      <option value="all">All Reps</option>
+    </select>
+
+    <!-- Product filter -->
+    <select id="productFilter" onchange="applyFilters()"
+      class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-300
+             focus:outline-none focus:border-sky-500 transition cursor-pointer">
+      <option value="all">All Products</option>
+    </select>
+
+    <!-- Clear -->
+    <button onclick="clearFilters()" class="text-xs text-slate-500 hover:text-slate-300 transition ml-auto">
+      Clear filters
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ MAIN CONTENT -->
+<main class="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+
+  <!-- KPI CARDS -->
+  <section>
+    <div class="kpi-grid" id="kpiGrid">
+      <!-- Populated by JS -->
+      <div class="skeleton h-36 rounded-xl"></div>
+      <div class="skeleton h-36 rounded-xl"></div>
+      <div class="skeleton h-36 rounded-xl"></div>
+      <div class="skeleton h-36 rounded-xl"></div>
+    </div>
+  </section>
+
+  <!-- CHARTS ROW 1: Trend + Top States -->
+  <section class="chart-grid">
+
+    <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-sm font-600 text-white">Order Intake Trend</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Monthly confirmed orders vs prior year</p>
+        </div>
+        <div class="flex gap-3 text-xs text-slate-400">
+          <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-sky-400 inline-block rounded"></span>This year</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-slate-500 inline-block rounded border-dashed border-t border-slate-500"></span>Prior year</span>
+        </div>
+      </div>
+      <div style="height:220px"><canvas id="trendChart"></canvas></div>
+    </div>
+
+    <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-sm font-600 text-white">Order Intake by State</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Ranked by revenue won</p>
+        </div>
+      </div>
+      <div style="height:220px"><canvas id="stateChart"></canvas></div>
+    </div>
+
+  </section>
+
+  <!-- CHARTS ROW 2: Top Reps + Product Mix -->
+  <section class="chart-grid">
+
+    <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-sm font-600 text-white">Top 10 Reps — Order Intake</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Ranked by confirmed revenue</p>
+        </div>
+        <select id="repSort" onchange="renderRepChart()" class="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none">
+          <option value="revenue">By Revenue</option>
+          <option value="orders">By # Orders</option>
+          <option value="conv">By Conv %</option>
+          <option value="aov">By AOV</option>
+        </select>
+      </div>
+      <div style="height:220px"><canvas id="repChart"></canvas></div>
+    </div>
+
+    <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-sm font-600 text-white">Product Mix</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Revenue by product category</p>
+        </div>
+      </div>
+      <div style="height:220px"><canvas id="productChart"></canvas></div>
+    </div>
+
+  </section>
+
+  <!-- SUMMARY TABLE -->
+  <section class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-sm font-600 text-white">State Performance Summary</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Order intake, conversion, AOV and discount by state</p>
+      </div>
+      <div id="tableRecordCount" class="text-xs text-slate-500"></div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="data-table" id="summaryTable">
+        <thead>
+          <tr>
+            <th>State</th>
+            <th class="num">Intake $</th>
+            <th class="num">Orders</th>
+            <th class="num">Total Quotes</th>
+            <th class="num">Quote→Order</th>
+            <th class="num">AOV</th>
+            <th class="num">Avg Disc</th>
+            <th class="num">GP %</th>
+            <th>Attainment</th>
+          </tr>
+        </thead>
+        <tbody id="summaryBody">
+          <tr><td colspan="9" class="text-center text-slate-500 py-12">
+            <div class="spinner mx-auto mb-3"></div>
+            Loading data…
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- EXCEPTION ALERTS -->
+  <section id="alertsSection" class="hidden">
+    <div class="bg-red-950/40 rounded-xl border border-red-900/50 p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-red-400 text-base">⚠</span>
+        <h2 class="text-sm font-600 text-red-300">Exception Alerts</h2>
+        <span class="text-xs text-red-400/70 ml-1">Reps significantly below expectations</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table" id="alertsTable">
+          <thead>
+            <tr>
+              <th>Rep</th><th>State</th>
+              <th class="num">Intake $</th>
+              <th class="num">Orders</th>
+              <th class="num">Conv %</th>
+              <th class="num">AOV</th>
+              <th>Issue</th>
+            </tr>
+          </thead>
+          <tbody id="alertsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="text-center text-xs text-slate-600 py-4">
+    Data sourced from Insyte OData API · Filtered to confirmed (won) job lines only ·
+    <span id="footerDataNote"></span>
+  </footer>
+
+</main>
+
+<!-- ══════════════════════════════════════════════════════ JAVASCRIPT -->
+<script>
+'use strict';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. CONFIGURATION & STATE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Default credentials — overridden by localStorage or the config panel
+const DEFAULTS = {
+  apiBase:  'https://api.myinsyte.com.au/v2',
+  apiEmail: '',
+  apiKey:   '',
+  target:   500000,   // monthly revenue target $
+};
+
+// ── Job line stage classification
+// Adjust these sets if your Insyte instance uses different stage identifiers.
+// You can discover real values by checking the browser console after first load.
+const WON_STAGES = new Set([
+  'stage_job_line_confirmed','stage_job_line_confirmed_cm',
+  'stage_job_line_cm_booked','stage_job_line_cm_inprogress',
+  'stage_job_line_cm_completed','stage_job_line_cm_completed_confirmed',
+  'stage_job_line_cm_completed_reschedule','stage_job_line_cm_completed_unconfirmed',
+  'stage_job_line_supply','stage_job_line_supply_failed',
+  'stage_job_line_dispatch','stage_job_line_invoicing','stage_job_line_restocked',
+]);
+const QUOTE_STAGES = new Set([
+  'stage_job_line_unconfirmed','stage_job_line_unconfirmed_cm',
+  'stage_job_line_cm_not_booked','stage_job_line_negotiation',
+  'stage_job_line_negotiation_cm',
+]);
+const LOST_STAGES = new Set([
+  'stage_job_line_cancelled','status_invoice_line_cancelled',
+  'stage_job_line_expired','stage_job_line_lost',
+]);
+
+// ── Service exclusion
+// Job lines whose product name OR job type matches any of these keywords (case-insensitive)
+// are excluded from ALL calculations. Add or remove keywords to suit your product naming.
+// Check the console log "[Service excluded]" after load to review what was filtered out.
+const SERVICE_KEYWORDS = [
+  'service','repair','maintenance','call out','callout',
+  'call-out','remedial','warranty','fault','diagnos',
+];
+
+// Checks both the line's product name and the parent job's Type field (if present)
+function isServiceRow(line, job) {
+  const haystack = [
+    line.Product        || '',
+    line.ProductCode    || '',
+    line.MultiProduct   || '',
+    line.Description    || '',
+    job.JobType         || '',   // adjust field name if Insyte uses a different key
+    job.Type            || '',
+    job.Category        || '',
+  ].join(' ').toLowerCase();
+  return SERVICE_KEYWORDS.some(kw => haystack.includes(kw));
+}
+
+// ── Application state
+const APP = {
+  cfg:     {},          // loaded from localStorage
+  raw:     null,        // { lines, jobs, users } — raw API response
+  rows:    [],          // transformed flat rows
+  filtered:[],          // rows after filters applied
+  period:  'ytd',       // active date period
+  state:   'all',
+  rep:     'all',
+  product: 'all',
+  charts:  {},
+  autoTimer: null,
+};
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CHART_COLORS = [
+  '#0ea5e9','#8b5cf6','#10b981','#f59e0b','#ef4444',
+  '#ec4899','#06b6d4','#84cc16','#f97316','#6366f1',
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. CONFIG HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function loadConfig() {
+  const saved = JSON.parse(localStorage.getItem('insyte_exec_cfg') || '{}');
+  APP.cfg = { ...DEFAULTS, ...saved };
+  document.getElementById('cfgBase').value   = APP.cfg.apiBase;
+  document.getElementById('cfgEmail').value  = APP.cfg.apiEmail;
+  document.getElementById('cfgKey').value    = APP.cfg.apiKey;
+  document.getElementById('cfgTarget').value = APP.cfg.target;
+}
+
+function saveConfig() {
+  APP.cfg = {
+    apiBase:  document.getElementById('cfgBase').value.trim(),
+    apiEmail: document.getElementById('cfgEmail').value.trim(),
+    apiKey:   document.getElementById('cfgKey').value.trim(),
+    target:   parseFloat(document.getElementById('cfgTarget').value) || 500000,
+  };
+  localStorage.setItem('insyte_exec_cfg', JSON.stringify(APP.cfg));
+  setStatus('idle', 'Config saved');
+  document.getElementById('testResult').textContent = '✓ Config saved';
+}
+
+function toggleConfig() {
+  document.getElementById('configPanel').classList.toggle('open');
+}
+
+async function testConnection() {
+  const el = document.getElementById('testResult');
+  el.textContent = 'Testing…';
+  try {
+    const r = await apiGet('/Users?$top=1');
+    el.textContent = '✓ Connected — ' + (r.value?.length ?? 0) + ' user records seen';
+    el.className = 'text-xs self-center text-emerald-400';
+  } catch(e) {
+    el.textContent = '✗ ' + e.message;
+    el.className = 'text-xs self-center text-red-400';
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. API HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function authHeader() {
+  const token = btoa(`${APP.cfg.apiEmail}:${APP.cfg.apiKey}`);
+  return { Authorization: `Basic ${token}`, Accept: 'application/json' };
+}
+
+// Single OData request — returns raw parsed JSON
+async function apiGet(path) {
+  const url = APP.cfg.apiBase.replace(/\/$/, '') + path;
+  console.debug('[API]', url);
+  const res = await fetch(url, { headers: authHeader() });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status} — ${path.split('?')[0]}\n${body}`);
+  }
+  return res.json();
+}
+
+// Paginate through an OData collection using $skip (Insyte does not return @odata.nextLink)
+// @param {string} path  — e.g. '/JobLines?$filter=...'
+// @returns {Array}
+async function fetchAllPages(path) {
+  const PAGE = 500;
+  // Strip any existing $top/$skip from the path before appending our own
+  const clean = path
+    .replace(/([&?])\$top=\d+/gi, '$1')
+    .replace(/([&?])\$skip=\d+/gi, '$1')
+    .replace(/[?&]+$/, '');
+  const sep = clean.includes('?') ? '&' : '?';
+  let results = [], skip = 0;
+  while (true) {
+    const json = await apiGet(`${clean}${sep}$top=${PAGE}&$skip=${skip}`);
+    const page = json.value || (Array.isArray(json) ? json : []);
+    results = results.concat(page);
+    console.log(`[PAGE] ${path.split('?')[0]}: +${page.length} (total ${results.length})`);
+    if (page.length < PAGE) break;
+    skip += PAGE;
+  }
+  return results;
+}
+
+// Batch-fetch Jobs by ID list.
+// Insyte's Jobs endpoint does not honour date filters, so we filter JobLines by date
+// first, extract unique JobIDs, then fetch only those Jobs.
+// Max 15 IDs per OData $filter 'or' chain (API returns 400 with more).
+// Fetches 5 chunks concurrently to balance speed vs. network saturation.
+async function batchFetchJobs(jobIds) {
+  const CHUNK = 15, CONCURRENCY = 5;
+  const chunks = [];
+  for (let i = 0; i < jobIds.length; i += CHUNK)
+    chunks.push(jobIds.slice(i, i + CHUNK));
+
+  const jobMap = {};
+  for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+    const wave = chunks.slice(i, i + CONCURRENCY);
+    await Promise.all(wave.map(ids => {
+      const f = encodeURIComponent(ids.map(id => `ID eq ${id}`).join(' or '));
+      return fetchAllPages(`/Jobs?$expand=Address&$filter=${f}`)
+        .then(batch => batch.forEach(j => { jobMap[j.ID] = j; }));
+    }));
+  }
+  return jobMap;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 4. DATA LOADING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+async function loadData() {
+  if (!APP.cfg.apiEmail || !APP.cfg.apiKey) {
+    setStatus('error', 'No credentials — open Config');
+    return;
+  }
+  setStatus('loading', 'Loading job lines…');
+  toggleRefreshBtn(true);
+
+  try {
+    // ── Load job lines (2026+), users, and ALL opportunities in parallel.
+    // Opportunities are the source of truth for quote counting (Open/Negotiation + Won + Lost).
+    const lineFilter = encodeURIComponent('OrderDate ge 2026-01-01T00:00:00Z');
+    setStatus('loading', 'Loading lines, users & opportunities…');
+    const [lines, users, rawOpps] = await Promise.all([
+      fetchAllPages(`/JobLines?$filter=${lineFilter}`),
+      fetchAllPages('/Users'),
+      fetchAllPages('/Opportunities'),
+    ]);
+
+    // ── Log a sample opportunity so we can verify field names
+    if (rawOpps.length) {
+      console.log('[Opportunity sample — check field names here]', rawOpps[0]);
+      console.log('[Opportunity statuses found]',
+        [...new Set(rawOpps.map(o => o.Status).filter(Boolean))].sort());
+    }
+
+    setStatus('loading', `Loading ${new Set(lines.map(l => l.JobID)).size} jobs…`);
+
+    // ── Batch-fetch only the Jobs referenced by our lines
+    const jobIds = [...new Set(lines.map(l => l.JobID).filter(Boolean))];
+    const jobMap = await batchFetchJobs(jobIds);
+
+    // ── Build user lookup map
+    const userMap = {};
+    users.forEach(u => { userMap[u.ID] = u; });
+
+    // ── Process opportunities into a clean lookup structure
+    const opps = processOpportunities(rawOpps, userMap);
+
+    // ── Log all Stage values found (useful for debugging stage mappings)
+    const allStages = [...new Set(lines.map(l => l.Stage).filter(Boolean))].sort();
+    console.log('[JobLine stages found]', allStages);
+
+    APP.raw  = { lines, jobMap, userMap, opps };
+    APP.rows = transformLines(lines, jobMap, userMap);
+    APP.opps = opps;
+
+    // ── Populate filter dropdowns from live data
+    populateFilters();
+
+    // ── Apply current filters and render
+    applyFilters();
+
+    setStatus('live', `${APP.rows.length.toLocaleString()} lines · ${opps.length} opportunities`);
+    document.getElementById('lastRefreshed').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('lastRefreshed').classList.remove('hidden');
+    document.getElementById('footerDataNote').textContent =
+      `${lines.length} job lines · ${Object.keys(jobMap).length} jobs · ${rawOpps.length} opportunities · ${users.length} users`;
+
+  } catch (err) {
+    console.error('[loadData]', err);
+    setStatus('error', err.message.split('\n')[0]);
+  } finally {
+    toggleRefreshBtn(false);
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5a. OPPORTUNITY PROCESSING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Normalise Insyte Opportunity records into a flat structure.
+// ── Field name notes (adjust if your Insyte instance differs):
+//   Reference field  : 'Reference' (the quote ref number e.g. J0012345)
+//   Status field     : 'Status'  — expected values: 'Open', 'Won', 'Lost'
+//   Rep field        : 'RepresentativeID'
+//   Date field       : 'CreatedOn'  (ISO datetime string)
+//   Revenue field    : 'ExpectedRevenue' or 'Value'
+function processOpportunities(rawOpps, userMap) {
+  return rawOpps.map(o => {
+    // Reference: strip -2, -3 suffixes so variations collapse to one quote
+    const rawRef  = o.Reference || o.JobReference || String(o.ID);
+    const baseRef = rawRef.replace(/-\d+$/, '');
+
+    // Status normalisation — Insyte uses Open / Won / Lost
+    const status  = (o.Status || '').toLowerCase();   // 'open' | 'won' | 'lost'
+    const isWon   = status === 'won';
+    const isLost  = status === 'lost';
+    const isOpen  = !isWon && !isLost;                // negotiation / sent / active
+
+    // Rep
+    const repId   = o.RepresentativeID;
+    const user    = userMap[repId] || {};
+    const rep     = user.FullName || `${user.FirstName||''} ${user.LastName||''}`.trim()
+                    || `Rep ${repId||'?'}`;
+
+    // Date — try CreatedOn first, fall back to other common field names
+    const rawDate = o.CreatedOn || o.CreatedDate || o.Date || o.OpportunityDate || null;
+    const date    = rawDate ? new Date(rawDate) : null;
+
+    // Value
+    const value   = parseFloat(o.ExpectedRevenue || o.Value || o.Amount || 0);
+
+    return { id: o.ID, rawRef, baseRef, status, isWon, isLost, isOpen, rep, repId, date, value };
+  });
+}
+
+// Filter opportunities to the active period + rep filter
+function filteredOpps() {
+  if (!APP.opps) return [];
+  return APP.opps.filter(o => {
+    if (!inPeriod({ date: o.date })) return false;
+    if (APP.rep !== 'all' && o.rep !== APP.rep) return false;
+    return true;
+  });
+}
+
+// Count unique base references across an opportunity array
+function countUniqueRefs(opps) {
+  return new Set(opps.map(o => o.baseRef)).size;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 5b. DATA TRANSFORMATION (JobLines)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Transform a raw JobLine + parent Job + User into a flat dashboard row.
+// Adjust field names here if your Insyte API exposes different column names.
+function transformLine(line, job, user) {
+  const addr  = job.Address || {};
+  const stdP  = line.StandardPriceExTax   || 0;
+  const discP = line.DiscountedPriceExTax  || stdP;
+  const price = line.DiscountedPriceIncTax || line.StandardPriceIncTax || discP;
+  const cost  = line.DiscountedCostExTax   || line.StandardCostExTax   || 0;
+  const inst  = line.StandardIntallCostExTax   || 0;
+  const deliv = line.StandardDeliveryCostExTax || 0;
+  const gp    = price - cost - inst - deliv;
+  const disc  = stdP > 0 ? Math.max(0, (1 - discP / stdP) * 100) : 0;
+  const stage = (line.Stage || '').toLowerCase();
+  const date  = line.OrderDate ? new Date(line.OrderDate)
+              : job.JobDate    ? new Date(job.JobDate)
+              : null;
+
+  // Base reference: strips variation suffixes (-2, -3 etc.) so J0012345, J0012345-2,
+  // J0012345-3 all resolve to J0012345 and count as ONE quote/order.
+  const rawRef = job.Reference || String(line.JobID);
+  const baseRef = rawRef.replace(/-\d+$/, '');
+
+  return {
+    lineId:   `${line.JobID}-${line.JobLineNo}`,
+    jobId:    line.JobID,
+    ref:      rawRef,
+    baseRef,
+    date,
+    year:     date ? date.getFullYear() : null,
+    month:    date ? date.getMonth()    : null,     // 0-based
+    stage,
+    isWon:    WON_STAGES.has(stage),
+    isQuote:  QUOTE_STAGES.has(stage),
+    isLost:   LOST_STAGES.has(stage),
+    rep:      user?.FullName || `${user?.FirstName||''} ${user?.LastName||''}`.trim() || `Rep ${job.SalesRepID||'?'}`,
+    repId:    job.SalesRepID,
+    state:    addr.State || 'Unknown',
+    suburb:   addr.Suburb || '',
+    // ── Product — adjust field names to match your Insyte API
+    product:  (line.MultiProduct || line.Product || line.ProductCode || 'Other').trim() || 'Other',
+    // ── Financials
+    price,
+    cost,
+    gp,
+    gpPct:    price > 0 ? gp / price * 100 : 0,
+    disc,
+    sqm:      ((line.Width || 0) * (line.Drop || 0)) / 1_000_000,
+  };
+}
+
+function transformLines(lines, jobMap, userMap) {
+  const all      = lines.map(l => {
+    const job  = jobMap[l.JobID] || {};
+    const user = userMap[job.SalesRepID] || {};
+    const row  = transformLine(l, job, user);
+    row.isService = isServiceRow(l, job);
+    return row;
+  });
+
+  const serviceRows = all.filter(r => r.isService);
+  const salesRows   = all.filter(r => !r.isService);
+
+  // Log excluded service lines so you can verify what's being filtered
+  const serviceProducts = [...new Set(serviceRows.map(r => r.product))].sort();
+  console.log(
+    `[Service excluded] ${serviceRows.length} lines (${countDistinct(serviceRows,'jobId')} jobs) removed.`,
+    '\nProducts excluded:', serviceProducts
+  );
+
+  return salesRows;
+}
+
+// ── Generic aggregation helpers
+function groupBy(arr, key) {
+  return arr.reduce((acc, row) => {
+    const k = typeof key === 'function' ? key(row) : row[key];
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(row);
+    return acc;
+  }, {});
+}
+
+function sumBy(arr, key) {
+  return arr.reduce((s, r) => s + (r[key] || 0), 0);
+}
+
+function countDistinct(arr, key) {
+  return new Set(arr.map(r => r[key])).size;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 6. FILTERING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function inPeriod(row) {
+  if (!row.date) return APP.period === 'all';
+  const now = new Date();
+  const yr  = now.getFullYear(), mo = now.getMonth();
+  const d   = row.date;
+  switch (APP.period) {
+    case 'ytd': return d.getFullYear() === yr;
+    case 'q':   return d.getFullYear() === yr && Math.floor(d.getMonth() / 3) === Math.floor(mo / 3);
+    case 'm':   return d.getFullYear() === yr && d.getMonth() === mo;
+    case '90':  return (now - d) / 86400000 <= 90;
+    case '30':  return (now - d) / 86400000 <= 30;
+    case 'ly':  return d.getFullYear() === yr - 1;
+    default:    return true;
+  }
+}
+
+function applyFilters() {
+  if (!APP.rows.length) return;
+  APP.filtered = APP.rows.filter(r =>
+    inPeriod(r) &&
+    (APP.state   === 'all' || r.state   === APP.state) &&
+    (APP.rep     === 'all' || r.rep     === APP.rep) &&
+    (APP.product === 'all' || r.product === APP.product)
+  );
+  render();
+}
+
+function setPeriod(btn) {
+  document.querySelectorAll('.filter-pill[data-period]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  APP.period = btn.dataset.period;
+  applyFilters();
+}
+
+function clearFilters() {
+  APP.state = APP.rep = APP.product = 'all';
+  APP.period = 'ytd';
+  document.getElementById('stateFilter').value   = 'all';
+  document.getElementById('repFilter').value     = 'all';
+  document.getElementById('productFilter').value = 'all';
+  document.querySelectorAll('.filter-pill[data-period]').forEach(b =>
+    b.classList.toggle('active', b.dataset.period === 'ytd'));
+  applyFilters();
+}
+
+function populateFilters() {
+  const states   = [...new Set(APP.rows.map(r => r.state))].filter(Boolean).sort();
+  const reps     = [...new Set(APP.rows.map(r => r.rep))].filter(Boolean).sort();
+  const products = [...new Set(APP.rows.map(r => r.product))].filter(Boolean).sort();
+
+  function fill(id, items) {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = `<option value="all">All ${id.replace('Filter','s')}</option>` +
+      items.map(v => `<option${v===cur?' selected':''}>${v}</option>`).join('');
+  }
+  fill('stateFilter',   states);
+  fill('repFilter',     reps);
+  fill('productFilter', products);
+
+  document.getElementById('stateFilter').onchange   = () => { APP.state   = document.getElementById('stateFilter').value;   applyFilters(); };
+  document.getElementById('repFilter').onchange     = () => { APP.rep     = document.getElementById('repFilter').value;     applyFilters(); };
+  document.getElementById('productFilter').onchange = () => { APP.product = document.getElementById('productFilter').value; applyFilters(); };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 7. RENDERING — MASTER RENDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function render() {
+  const rows = APP.filtered;
+  const won  = rows.filter(r => r.isWon);
+
+  // For prior-period comparison: same period last year
+  const py = APP.rows.filter(r => {
+    if (!r.date || !r.isWon) return false;
+    const now = new Date(), yr = now.getFullYear() - 1;
+    switch (APP.period) {
+      case 'ytd': return r.date.getFullYear() === yr;
+      case 'q':   return r.date.getFullYear() === yr && Math.floor(r.date.getMonth()/3) === Math.floor(now.getMonth()/3);
+      case 'm':   return r.date.getFullYear() === yr && r.date.getMonth() === now.getMonth();
+      default:    return r.date.getFullYear() === yr;
+    }
+  });
+
+  renderKPIs(won, py, rows);
+  renderTrendChart(won);
+  renderStateChart(won);
+  renderRepChart();
+  renderProductChart(won);
+  renderTable(won, rows);
+  renderAlerts(won, rows);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 8. KPI CARDS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function renderKPIs(won, py, allRows) {
+  const intake   = sumBy(won, 'price');
+  const orders   = countDistinct(won, 'baseRef');
+  const aov      = orders ? intake / orders : 0;
+
+  // ── Quote counts come from Opportunities (Open/Negotiation + Won + Lost)
+  // This is the correct source — all unique reference numbers across all pipeline stages.
+  const opps     = filteredOpps();
+  const total_q  = countUniqueRefs(opps);                               // all statuses
+  const oppWon   = countUniqueRefs(opps.filter(o => o.isWon));
+  const oppOpen  = countUniqueRefs(opps.filter(o => o.isOpen));
+  const oppLost  = countUniqueRefs(opps.filter(o => o.isLost));
+  // Conv = Won opportunities / Total opportunities (all statuses)
+  const conv     = total_q ? oppWon / total_q * 100 : 0;
+
+  const pyIntake = sumBy(py, 'price');
+  const pyOrders = countDistinct(py, 'baseRef');
+  const pyAov    = pyOrders ? pyIntake / pyOrders : 0;
+
+  // Monthly targets — scale by number of months in period
+  const monthsInPeriod = getMonthsInPeriod();
+  const target = APP.cfg.target * monthsInPeriod;
+  const attain = target > 0 ? intake / target * 100 : null;
+
+  // Sparkline data: last 6 months of won revenue
+  const sparkMonths = lastNMonths(6);
+  const wonByMonth  = groupBy(won, r => `${r.year}-${String(r.month+1).padStart(2,'0')}`);
+  const sparkData   = sparkMonths.map(k => sumBy(wonByMonth[k] || [], 'price'));
+
+  const aovSparkData = sparkMonths.map(k => {
+    const m   = (wonByMonth[k] || []);
+    const rev = sumBy(m, 'price');
+    const cnt = countDistinct(m, 'baseRef');
+    return cnt ? rev / cnt : 0;
+  });
+
+  const convSparkData = sparkMonths.map(k => {
+    const wonK  = (wonByMonth[k] || []);
+    const allK  = APP.rows.filter(r => r.date && `${r.date.getFullYear()}-${String(r.date.getMonth()+1).padStart(2,'0')}` === k);
+    const tj    = countDistinct(allK, 'baseRef');
+    const wj    = countDistinct(wonK, 'baseRef');
+    return tj ? wj / tj * 100 : 0;
+  });
+
+  const ordersSparkData = sparkMonths.map(k => countDistinct(wonByMonth[k] || [], 'baseRef'));
+
+  const kpis = [
+    {
+      id:      'kpi-intake',
+      label:   'Order Intake',
+      value:   fmt$(intake),
+      sub:     attain !== null ? `${fmtP(attain)} of target` : 'No target set',
+      badge:   pyIntake > 0 ? pctBadge((intake - pyIntake) / pyIntake * 100, 'vs PY') : null,
+      accent:  '#0ea5e9',
+      spark:   sparkData,
+      sparkFmt:fmt$,
+      icon:    '💰',
+    },
+    {
+      id:      'kpi-orders',
+      label:   '# Orders',
+      value:   fmtN(orders),
+      sub:     total_q ? `${fmtN(oppOpen)} open · ${fmtN(oppLost)} lost · ${fmtN(total_q)} total quotes` : `${fmtN(orders)} confirmed jobs`,
+      badge:   pyOrders > 0 ? pctBadge((orders - pyOrders) / pyOrders * 100, 'vs PY') : null,
+      accent:  '#8b5cf6',
+      spark:   ordersSparkData,
+      sparkFmt:fmtN,
+      icon:    '📋',
+    },
+    {
+      id:      'kpi-conv',
+      label:   'Quote→Order Conv',
+      value:   total_q ? fmtP(conv) : '—',
+      sub:     total_q
+        ? `${fmtN(oppWon)} won · ${fmtN(oppOpen)} open · ${fmtN(oppLost)} lost`
+        : 'No opportunities loaded',
+      badge:   null,
+      accent:  conv >= 50 ? '#10b981' : conv >= 35 ? '#f59e0b' : '#ef4444',
+      spark:   convSparkData,
+      sparkFmt:v => v.toFixed(1) + '%',
+      icon:    '📈',
+    },
+    {
+      id:      'kpi-aov',
+      label:   'Avg Order Value',
+      value:   fmt$(aov),
+      sub:     'per confirmed job',
+      badge:   pyAov > 0 ? pctBadge((aov - pyAov) / pyAov * 100, 'vs PY') : null,
+      accent:  '#f59e0b',
+      spark:   aovSparkData,
+      sparkFmt:fmt$,
+      icon:    '🎯',
+    },
+  ];
+
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
+    <div class="kpi-card bg-slate-800/70 rounded-xl p-5 border border-slate-700/50"
+         style="--accent:${k.accent}">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <div class="text-xs font-500 text-slate-400 uppercase tracking-wide">${k.label}</div>
+          <div class="text-3xl font-800 text-white mt-1" style="color:${k.accent};letter-spacing:-1px">${k.value}</div>
+        </div>
+        <span class="text-2xl opacity-40">${k.icon}</span>
+      </div>
+      <div class="text-xs text-slate-500 mb-3">
+        ${k.sub}
+        ${k.badge ? ' &nbsp;' + k.badge : ''}
+      </div>
+      <div style="height:40px">
+        <canvas id="${k.id}-spark" style="width:100%;height:40px"></canvas>
+      </div>
+    </div>`).join('');
+
+  // Render sparklines after DOM update
+  kpis.forEach(k => {
+    renderSparkline(k.id + '-spark', k.spark, k.accent, k.sparkFmt);
+  });
+}
+
+function renderSparkline(canvasId, data, color, fmtFn) {
+  const el = document.getElementById(canvasId);
+  if (!el) return;
+  destroyChart(canvasId);
+  APP.charts[canvasId] = new Chart(el, {
+    type: 'line',
+    data: {
+      labels: lastNMonths(data.length).map(k => {
+        const [y, m] = k.split('-');
+        return MONTHS[+m - 1];
+      }),
+      datasets: [{
+        data,
+        borderColor: color,
+        backgroundColor: color + '22',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => fmtFn(ctx.raw) }
+      }},
+      scales: { x: { display: false }, y: { display: false } },
+      animation: { duration: 400 },
+    },
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 9. CHARTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function renderTrendChart(won) {
+  // Last 13 months so we always show a rolling year + current month
+  const months = lastNMonths(13);
+  const wonByM  = groupBy(won, r => `${r.year}-${String(r.month+1).padStart(2,'0')}`);
+
+  // Prior year: same months 12 months back
+  const pyMonths = months.map(k => {
+    const [y, m] = k.split('-');
+    const pyY = +y - 1;
+    return `${pyY}-${m}`;
+  });
+  const pyWon = APP.rows.filter(r => r.isWon);
+  const pyByM = groupBy(pyWon, r => `${r.year}-${String(r.month+1).padStart(2,'0')}`);
+
+  const labels     = months.map(k => { const [y,m] = k.split('-'); return MONTHS[+m-1]+' '+y.slice(2); });
+  const thisYear   = months.map(k   => sumBy(wonByM[k]  || [], 'price'));
+  const priorYear  = pyMonths.map(k => sumBy(pyByM[k]   || [], 'price'));
+
+  destroyChart('trendChart');
+  APP.charts['trendChart'] = new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'This Year',
+          data: thisYear,
+          backgroundColor: '#0ea5e960',
+          borderColor: '#0ea5e9',
+          borderWidth: 1,
+          borderRadius: 4,
+          yAxisID: 'y',
+        },
+        {
+          type: 'line',
+          label: 'Prior Year',
+          data: priorYear,
+          borderColor: '#475569',
+          borderDash: [4, 3],
+          backgroundColor: 'transparent',
+          pointRadius: 3,
+          pointBackgroundColor: '#475569',
+          tension: 0.3,
+          yAxisID: 'y',
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.raw)}`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } },
+        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 },
+             callback: v => '$' + (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v) } },
+      },
+    },
+  });
+}
+
+function renderStateChart(won) {
+  const byState = groupBy(won, 'state');
+  const entries = Object.entries(byState)
+    .map(([s, rows]) => ({ state: s, revenue: sumBy(rows, 'price') }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  destroyChart('stateChart');
+  APP.charts['stateChart'] = new Chart(document.getElementById('stateChart'), {
+    type: 'bar',
+    data: {
+      labels: entries.map(e => e.state),
+      datasets: [{
+        data:            entries.map(e => e.revenue),
+        backgroundColor: entries.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + 'cc'),
+        borderColor:     entries.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+        borderWidth: 1,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + fmt$(ctx.raw) } } },
+      scales: {
+        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 },
+             callback: v => '$' + (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v) } },
+        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+function renderRepChart() {
+  const sortKey = document.getElementById('repSort')?.value || 'revenue';
+  const won = APP.filtered.filter(r => r.isWon);
+  const all = APP.filtered;
+
+  const byRep    = groupBy(won, 'rep');
+  const oppsByRep = groupBy(filteredOpps(), 'rep');
+
+  let entries = Object.keys(
+    // Union of reps from both won job lines and opportunities
+    Object.fromEntries([
+      ...Object.keys(byRep).map(r => [r, 1]),
+      ...Object.keys(oppsByRep).map(r => [r, 1]),
+    ])
+  ).map(rep => {
+    const rows       = byRep[rep]      || [];
+    const repOpps    = oppsByRep[rep]  || [];
+    const rev        = sumBy(rows, 'price');
+    const orders     = countDistinct(rows, 'baseRef');
+    const aov        = orders ? rev / orders : 0;
+    // Conv from Opportunities: won refs / all refs for this rep
+    const totalRefs  = countUniqueRefs(repOpps);
+    const wonRefs    = countUniqueRefs(repOpps.filter(o => o.isWon));
+    const conv       = totalRefs ? wonRefs / totalRefs * 100 : 0;
+    return { rep, rev, orders, aov, conv, totalRefs };
+  }).filter(e => e.rev > 0 || e.totalRefs > 0);
+
+  const sortFns = {
+    revenue: (a, b) => b.rev - a.rev,
+    orders:  (a, b) => b.orders - a.orders,
+    conv:    (a, b) => b.conv - a.conv,
+    aov:     (a, b) => b.aov - a.aov,
+  };
+  entries.sort(sortFns[sortKey] || sortFns.revenue);
+  const top10 = entries.slice(0, 10);
+
+  const sortLabels = { revenue: 'Revenue', orders: '# Orders', conv: 'Conv %', aov: 'AOV' };
+  const dataMap = {
+    revenue: { data: top10.map(e => e.rev),    fmt: fmt$,  label: 'Intake $' },
+    orders:  { data: top10.map(e => e.orders),  fmt: fmtN,  label: '# Orders' },
+    conv:    { data: top10.map(e => e.conv),    fmt: v=>fmtP(v), label: 'Conv %' },
+    aov:     { data: top10.map(e => e.aov),     fmt: fmt$,  label: 'AOV' },
+  };
+  const dm = dataMap[sortKey];
+
+  destroyChart('repChart');
+  APP.charts['repChart'] = new Chart(document.getElementById('repChart'), {
+    type: 'bar',
+    data: {
+      labels: top10.map(e => e.rep.split(' ')[0] + (e.rep.split(' ')[1] ? ' ' + e.rep.split(' ')[1][0]+'.' : '')),
+      datasets: [{
+        label: dm.label,
+        data: dm.data,
+        backgroundColor: top10.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + 'bb'),
+        borderColor:     top10.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+        borderWidth: 1,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + dm.fmt(ctx.raw) } } },
+      scales: {
+        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 },
+             callback: v => sortKey === 'conv' ? v.toFixed(0)+'%' :
+                           sortKey === 'revenue'||sortKey==='aov' ? '$'+(v>=1e3?(v/1e3).toFixed(0)+'K':v) : v } },
+        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+      },
+    },
+  });
+}
+
+function renderProductChart(won) {
+  const byProd = groupBy(won, 'product');
+  const entries = Object.entries(byProd)
+    .map(([p, rows]) => ({ prod: p, rev: sumBy(rows, 'price') }))
+    .sort((a, b) => b.rev - a.rev);
+
+  // Group small slices into "Other" for readability
+  const TOP = 6;
+  const top    = entries.slice(0, TOP);
+  const others = entries.slice(TOP);
+  if (others.length > 0)
+    top.push({ prod: 'Other', rev: others.reduce((s, e) => s + e.rev, 0) });
+
+  destroyChart('productChart');
+  APP.charts['productChart'] = new Chart(document.getElementById('productChart'), {
+    type: 'doughnut',
+    data: {
+      labels: top.map(e => e.prod),
+      datasets: [{
+        data: top.map(e => e.rev),
+        backgroundColor: CHART_COLORS.map(c => c + 'cc'),
+        borderColor: '#0f172a',
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              return ` ${fmt$(ctx.raw)} (${(ctx.raw / total * 100).toFixed(1)}%)`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 10. SUMMARY TABLE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function renderTable(won, allRows) {
+  const wonByState  = groupBy(won, 'state');
+  const allByState  = groupBy(allRows, 'state');
+
+  // Opportunity-based conversion by state is not directly available (opps don't carry state).
+  // We use job-line state for revenue/AOV/disc/GP, and opp data for national conv only.
+  // If your Insyte Opportunities expose a state/branch field, map it here.
+  const states = [...new Set(allRows.map(r => r.state))].sort();
+  const monthsInPeriod = getMonthsInPeriod();
+  const stateTarget    = APP.cfg.target * monthsInPeriod / Math.max(states.length, 1);
+
+  const tableRows = states.map(state => {
+    const wonRows = wonByState[state] || [];
+    const allR    = allByState[state] || [];
+    const rev     = sumBy(wonRows, 'price');
+    const orders  = countDistinct(wonRows, 'baseRef');
+    // Quote count from job lines for state-level (best we can do without state on opps)
+    const quotes  = countDistinct(allR, 'baseRef');
+    const aov     = orders ? rev / orders : 0;
+    const conv    = quotes ? orders / quotes * 100 : 0;
+    const disc    = allR.length ? sumBy(allR, 'disc') / allR.length : 0;
+    const gp      = wonRows.length ? sumBy(wonRows, 'gpPct') / wonRows.length : 0;
+    const attain  = stateTarget > 0 ? rev / stateTarget * 100 : null;
+    return { state, rev, orders, quotes, aov, conv, disc, gp, attain };
+  }).sort((a, b) => b.rev - a.rev);
+
+  document.getElementById('tableRecordCount').textContent =
+    tableRows.length + ' states';
+
+  // Totals row
+  const totRev    = sumBy(tableRows, 'rev');
+  const totOrders = sumBy(tableRows, 'orders');
+  const totQuotes = sumBy(tableRows, 'quotes');
+  const totAov    = totOrders ? totRev / totOrders : 0;
+  const totConv   = totQuotes ? totOrders / totQuotes * 100 : 0;
+
+  const row = (r, isTotals=false) => {
+    const attainColor = r.attain === null ? '' :
+      r.attain >= 100 ? 'color:#4ade80' :
+      r.attain >=  80 ? 'color:#f59e0b' : 'color:#f87171';
+    const convColor = r.conv >= 50 ? 'color:#4ade80' :
+                      r.conv >= 35 ? 'color:#f59e0b' : 'color:#f87171';
+    return `<tr${isTotals ? ' style="border-top:2px solid #334155;font-weight:700"' : ''}>
+      <td style="color:${isTotals?'#fff':'#e2e8f0'};font-weight:${isTotals?700:500}">
+        ${isTotals ? 'TOTAL' : r.state}
+      </td>
+      <td class="num" style="color:#e2e8f0;font-weight:600">${fmt$(r.rev)}</td>
+      <td class="num">${fmtN(r.orders)}</td>
+      <td class="num">${fmtN(r.quotes)}</td>
+      <td class="num" style="${convColor};font-weight:700">${fmtP(r.conv)}</td>
+      <td class="num">${fmt$(r.aov)}</td>
+      <td class="num" style="color:${(r.disc||0)>15?'#f87171':(r.disc||0)>8?'#f59e0b':'#94a3b8'}">${fmtP(r.disc||0)}</td>
+      <td class="num" style="color:${(r.gp||0)>40?'#4ade80':'#94a3b8'}">${fmtP(r.gp||0)}</td>
+      <td>
+        ${r.attain !== null ? `
+          <div class="flex items-center gap-2">
+            <div class="flex-1 bg-slate-700 rounded-full h-1.5" style="min-width:60px">
+              <div class="h-1.5 rounded-full" style="width:${Math.min(r.attain,100)}%;background:${
+                r.attain>=100?'#4ade80':r.attain>=80?'#f59e0b':'#f87171'}"></div>
+            </div>
+            <span class="text-xs" style="${attainColor}">${fmtP(r.attain)}</span>
+          </div>` : '<span class="text-slate-600 text-xs">—</span>'}
+      </td>
+    </tr>`;
+  };
+
+  document.getElementById('summaryBody').innerHTML =
+    tableRows.map(r => row(r)).join('') +
+    row({ state:'TOTAL', rev:totRev, orders:totOrders, quotes:totQuotes, aov:totAov, conv:totConv,
+          disc: tableRows.reduce((s,r)=>s+r.disc,0)/Math.max(tableRows.length,1),
+          gp:   tableRows.reduce((s,r)=>s+r.gp,0)/Math.max(tableRows.length,1),
+          attain: null }, true);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 11. EXCEPTION ALERTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function renderAlerts(won, allRows) {
+  const wonByRep = groupBy(won, 'rep');
+  const allByRep = groupBy(allRows, 'rep');
+
+  const repStats = Object.keys(allByRep).map(rep => {
+    const wonRows = wonByRep[rep] || [];
+    const allR    = allByRep[rep];
+    const rev     = sumBy(wonRows, 'price');
+    const orders  = countDistinct(wonRows, 'baseRef');
+    const quotes  = countDistinct(allR, 'baseRef');
+    const aov     = orders ? rev / orders : 0;
+    const conv    = quotes ? orders / quotes * 100 : 0;
+    const state   = allR[0]?.state || '';
+    return { rep, state, rev, orders, quotes, aov, conv };
+  });
+
+  // Alert conditions: low conv % (<25%) OR no orders in period but has quotes
+  const alerts = repStats.filter(r =>
+    r.quotes >= 3 && (r.conv < 25 || (r.orders === 0 && r.quotes >= 3))
+  ).sort((a, b) => a.conv - b.conv).slice(0, 10);
+
+  const section = document.getElementById('alertsSection');
+  if (!alerts.length) { section.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+
+  document.getElementById('alertsBody').innerHTML = alerts.map(r => {
+    const issue = r.orders === 0 ? '🔴 No conversions this period'
+                : r.conv < 15   ? '🔴 Very low conversion rate'
+                :                 '🟡 Below 25% conversion rate';
+    return `<tr>
+      <td style="font-weight:600;color:#e2e8f0">${r.rep}</td>
+      <td><span style="background:#1e293b;color:#94a3b8;padding:2px 8px;border-radius:99px;font-size:11px">${r.state}</span></td>
+      <td class="num">${fmt$(r.rev)}</td>
+      <td class="num">${fmtN(r.orders)}</td>
+      <td class="num" style="color:#f87171;font-weight:700">${fmtP(r.conv)}</td>
+      <td class="num">${fmt$(r.aov)}</td>
+      <td style="font-size:12px">${issue}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 12. UTILITY FUNCTIONS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const fmt$ = v => {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'K';
+  return '$' + Math.round(v).toLocaleString();
+};
+const fmtN = v => (v == null || isNaN(v)) ? '—' : Math.round(v).toLocaleString();
+const fmtP = v => (v == null || isNaN(v)) ? '—' : v.toFixed(1) + '%';
+
+function pctBadge(pct, label) {
+  if (!isFinite(pct)) return '';
+  const cls  = pct > 1 ? 'badge-up' : pct < -1 ? 'badge-down' : 'badge-flat';
+  const arrow = pct > 1 ? '↑' : pct < -1 ? '↓' : '→';
+  return `<span class="badge ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}% ${label}</span>`;
+}
+
+// Returns array of 'YYYY-MM' strings for the last N months (ascending)
+function lastNMonths(n) {
+  const now = new Date();
+  const result = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    result.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  return result;
+}
+
+function getMonthsInPeriod() {
+  const now = new Date();
+  switch (APP.period) {
+    case 'ytd': return now.getMonth() + 1;
+    case 'q':   return 3;
+    case 'm':   return 1;
+    case '30':  return 1;
+    case '90':  return 3;
+    case 'ly':  return 12;
+    default:    return 12;
+  }
+}
+
+function destroyChart(id) {
+  if (APP.charts[id]) { APP.charts[id].destroy(); delete APP.charts[id]; }
+}
+
+function setStatus(type, text) {
+  const dot  = document.getElementById('statusDot');
+  const span = document.getElementById('statusText');
+  dot.className  = 'status-dot ' + (type === 'live' ? 'live' : type === 'loading' ? 'loading' : 'error');
+  span.textContent = text;
+}
+
+function toggleRefreshBtn(loading) {
+  const btn  = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  btn.disabled   = loading;
+  icon.innerHTML = loading ? '<span class="spinner" style="width:12px;height:12px;border-width:1.5px"></span>' : '↻';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 13. AUTO-REFRESH
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+document.getElementById('autoRefresh').addEventListener('change', function () {
+  const knob = document.getElementById('autoRefreshKnob');
+  if (this.checked) {
+    knob.style.transform   = 'translateX(16px)';
+    knob.style.background  = '#0ea5e9';
+    APP.autoTimer = setInterval(loadData, 5 * 60 * 1000);
+  } else {
+    knob.style.transform  = '';
+    knob.style.background = '#94a3b8';
+    clearInterval(APP.autoTimer);
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 14. INITIALISE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function init() {
+  loadConfig();
+  // Auto-load data if credentials exist
+  if (APP.cfg.apiEmail && APP.cfg.apiKey) {
+    loadData();
+  } else {
+    // Open config panel so user can enter credentials
+    document.getElementById('configPanel').classList.add('open');
+    setStatus('error', 'Enter credentials in Config above');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

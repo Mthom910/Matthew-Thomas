@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revenue Initiative — $5K+ Conversion Analysis</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:#1E3A5F; --blue:#2E6DB4; --teal:#0891B2; --green:#059669;
+    --amber:#D97706; --red:#DC2626; --purple:#7C3AED; --slate:#64748B;
+  }
+  body { font-family:'Inter',system-ui,sans-serif; background:#F1F5F9; }
+  .card  { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:20px 24px; }
+  .stitle{ font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#94A3B8; margin-bottom:10px; }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:700; }
+  .badge-green  { background:#D1FAE5; color:#065F46; }
+  .badge-red    { background:#FEE2E2; color:#991B1B; }
+  .badge-amber  { background:#FEF3C7; color:#92400E; }
+  .badge-blue   { background:#DBEAFE; color:#1E40AF; }
+  .badge-purple { background:#EDE9FE; color:#5B21B6; }
+
+  /* KPI comparison card */
+  .kpi-pair { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#E2E8F0; border-radius:10px; overflow:hidden; }
+  .kpi-side { padding:16px 18px; background:#fff; }
+  .kpi-side.this { background:#EFF6FF; }
+  .kpi-val  { font-size:1.8rem; font-weight:800; line-height:1; }
+  .kpi-lbl  { font-size:.72rem; color:#64748B; margin-top:3px; }
+  .kpi-delta{ font-size:.8rem; font-weight:700; margin-top:6px; }
+
+  /* Discount bucket highlight */
+  .bucket-init { background:linear-gradient(135deg,#EDE9FE,#DDD6FE); border:2px solid #7C3AED; }
+
+  /* Initiative status bar */
+  .init-bar { height:8px; border-radius:4px; background:#E2E8F0; overflow:hidden; }
+  .init-fill{ height:100%; border-radius:4px; transition:width .6s; }
+
+  /* Tables */
+  .dt { width:100%; border-collapse:collapse; font-size:.81rem; }
+  .dt th { background:var(--navy); color:#fff; padding:8px 12px; text-align:left; font-size:.73rem; font-weight:600; position:sticky; top:0; }
+  .dt td { padding:8px 12px; border-bottom:1px solid #F1F5F9; }
+  .dt tr:hover td { background:#F8FAFC; }
+  .dt tr:last-child td { border-bottom:none; }
+  .dt .num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* Spinner */
+  .spin { width:20px; height:20px; border:3px solid #E2E8F0; border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* Config */
+  #cfg  { transition:max-height .3s, opacity .3s; overflow:hidden; }
+  #cfg.open  { max-height:400px; opacity:1; }
+  #cfg.shut  { max-height:0; opacity:0; }
+
+  /* Toast */
+  #toast { position:fixed; bottom:20px; right:20px; z-index:9999; }
+  .tmsg { padding:9px 16px; border-radius:8px; font-size:.83rem; font-weight:600; margin-top:5px; }
+
+  /* Verdict box */
+  .verdict { border-left:5px solid; padding:14px 18px; border-radius:0 10px 10px 0; }
+  .verdict.positive { border-color:var(--green); background:#F0FDF4; }
+  .verdict.negative { border-color:var(--red);   background:#FFF5F5; }
+  .verdict.neutral  { border-color:var(--amber);  background:#FFFBEB; }
+
+  .yr26 { color:#2E6DB4; }
+  .yr25 { color:#94A3B8; }
+</style>
+</head>
+<body class="p-4 md:p-6">
+
+<!-- ── HEADER ─────────────────────────────────────────── -->
+<div class="flex items-start justify-between flex-wrap gap-3 mb-5">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge-purple">Revenue Management Initiative</span>
+      <span class="badge badge-blue">35–40% Discount Bracket</span>
+    </div>
+    <h1 class="text-2xl font-black text-slate-800 leading-tight">$5K+ Opportunity Conversion Analysis</h1>
+    <p class="text-sm text-slate-500 mt-0.5">YTD <span class="yr26 font-semibold">2026</span> vs YTD <span class="yr25 font-semibold">2025</span> — same calendar period comparison</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <div id="lu" class="text-xs text-slate-400"></div>
+    <div id="spin-wrap" class="hidden"><div class="spin"></div></div>
+    <div id="load-status" class="text-xs text-slate-400 font-medium"></div>
+    <button onclick="loadData()" class="px-4 py-2 text-sm font-semibold text-white rounded-lg shadow hover:opacity-90 transition" style="background:var(--blue)">&#8635; Refresh</button>
+    <button onclick="toggleCfg()" class="px-4 py-2 text-sm font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition">&#9881; Config</button>
+  </div>
+</div>
+
+<!-- ── CONFIG ──────────────────────────────────────────── -->
+<div id="cfg" class="open">
+  <div class="card mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">API Base URL</label>
+      <input id="c-base" value="https://api.myinsyte.com.au/v2" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+      <input id="c-email" value="" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">API Key</label>
+      <input id="c-key" type="password" value="" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"></div>
+    <div class="flex flex-col gap-2">
+      <div><label class="block text-xs font-semibold text-slate-600 mb-1">Min Job Value ($)</label>
+        <input id="c-minval" value="5000" type="number" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"></div>
+    </div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Base Commission Rate (%)</label>
+      <input id="c-base-comm" value="8" type="number" step="0.5" min="0" max="100" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <p class="text-xs text-slate-400 mt-1">Applied to all $5K+ jobs</p></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Initiative Commission Rate (%)</label>
+      <input id="c-init-comm" value="12" type="number" step="0.5" min="0" max="100" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <p class="text-xs text-slate-400 mt-1">Applied to 35–40% bracket jobs</p></div>
+    <div class="md:col-span-4 flex items-center gap-4 flex-wrap border-t border-slate-100 pt-3">
+      <div class="flex items-center gap-2 text-xs text-slate-600 font-semibold">YTD This Year:</div>
+      <input id="c-y1from" type="date" value="2026-01-01" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <span class="text-slate-400 text-xs">to</span>
+      <input id="c-y1to"   type="date" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <div class="flex items-center gap-2 text-xs text-slate-600 font-semibold ml-4">YTD Last Year:</div>
+      <input id="c-y2from" type="date" value="2025-01-01" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <span class="text-slate-400 text-xs">to</span>
+      <input id="c-y2to"   type="date" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      <button onclick="saveCfg();loadData();" class="ml-auto px-5 py-2 text-sm font-semibold text-white rounded-lg shadow hover:opacity-90 transition" style="background:var(--green)">Save &amp; Load</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── INITIATIVE VERDICT ─────────────────────────────── -->
+<div id="verdict-wrap" class="mb-4 hidden">
+  <div id="verdict-box" class="verdict neutral">
+    <div class="font-bold text-base mb-1" id="verdict-title">Analysing…</div>
+    <div class="text-sm" id="verdict-body"></div>
+  </div>
+</div>
+
+<!-- ── TOP KPI ROW ─────────────────────────────────────── -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+  <!-- Jobs > $5k Count -->
+  <div class="card">
+    <div class="stitle">Jobs Over $5K — Won</div>
+    <div class="kpi-pair">
+      <div class="kpi-side this">
+        <div class="text-xs font-semibold text-blue-600 mb-1">2026 YTD</div>
+        <div class="kpi-val yr26" id="k-won26">—</div>
+        <div class="kpi-lbl">jobs won</div>
+      </div>
+      <div class="kpi-side">
+        <div class="text-xs font-semibold text-slate-400 mb-1">2025 YTD</div>
+        <div class="kpi-val yr25" id="k-won25">—</div>
+        <div class="kpi-lbl">jobs won</div>
+      </div>
+    </div>
+    <div class="kpi-delta mt-2" id="k-won-delta"></div>
+  </div>
+
+  <!-- Revenue Won -->
+  <div class="card">
+    <div class="stitle">Revenue Won ($5K+)</div>
+    <div class="kpi-pair">
+      <div class="kpi-side this">
+        <div class="text-xs font-semibold text-blue-600 mb-1">2026 YTD</div>
+        <div class="kpi-val yr26" id="k-rev26">—</div>
+        <div class="kpi-lbl">total revenue</div>
+      </div>
+      <div class="kpi-side">
+        <div class="text-xs font-semibold text-slate-400 mb-1">2025 YTD</div>
+        <div class="kpi-val yr25" id="k-rev25">—</div>
+        <div class="kpi-lbl">total revenue</div>
+      </div>
+    </div>
+    <div class="kpi-delta mt-2" id="k-rev-delta"></div>
+  </div>
+
+  <!-- Avg Discount on Won -->
+  <div class="card">
+    <div class="stitle">Avg Discount — Won Jobs $5K+</div>
+    <div class="kpi-pair">
+      <div class="kpi-side this">
+        <div class="text-xs font-semibold text-blue-600 mb-1">2026 YTD</div>
+        <div class="kpi-val yr26" id="k-disc26">—</div>
+        <div class="kpi-lbl">avg discount</div>
+      </div>
+      <div class="kpi-side">
+        <div class="text-xs font-semibold text-slate-400 mb-1">2025 YTD</div>
+        <div class="kpi-val yr25" id="k-disc25">—</div>
+        <div class="kpi-lbl">avg discount</div>
+      </div>
+    </div>
+    <div class="kpi-delta mt-2" id="k-disc-delta"></div>
+  </div>
+
+  <!-- Initiative Adoption (35-40% bucket) -->
+  <div class="card bucket-init">
+    <div class="stitle" style="color:#5B21B6">Initiative Bracket (35–40%)</div>
+    <div class="kpi-pair" style="background:#C4B5FD">
+      <div class="kpi-side this" style="background:#EDE9FE">
+        <div class="text-xs font-semibold text-purple-600 mb-1">2026 YTD</div>
+        <div class="kpi-val" style="color:#5B21B6" id="k-init26">—</div>
+        <div class="kpi-lbl">jobs in bracket</div>
+      </div>
+      <div class="kpi-side" style="background:#F5F3FF">
+        <div class="text-xs font-semibold text-purple-400 mb-1">2025 YTD</div>
+        <div class="kpi-val" style="color:#8B5CF6" id="k-init25">—</div>
+        <div class="kpi-lbl">jobs in bracket</div>
+      </div>
+    </div>
+    <div class="kpi-delta mt-2" id="k-init-delta"></div>
+  </div>
+</div>
+
+<!-- ── APPOINTMENT CONVERSION ─────────────────────────── -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+  <div class="card">
+    <div class="stitle">Appointment → Won Job Conversion ($5K+)</div>
+    <div class="kpi-pair mb-3">
+      <div class="kpi-side this">
+        <div class="text-xs font-semibold text-blue-600 mb-1">2026 YTD</div>
+        <div class="kpi-val yr26" id="k-conv26">—</div>
+        <div class="kpi-lbl">conversion rate</div>
+      </div>
+      <div class="kpi-side">
+        <div class="text-xs font-semibold text-slate-400 mb-1">2025 YTD</div>
+        <div class="kpi-val yr25" id="k-conv25">—</div>
+        <div class="kpi-lbl">conversion rate</div>
+      </div>
+    </div>
+    <div class="kpi-delta mb-3" id="k-conv-delta"></div>
+    <div class="space-y-2 text-xs text-slate-600" id="conv-detail"></div>
+    <p class="text-xs text-slate-400 mt-3">Appointments = Sales Appointments only (ActivityType = "Sales Appointment", excl. cancelled). Won = confirmed $5K+ jobs (have OrderDate).</p>
+  </div>
+  <div class="card lg:col-span-2">
+    <div class="stitle">Monthly Conversion Rate — Appointments → Won $5K+ Jobs</div>
+    <canvas id="conv-rate-chart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- ── QUOTE PIPELINE ─────────────────────────────────── -->
+<div class="card mb-4">
+  <div class="stitle">Quote Pipeline — All Jobs YTD (incl. quotes, confirmed &amp; lost)</div>
+  <div id="pipeline-section"><div class="text-slate-400 text-sm">Load data to view</div></div>
+</div>
+
+<!-- ── DISCOUNT BAND CONVERSION ───────────────────────── -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card" id="disc-conv-lo"><div class="text-slate-400 text-sm">Load data to view</div></div>
+  <div class="card" id="disc-conv-hi"><div class="text-slate-400 text-sm">Load data to view</div></div>
+</div>
+
+<!-- ── AVERAGE ORDER VALUE ────────────────────────────── -->
+<div class="card mb-4">
+  <div class="stitle">Average Order Value — 2026 vs 2025 YTD</div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+    <div class="md:col-span-2">
+      <table class="dt">
+        <thead><tr>
+          <th>Segment</th>
+          <th class="num">2026 Jobs</th>
+          <th class="num">2026 Total Revenue</th>
+          <th class="num">2026 AOV</th>
+          <th class="num">2025 Jobs</th>
+          <th class="num">2025 AOV</th>
+          <th class="num">AOV Change</th>
+        </tr></thead>
+        <tbody id="aov-tbody"><tr><td colspan="7" class="text-center text-slate-400 py-4 text-xs">No data</td></tr></tbody>
+      </table>
+    </div>
+    <div><canvas id="aov-chart" height="200"></canvas></div>
+  </div>
+</div>
+
+<!-- ── INITIATIVE ADOPTION BAR + SUMMARY ─────────────── -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+  <div class="card lg:col-span-2">
+    <div class="stitle">Discount Bucket Distribution — $5K+ Won Jobs</div>
+    <canvas id="bucket-chart" height="180"></canvas>
+    <p class="text-xs text-slate-400 mt-3">* Only includes jobs with confirmed OrderDate (won/ordered lines). Open quotes and lost opportunities are tracked via the Opportunities endpoint below.</p>
+  </div>
+  <div class="card">
+    <div class="stitle">Initiative Adoption by Bucket</div>
+    <div id="bucket-stats" class="space-y-3">
+      <div class="text-slate-400 text-sm">Load data to view</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONVERSION BY YEAR ─────────────────────────────── -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card">
+    <div class="stitle">Monthly Won Jobs — $5K+ (2026 vs 2025)</div>
+    <canvas id="monthly-chart" height="220"></canvas>
+  </div>
+  <div class="card">
+    <div class="stitle">Revenue Won by Discount Bucket ($5K+ jobs)</div>
+    <canvas id="rev-bucket-chart" height="220"></canvas>
+  </div>
+</div>
+
+<!-- ── OPPORTUNITY CONVERSION (OPP ENDPOINT) ─────────── -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card">
+    <div class="stitle">Opportunity Pipeline — $5K+ (from Opportunities endpoint)</div>
+    <canvas id="opp-chart" height="220"></canvas>
+    <p class="text-xs text-slate-400 mt-2">Based on Expected Revenue on opportunity records ≥ $5,000</p>
+  </div>
+  <div class="card">
+    <div class="stitle">Avg Job Value by Discount Bucket</div>
+    <canvas id="avgval-chart" height="220"></canvas>
+  </div>
+</div>
+
+<!-- ── REP PERFORMANCE ────────────────────────────────── -->
+<div class="card mb-4">
+  <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+    <div class="stitle mb-0">Rep Performance — $5K+ Jobs (2026 YTD)</div>
+    <div class="flex gap-2">
+      <select id="rep-yr" onchange="renderRepTable()" class="text-xs border border-slate-200 rounded px-2 py-1">
+        <option value="26">2026 YTD</option>
+        <option value="25">2025 YTD</option>
+      </select>
+      <select id="rep-sort" onchange="renderRepTable()" class="text-xs border border-slate-200 rounded px-2 py-1">
+        <option value="rev">Sort: Revenue</option>
+        <option value="count">Sort: Jobs Won</option>
+        <option value="disc">Sort: Avg Discount</option>
+        <option value="init">Sort: Initiative %</option>
+      </select>
+    </div>
+  </div>
+  <div style="max-height:340px;overflow-y:auto">
+    <table class="dt" id="rep-table">
+      <thead><tr>
+        <th>Rep</th>
+        <th class="num">Jobs Won $5K+</th>
+        <th class="num">Revenue Won</th>
+        <th class="num">Avg Job Value</th>
+        <th class="num">Avg Discount</th>
+        <th class="num">In 35–40% Bracket</th>
+        <th class="num">% Using Initiative</th>
+      </tr></thead>
+      <tbody id="rep-tbody"><tr><td colspan="7" class="text-center text-slate-400 py-4 text-xs">No data</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── GP IMPACT ──────────────────────────────────────── -->
+<div class="card mb-4">
+  <div class="stitle">Margin Impact Analysis — Cost of Discount Initiative</div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <canvas id="margin-chart" height="220"></canvas>
+    </div>
+    <div class="md:col-span-2">
+      <table class="dt" id="margin-table">
+        <thead><tr>
+          <th>Discount Bucket</th>
+          <th class="num">2026 Jobs</th>
+          <th class="num">2026 Revenue</th>
+          <th class="num">Rev vs 2025 $</th>
+          <th class="num">2026 GP $</th>
+          <th class="num">GP $ vs 2025</th>
+          <th class="num">2026 GP %</th>
+          <th class="num">2025 GP %</th>
+          <th class="num">GP% Change</th>
+        </tr></thead>
+        <tbody id="margin-tbody"><tr><td colspan="9" class="text-center text-slate-400 py-4 text-xs">No data</td></tr></tbody>
+      </table>
+      <p class="text-xs text-slate-400 mt-2">GP = Discounted Price Ex GST − Cost − Install − Delivery. All figures exclude GST.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── COMMISSION ANALYSIS ────────────────────────────── -->
+<div class="card mb-4">
+  <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+    <div>
+      <div class="stitle mb-0">Consultant Commission Earnings — $5K+ Jobs</div>
+      <p class="text-xs text-slate-400 mt-1">Base rate applied to all $5K+ jobs · Initiative rate applied to 35–40% bracket jobs · Rates configurable above</p>
+    </div>
+    <div class="flex gap-3 flex-wrap">
+      <div class="kpi" style="min-width:130px;padding:10px 14px">
+        <div class="stitle" style="margin-bottom:4px">Total Comm 2026</div>
+        <div class="kpi-val yr26 text-xl" id="k-comm26">—</div>
+      </div>
+      <div class="kpi" style="min-width:130px;padding:10px 14px">
+        <div class="stitle" style="margin-bottom:4px">Total Comm 2025</div>
+        <div class="kpi-val yr25 text-xl" id="k-comm25">—</div>
+      </div>
+      <div class="kpi" style="min-width:130px;padding:10px 14px">
+        <div class="stitle" style="margin-bottom:4px">YoY Change</div>
+        <div class="text-xl font-black" id="k-comm-delta">—</div>
+      </div>
+      <div class="kpi" style="min-width:130px;padding:10px 14px">
+        <div class="stitle" style="margin-bottom:4px">Comm as % Rev 2026</div>
+        <div class="kpi-val text-xl" style="color:#7C3AED" id="k-comm-pct">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- Monthly chart -->
+    <div class="lg:col-span-2">
+      <div class="stitle">Monthly Commission — 2026 vs 2025 (Base vs Initiative split)</div>
+      <canvas id="comm-monthly-chart" height="200"></canvas>
+    </div>
+    <!-- Bucket summary -->
+    <div>
+      <div class="stitle">Commission by Discount Bucket</div>
+      <canvas id="comm-bucket-chart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Rep commission table -->
+  <div class="mt-4">
+    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+      <div class="stitle mb-0">Consultant Earnings Breakdown</div>
+      <select id="comm-sort" onchange="renderCommission(cfg())" class="text-xs border border-slate-200 rounded px-2 py-1 bg-white">
+        <option value="total26">Sort: 2026 Earnings</option>
+        <option value="delta">Sort: $ Change</option>
+        <option value="jobs">Sort: Jobs Won</option>
+        <option value="rate">Sort: Effective Rate</option>
+      </select>
+    </div>
+    <div style="max-height:360px;overflow-y:auto">
+      <table class="dt">
+        <thead><tr>
+          <th>Consultant</th>
+          <th class="num">2026 Jobs</th>
+          <th class="num">2026 Revenue</th>
+          <th class="num">2026 Base Comm</th>
+          <th class="num">2026 Initiative Comm</th>
+          <th class="num">2026 Total Comm</th>
+          <th class="num">2025 Total Comm</th>
+          <th class="num">YoY $ Change</th>
+          <th class="num">Eff. Rate 2026</th>
+        </tr></thead>
+        <tbody id="comm-tbody"><tr><td colspan="9" class="text-center text-slate-400 py-4 text-xs">No data</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── ORDER ECONOMICS WATERFALL ──────────────────── -->
+<div class="card mb-4" id="waterfall-section">
+  <div class="flex items-start justify-between flex-wrap gap-3 mb-1">
+    <div>
+      <div class="stitle mb-0">Order Economics Waterfall — $5K+ Orders</div>
+      <p class="text-xs text-slate-400 mt-1">Revenue → Cost of Goods → Gross Profit → Commission → Lead Acquisition → Net Contribution per Won Order</p>
+    </div>
+    <div class="flex gap-3 flex-wrap items-end">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Lead Cost ($)</label>
+        <input id="wf-lead-cost" type="number" value="135" min="0" step="5"
+               class="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+               oninput="renderWaterfall(cfg())">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Lead → Appt Rate (%)</label>
+        <input id="wf-lead-conv" type="number" value="83" min="1" max="100" step="1"
+               class="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+               oninput="renderWaterfall(cfg())">
+      </div>
+      <div class="flex gap-2">
+        <button onclick="setWfView('order')" id="wf-btn-order"
+                class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition"
+                style="background:var(--blue);color:#fff;border-color:var(--blue)">Per Order</button>
+        <button onclick="setWfView('total')" id="wf-btn-total"
+                class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition" style="color:#374151">Total Period</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-3">
+    <!-- KPI strip -->
+    <div class="lg:col-span-2 flex flex-col gap-2">
+      <div id="wf-kpi-strip" class="space-y-2">
+        <div class="text-slate-400 text-sm text-center py-6">Load data to view</div>
+      </div>
+    </div>
+    <!-- Waterfall chart -->
+    <div class="lg:col-span-3">
+      <canvas id="waterfall-chart" height="280"></canvas>
+    </div>
+  </div>
+
+  <!-- Lead funnel -->
+  <div class="mt-4 pt-4 border-t border-slate-100">
+    <div class="stitle mb-2">Lead Funnel — Acquisition to Won Order</div>
+    <div id="wf-funnel" class="text-xs text-slate-400">Load data to view</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const LS = 'insyte_rev_init_cfg';
+const fmt  = (n,d=0)  => n == null ? '—' : n.toLocaleString('en-AU',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtM = (n)      => n == null ? '—' : (Math.abs(n)>=1000000 ? '$'+fmt(n/1000000,1)+'M' : Math.abs(n)>=1000 ? '$'+fmt(n/1000,0)+'K' : '$'+fmt(n,0));
+const pct  = (n,d,dp=1)=> (!d||!n) ? 0 : Math.round((n/d)*Math.pow(10,dp+2))/Math.pow(10,dp);
+const clamp= (v,mn,mx)=> Math.min(Math.max(v,mn),mx);
+const $    = id       => document.getElementById(id);
+const set  = (id,v)   => { const e=$(id); if(e) e.textContent=v; };
+const baseRef = r     => String(r||'').replace(/-\d+$/,'');
+
+function delta(v26,v25,prefix='',suffix='',higherBetter=true) {
+  if(!v25||!v26) return '';
+  const d = v26 - v25;
+  const p = pct(Math.abs(d), v25, 1);
+  const up = d >= 0;
+  const good = higherBetter ? up : !up;
+  const color = good ? 'color:#059669' : 'color:#DC2626';
+  const arrow = up ? '▲' : '▼';
+  return `<span style="${color}">${arrow} ${prefix}${fmt(Math.abs(d),0)}${suffix} (${p}% YoY)</span>`;
+}
+
+function toast(msg, type='blue') {
+  const cols = {green:'#D1FAE5 #065F46', red:'#FEE2E2 #991B1B', amber:'#FEF3C7 #92400E', blue:'#DBEAFE #1E40AF'};
+  const [bg,tx] = (cols[type]||cols.blue).split(' ');
+  const el = document.createElement('div');
+  el.className='tmsg'; el.style.background=bg; el.style.color=tx; el.textContent=msg;
+  $('toast').appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); },3500);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONFIG
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function cfg() {
+  return {
+    base:      $('c-base').value.trim().replace(/\/$/,''),
+    email:     $('c-email').value.trim(),
+    key:       $('c-key').value.trim(),
+    minVal:    parseFloat($('c-minval').value)||5000,
+    baseComm:  parseFloat($('c-base-comm').value)||8,
+    initComm:  parseFloat($('c-init-comm').value)||12,
+    y1from:    $('c-y1from').value,
+    y1to:      $('c-y1to').value,
+    y2from:    $('c-y2from').value,
+    y2to:      $('c-y2to').value,
+  };
+}
+function saveCfg() { localStorage.setItem(LS, JSON.stringify(cfg())); }
+function loadCfg() {
+  const today = new Date().toISOString().slice(0,10);
+  const lastYr = today.replace(/^20\d\d/,y=>String(parseInt(y)-1));
+  const saved  = JSON.parse(localStorage.getItem(LS)||'{}');
+  const d = {y1from:'2026-01-01',y1to:today,y2from:'2025-01-01',y2to:lastYr,...saved};
+  $('c-y1from').value = d.y1from; $('c-y1to').value = d.y1to;
+  $('c-y2from').value = d.y2from; $('c-y2to').value = d.y2to;
+  if(d.base)   $('c-base').value  = d.base;
+  if(d.email)  $('c-email').value = d.email;
+  if(d.key)    $('c-key').value   = d.key;
+  if(d.minVal) $('c-minval').value= d.minVal;
+}
+function toggleCfg() {
+  const el=$('cfg');
+  el.classList.toggle('open'); el.classList.toggle('shut');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// API
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function auth(c) { return 'Basic '+btoa(c.email+':'+c.key); }
+async function apiGet(c, path) {
+  const r = await fetch(c.base+path, {headers:{Authorization:auth(c),Accept:'application/json'}});
+  if(!r.ok) throw new Error(r.status+' '+r.statusText+' — '+path.split('?')[0]);
+  return r.json();
+}
+async function fetchAll(c, path, lbl) {
+  const PAGE=500;
+  const clean=path.replace(/([&?])\$top=\d+/gi,'$1').replace(/([&?])\$skip=\d+/gi,'$1').replace(/[?&]+$/,'');
+  const sep=clean.includes('?')?'&':'?';
+  let rows=[],skip=0,page=1;
+  while(true){
+    status(`${lbl}: page ${page}…`);
+    const data=await apiGet(c,`${clean}${sep}$top=${PAGE}&$skip=${skip}`);
+    const pg=data.value||(Array.isArray(data)?data:[]);
+    rows=rows.concat(pg);
+    if(pg.length<PAGE) break;
+    skip+=PAGE; page++;
+  }
+  return rows;
+}
+function df(field,from,to) {
+  const p=[];
+  if(from) p.push(`${field} ge ${from}T00:00:00Z`);
+  if(to)   p.push(`${field} le ${to}T23:59:59Z`);
+  return p.join(' and ');
+}
+function status(msg) { $('load-status').textContent=msg; }
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DISCOUNT BUCKET LOGIC
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const BUCKETS = [
+  { label:'0–10%',   min:0,  max:10  },
+  { label:'10–20%',  min:10, max:20  },
+  { label:'20–30%',  min:20, max:30  },
+  { label:'30–35%',  min:30, max:35  },
+  { label:'35–40%',  min:35, max:40, initiative:true },
+  { label:'40–50%',  min:40, max:50  },
+  { label:'50%+',    min:50, max:100 },
+];
+
+function getBucket(discPct) {
+  return BUCKETS.findIndex(b => discPct >= b.min && discPct < b.max);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let S = { jobs26:{}, jobs25:{}, opps26:[], opps25:[], acts26:[], acts25:[], users:{}, pipeline26:{}, pipeline25:{} };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// LOAD DATA
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadData() {
+  const c = cfg();
+  if(!c.email||!c.key){ toast('Enter API credentials','amber'); return; }
+  $('spin-wrap').classList.remove('hidden');
+  try {
+    // Users
+    status('Loading users…');
+    const users = await fetchAll(c,'/Users','Users');
+    S.users={};
+    users.forEach(u=>{ S.users[u.ID]=u.FullName||`${u.FirstName||''} ${u.LastName||''}`.trim()||`Rep ${u.ID}`; });
+
+    // JobLines — both years (only ordered/confirmed lines have OrderDate)
+    status('Loading 2026 job lines…');
+    const f26=encodeURIComponent(df('OrderDate',c.y1from,c.y1to));
+    const lines26=await fetchAll(c,`/JobLines?$filter=${f26}`,'2026 Lines');
+
+    status('Loading 2025 job lines…');
+    const f25=encodeURIComponent(df('OrderDate',c.y2from,c.y2to));
+    const lines25=await fetchAll(c,`/JobLines?$filter=${f25}`,'2025 Lines');
+
+    // Opportunities — both years (use CreatedOn to scope)
+    status('Loading 2026 opportunities…');
+    const of26=encodeURIComponent(df('CreatedOn',c.y1from,c.y1to));
+    const rawOpps26=await fetchAll(c,`/Opportunities?$filter=${of26}`,'2026 Opps');
+
+    status('Loading 2025 opportunities…');
+    const of25=encodeURIComponent(df('CreatedOn',c.y2from,c.y2to));
+    const rawOpps25=await fetchAll(c,`/Opportunities?$filter=${of25}`,'2025 Opps');
+
+    // Activities — Sales Appointments only (ActivityType eq 'Sales Appointment'), excl. cancelled
+    status('Loading 2026 sales appointments…');
+    const af26=encodeURIComponent(df('Start',c.y1from,c.y1to)+` and ActivityType eq 'Sales Appointment' and Cancelled eq false`);
+    S.acts26=await fetchAll(c,`/Activities?$filter=${af26}`,'2026 Appts');
+
+    status('Loading 2025 sales appointments…');
+    const af25=encodeURIComponent(df('Start',c.y2from,c.y2to)+` and ActivityType eq 'Sales Appointment' and Cancelled eq false`);
+    S.acts25=await fetchAll(c,`/Activities?$filter=${af25}`,'2025 Appts');
+
+    // All jobs by JobDate — for quote pipeline (includes quotes, lost, confirmed)
+    status('Loading 2026 quote pipeline…');
+    const jf26=encodeURIComponent(df('JobDate',c.y1from,c.y1to));
+    const rawAllJobs26=await fetchAll(c,`/Jobs?$filter=${jf26}`,'2026 All Jobs');
+
+    status('Loading 2025 quote pipeline…');
+    const jf25=encodeURIComponent(df('JobDate',c.y2from,c.y2to));
+    const rawAllJobs25=await fetchAll(c,`/Jobs?$filter=${jf25}`,'2025 All Jobs');
+
+    S.pipeline26 = buildPipeline(rawAllJobs26);
+    S.pipeline25 = buildPipeline(rawAllJobs25);
+
+    // Batch-fetch Jobs for address/rep info
+    status('Fetching job details…');
+    const allJobIds=[...new Set([...lines26,...lines25].map(l=>l.JobID).filter(Boolean))];
+    const jobMap = await batchJobs(c, allJobIds);
+
+    // Process into per-job aggregates
+    S.jobs26 = buildJobAgg(lines26, jobMap, S.users);
+    S.jobs25 = buildJobAgg(lines25, jobMap, S.users);
+    S.opps26 = rawOpps26;
+    S.opps25 = rawOpps25;
+
+    status('');
+    renderAll(c);
+    $('lu').textContent='Updated '+new Date().toLocaleTimeString();
+    toast(`Loaded 2026: ${lines26.length.toLocaleString()} lines · ${S.acts26.length.toLocaleString()} sales appts · 2025: ${lines25.length.toLocaleString()} lines · ${S.acts25.length.toLocaleString()} sales appts`,'green');
+  } catch(e) {
+    console.error(e);
+    toast('Error: '+e.message,'red');
+    status('Error — check console');
+  }
+  $('spin-wrap').classList.add('hidden');
+}
+
+async function batchJobs(c, ids) {
+  const CHUNK=15, MAP={};
+  const chunks=[]; for(let i=0;i<ids.length;i+=CHUNK) chunks.push(ids.slice(i,i+CHUNK));
+  const WAVE=5;
+  for(let i=0;i<chunks.length;i+=WAVE){
+    status(`Fetching jobs ${i*CHUNK}–${Math.min((i+WAVE)*CHUNK,ids.length)} of ${ids.length}…`);
+    await Promise.all(chunks.slice(i,i+WAVE).map(chunk=>{
+      const f=encodeURIComponent(chunk.map(id=>`ID eq ${id}`).join(' or '));
+      return fetchAll(c,`/Jobs?$expand=Address&$filter=${f}`,'Jobs chunk')
+        .then(rows=>rows.forEach(j=>MAP[j.ID]=j));
+    }));
+  }
+  return MAP;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// BUILD JOB AGGREGATES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const EXCL_LINE_TYPE = new Set(['type_job_line_remake','type_job_line_service','type_job_line_alter']);
+const EXCL_LINE_STAT  = new Set(['status_job_line_cancelled']);
+const EXCL_LINE_STAGE = new Set(['stage_job_line_unconfirmed']);
+const EXCL_JOB_TYPE   = new Set(['type_job_service']);
+
+function buildJobAgg(lines, jobMap, userMap) {
+  const byRef={};
+  lines.forEach(l=>{
+    if(EXCL_LINE_STAT.has(l.Status)) return;
+    if(EXCL_LINE_STAGE.has(l.Stage)) return;
+    if(EXCL_LINE_TYPE.has(l.LineType)) return;
+    const job  = jobMap[l.JobID]||{};
+    if(EXCL_JOB_TYPE.has(job.JobType)) return;
+    const ref  = baseRef(job.Reference||String(l.JobID||''));
+    if(!byRef[ref]) byRef[ref]={
+      ref, jobId:l.JobID, repId:job.SalesRepID,
+      rep: userMap[job.SalesRepID]||`Rep ${job.SalesRepID||'?'}`,
+      orderDate: l.OrderDate||'',
+      month: (l.OrderDate||'').slice(0,7),
+      stdTotal:0, discTotal:0, revenue:0, costTotal:0, gpTotal:0,
+      lines:0, products:new Set(),
+    };
+    const std  = l.StandardPriceExTax   || 0;
+    const disc = l.DiscountedPriceExTax || std;
+    const cost = (l.DiscountedCostExTax || l.StandardCostExTax || 0) +
+                 (l.StandardIntallCostExTax || 0) + (l.StandardDeliveryCostExTax || 0);
+    byRef[ref].stdTotal  += std;
+    byRef[ref].discTotal += disc;
+    byRef[ref].revenue   += disc;
+    byRef[ref].costTotal += cost;
+    byRef[ref].gpTotal   += disc - cost;
+    byRef[ref].lines++;
+    if(l.Product) byRef[ref].products.add(l.Product);
+  });
+
+  // Calculate per-job derived metrics
+  return Object.values(byRef).map(j=>{
+    const discPct = j.stdTotal>0 ? clamp((1-(j.discTotal/j.stdTotal))*100,0,100) : 0;
+    const gpPct   = j.revenue>0 ? (j.gpTotal/j.revenue)*100 : 0;
+    const bi      = getBucket(discPct);
+    return { ...j,
+      discPct: Math.round(discPct*10)/10,
+      gpPct:   Math.round(gpPct*10)/10,
+      bucketIdx: bi,
+      bucket: BUCKETS[bi]?.label||'Unknown',
+      products: [...j.products].join(', '),
+    };
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RENDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let _charts={};
+function mkChart(id,type,data,opts={}){
+  if(_charts[id]) _charts[id].destroy();
+  _charts[id]=new Chart($(id).getContext('2d'),{type,data,options:{responsive:true,...opts}});
+  return _charts[id];
+}
+
+function buildPipeline(jobs) {
+  const byBase = {};
+  jobs.forEach(j => {
+    if(j.JobType === 'type_job_service') return;
+    const br = baseRef(j.Reference || String(j.ID || ''));
+    if(!byBase[br]) byBase[br] = j.Stage;
+  });
+  const counts = { quote:0, order:0, lost:0, edit:0, total:0 };
+  Object.values(byBase).forEach(stage => {
+    counts.total++;
+    if(stage === 'stage_job_quote')       counts.quote++;
+    else if(stage === 'stage_job_order')  counts.order++;
+    else if(stage === 'stage_job_lost')   counts.lost++;
+    else if(stage === 'stage_job_order_edit') counts.edit++;
+  });
+  counts.convRate = counts.total > 0 ? counts.order / (counts.order + counts.quote + counts.lost) * 100 : 0;
+  return counts;
+}
+
+function renderAll(c) {
+  const MIN = c.minVal;
+  const j26 = S.jobs26.filter(j=>j.revenue>=MIN);
+  const j25 = S.jobs25.filter(j=>j.revenue>=MIN);
+
+  renderKPIs(j26,j25,MIN);
+  renderVerdict(j26,j25);
+  renderConversionSection(j26,j25,c);
+  renderPipeline(j26,j25);
+  renderDiscConv(j26,j25);
+  renderAOV(c);
+  renderBucketChart(j26,j25);
+  renderBucketStats(j26,j25);
+  renderMonthlyChart(j26,j25);
+  renderRevBucketChart(j26,j25);
+  renderOppChart(c,MIN);
+  renderAvgValChart(S.jobs26,S.jobs25);
+  renderRepTable(j26,j25);
+  renderMarginTable(j26,j25);
+  renderCommission(c);
+  renderWaterfall(c);
+}
+
+// ── Quote Pipeline
+function renderPipeline(j26=[], j25=[]) {
+  const p26 = S.pipeline26, p25 = S.pipeline25;
+  if(!p26 || !p26.total) return;
+
+  function row(label, v26, v25, invert=false) {
+    const chg = v26 - v25, pctChg = v25 ? (chg/v25*100) : 0;
+    const up = chg >= 0, good = invert ? !up : up;
+    const cls = good ? 'text-green-600' : 'text-red-600';
+    return `<tr>
+      <td class="font-medium text-slate-700">${label}</td>
+      <td class="num font-bold yr26">${v26.toLocaleString()}</td>
+      <td class="num text-slate-400">${v25.toLocaleString()}</td>
+      <td class="num ${cls} font-semibold">${chg >= 0 ? '+' : ''}${chg.toLocaleString()} <span class="text-xs">(${chg >= 0 ? '+' : ''}${pctChg.toFixed(1)}%)</span></td>
+    </tr>`;
+  }
+
+  function discKpi(label, v26, v25, colorClass) {
+    const chg = v26 - v25, pctChg = v25 ? (chg/v25*100) : 0;
+    const up = chg >= 0;
+    const deltaCol = up ? 'text-green-600' : 'text-red-600';
+    return `<div class="flex-1 bg-slate-50 rounded-xl p-4">
+      <div class="text-xs font-bold uppercase tracking-wide ${colorClass} mb-2">${label}</div>
+      <div class="kpi-pair">
+        <div class="kpi-side this">
+          <div class="text-xs font-semibold text-blue-600 mb-1">2026 YTD</div>
+          <div class="kpi-val yr26">${v26.toLocaleString()}</div>
+          <div class="kpi-lbl">confirmed $5K+ orders</div>
+        </div>
+        <div class="kpi-side">
+          <div class="text-xs font-semibold text-slate-400 mb-1">2025 YTD</div>
+          <div class="kpi-val yr25">${v25.toLocaleString()}</div>
+          <div class="kpi-lbl">confirmed $5K+ orders</div>
+        </div>
+      </div>
+      <div class="text-sm font-bold mt-2 ${deltaCol}">${up ? '▲' : '▼'} ${Math.abs(chg)} jobs (${up ? '+' : ''}${pctChg.toFixed(1)}% YoY)</div>
+    </div>`;
+  }
+
+  const convChg = p26.convRate - p25.convRate;
+
+  // Discount split on confirmed $5K+ jobs
+  const lo26 = j26.filter(j=>j.discPct < 35).length;
+  const lo25 = j25.filter(j=>j.discPct < 35).length;
+  const hi26 = j26.filter(j=>j.discPct >= 35).length;
+  const hi25 = j25.filter(j=>j.discPct >= 35).length;
+
+  document.getElementById('pipeline-section').innerHTML = `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+      <div class="lg:col-span-2">
+        <table class="dt">
+          <thead><tr>
+            <th>Stage</th>
+            <th class="num">2026 YTD</th>
+            <th class="num">2025 YTD</th>
+            <th class="num">Change YoY</th>
+          </tr></thead>
+          <tbody>
+            ${row('All Unique Quotes & Orders', p26.total, p25.total)}
+            ${row('Open Quotes', p26.quote, p25.quote)}
+            ${row('Confirmed Orders', p26.order, p25.order)}
+            ${row('Lost Jobs', p26.lost, p25.lost, true)}
+          </tbody>
+        </table>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <div class="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1">Quote → Order Conversion</div>
+          <div class="kpi-pair">
+            <div class="kpi-side this">
+              <div class="text-xs font-semibold text-blue-600 mb-1">2026 YTD</div>
+              <div class="kpi-val yr26">${p26.convRate.toFixed(1)}%</div>
+              <div class="kpi-lbl">of all jobs confirmed</div>
+            </div>
+            <div class="kpi-side">
+              <div class="text-xs font-semibold text-slate-400 mb-1">2025 YTD</div>
+              <div class="kpi-val yr25">${p25.convRate.toFixed(1)}%</div>
+              <div class="kpi-lbl">of all jobs confirmed</div>
+            </div>
+          </div>
+          <div class="kpi-delta mt-2 ${convChg >= 0 ? 'text-green-600' : 'text-red-600'}">
+            ${convChg >= 0 ? '▲' : '▼'} ${Math.abs(convChg).toFixed(1)}pp YoY
+          </div>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
+          <div>Counts <strong>unique orders</strong> (base job ref, excl. service jobs).</div>
+          <div>Stage assigned from the first sub-job record.</div>
+        </div>
+      </div>
+    </div>
+    <div class="border-t border-slate-100 pt-4">
+      <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Confirmed $5K+ Orders by Discount Band — Quote → Order Conversion</div>
+      <div class="flex flex-col sm:flex-row gap-4">
+        ${discKpi('Below 35% Discount', lo26, lo25, 'text-green-700')}
+        ${discKpi('35% Discount &amp; Above', hi26, hi25, 'text-purple-700')}
+      </div>
+    </div>`;
+}
+
+// ── Discount Band Conversion Tiles
+function renderDiscConv(j26, j25) {
+  if(!j26.length && !j25.length) return;
+
+  // Conversion rate = confirmed $5K+ jobs in band / all confirmed jobs in band
+  function convRate(over5k, allJobs, above) {
+    const denom = allJobs.filter(j => above ? j.discPct >= 35 : j.discPct < 35).length;
+    const numer = over5k.filter(j => above ? j.discPct >= 35 : j.discPct < 35).length;
+    return { rate: denom ? (numer/denom*100) : 0, numer, denom };
+  }
+
+  function tile(elId, title, note, s26, s25) {
+    const diff = s26.rate - s25.rate;
+    const up   = diff >= 0;
+    const deltaCol = up ? '#059669' : '#DC2626';
+
+    document.getElementById(elId).innerHTML = `
+      <div class="stitle">${title}</div>
+      <div class="kpi-pair mb-3">
+        <div class="kpi-side this">
+          <div class="text-xs font-semibold text-blue-600 mb-1">2026 YTD</div>
+          <div class="kpi-val yr26">${s26.rate.toFixed(1)}%</div>
+          <div class="kpi-lbl">conversion rate</div>
+        </div>
+        <div class="kpi-side">
+          <div class="text-xs font-semibold text-slate-400 mb-1">2025 YTD</div>
+          <div class="kpi-val yr25">${s25.rate.toFixed(1)}%</div>
+          <div class="kpi-lbl">conversion rate</div>
+        </div>
+      </div>
+      <div class="kpi-delta mb-3" style="color:${deltaCol}">
+        ${up?'▲':'▼'} ${Math.abs(diff).toFixed(1)}pp YoY
+      </div>
+      <div class="space-y-1 text-xs text-slate-500">
+        <div>2026: <strong>${s26.numer.toLocaleString()}</strong> $5K+ orders from ${s26.denom.toLocaleString()} confirmed jobs in band</div>
+        <div>2025: <strong>${s25.numer.toLocaleString()}</strong> $5K+ orders from ${s25.denom.toLocaleString()} confirmed jobs in band</div>
+      </div>
+      <p class="text-xs text-slate-400 mt-3">${note}</p>`;
+  }
+
+  const lo26 = convRate(j26, S.jobs26, false);
+  const lo25 = convRate(j25, S.jobs25, false);
+  const hi26 = convRate(j26, S.jobs26, true);
+  const hi25 = convRate(j25, S.jobs25, true);
+
+  tile('disc-conv-lo',
+    'Quote → Order Conversion — Below 35% Discount',
+    'Of all confirmed jobs discounted under 35%, the % that were $5K+ orders.',
+    lo26, lo25);
+
+  tile('disc-conv-hi',
+    'Quote → Order Conversion — 35% Discount &amp; Above',
+    'Of all confirmed jobs discounted 35% or more, the % that were $5K+ orders.',
+    hi26, hi25);
+}
+
+// ── KPI Cards
+function renderKPIs(j26,j25,MIN){
+  const rev26=j26.reduce((s,j)=>s+j.revenue,0);
+  const rev25=j25.reduce((s,j)=>s+j.revenue,0);
+  const avgDisc26=j26.length ? j26.reduce((s,j)=>s+j.discPct,0)/j26.length : 0;
+  const avgDisc25=j25.length ? j25.reduce((s,j)=>s+j.discPct,0)/j25.length : 0;
+  const init26=j26.filter(j=>j.bucketIdx===4).length;
+  const init25=j25.filter(j=>j.bucketIdx===4).length;
+  const initPct26=pct(init26,j26.length);
+  const initPct25=pct(init25,j25.length);
+
+  set('k-won26', fmt(j26.length)); set('k-won25', fmt(j25.length));
+  set('k-rev26', fmtM(rev26));     set('k-rev25', fmtM(rev25));
+  set('k-disc26',Math.round(avgDisc26*10)/10+'%'); set('k-disc25',Math.round(avgDisc25*10)/10+'%');
+  set('k-init26',`${init26} (${initPct26}%)`);     set('k-init25',`${init25} (${initPct25}%)`);
+
+  $('k-won-delta').innerHTML  = delta(j26.length,j25.length,'','');
+  $('k-rev-delta').innerHTML  = delta(rev26,rev25,'$','');
+  $('k-disc-delta').innerHTML = delta(avgDisc26,avgDisc25,'','%',false);
+  const initDelta = init26-init25;
+  const initDPct  = pct(Math.abs(initDelta),init25||1,1);
+  const up = initDelta>=0;
+  $('k-init-delta').innerHTML = `<span style="color:${up?'#059669':'#DC2626'}">${up?'▲':'▼'} ${Math.abs(initDelta)} jobs in bracket (${initDPct}% YoY)</span>`;
+}
+
+// ── Verdict
+function renderVerdict(j26,j25){
+  const vw=$('verdict-wrap'); const vb=$('verdict-box');
+  const init26=j26.filter(j=>j.bucketIdx===4).length;
+  const init25=j25.filter(j=>j.bucketIdx===4).length;
+  const pctGrowth=init25>0?pct(init26-init25,init25,1):null;
+  const rev26=j26.reduce((s,j)=>s+j.revenue,0);
+  const rev25=j25.reduce((s,j)=>s+j.revenue,0);
+  const revGrowth=rev25>0?pct(rev26-rev25,rev25,1):null;
+
+  vw.classList.remove('hidden');
+  if(init26>init25 && rev26>rev25){
+    vb.className='verdict positive';
+    $('verdict-title').textContent='✓ Initiative Showing Positive Signal';
+    $('verdict-body').textContent=`Usage of the 35–40% commission bracket has grown by ${pctGrowth}% YoY (${init25}→${init26} jobs), and total revenue on $5K+ jobs is up ${revGrowth}% YoY. The data suggests the enhanced commission structure is driving both adoption and conversion outcomes. Continue monitoring GP% to ensure margin impact remains acceptable.`;
+  } else if(init26>init25 && rev26<=rev25){
+    vb.className='verdict neutral';
+    $('verdict-title').textContent='⚠ Bracket Adoption Up but Revenue Flat/Down';
+    $('verdict-body').textContent=`Reps are using the 35–40% bracket more (${init25}→${init26} jobs, +${pctGrowth}% YoY), but total revenue on $5K+ jobs has not yet translated to growth (${revGrowth}% YoY). This could indicate the bracket is being applied to jobs that would have been won anyway, or that the volume hasn't fully offset the lower margin. Review which reps and job types are driving the bracket usage.`;
+  } else if(init26<=init25){
+    vb.className='verdict negative';
+    $('verdict-title').textContent='✗ Initiative Bracket Under-Adopted';
+    $('verdict-body').textContent=`Usage of the 35–40% commission bracket has not grown YoY (${init25} jobs in 2025 vs ${init26} in 2026). The enhanced commission incentive may not be visible enough to reps, or they may be defaulting to other discount levels. Consider communicating the initiative more actively and setting rep-level targets for bracket usage.`;
+  }
+}
+
+// ── Appointment Conversion
+function renderConversionSection(j26,j25,c){
+  const acts26=S.acts26, acts25=S.acts25;
+  const MIN=c.minVal;
+
+  // Three job sets: >= minVal (already filtered), all, < minVal
+  const all26=S.jobs26, all25=S.jobs25;
+  const sub26=S.jobs26.filter(j=>j.revenue<MIN);
+  const sub25=S.jobs25.filter(j=>j.revenue<MIN);
+
+  const rate=(jobs,acts)=>acts.length?Math.round(jobs.length/acts.length*1000)/10:0;
+
+  const rMin26=rate(j26,acts26),   rMin25=rate(j25,acts25);     // >= $5K
+  const rAll26=rate(all26,acts26), rAll25=rate(all25,acts25);   // all won
+  const rSub26=rate(sub26,acts26), rSub25=rate(sub25,acts25);   // < $5K
+
+  const dMin=Math.round((rMin26-rMin25)*10)/10;
+  const dAll=Math.round((rAll26-rAll25)*10)/10;
+  const dSub=Math.round((rSub26-rSub25)*10)/10;
+
+  const arrow=(d,good=true)=>`<span style="color:${(d>=0)===good?'#059669':'#DC2626'}">${d>=0?'▲':'▼'} ${Math.abs(d)}pp YoY</span>`;
+
+  document.getElementById('k-conv26').textContent=rMin26+'%';
+  document.getElementById('k-conv25').textContent=rMin25+'%';
+  document.getElementById('k-conv-delta').innerHTML=arrow(dMin);
+
+  document.getElementById('conv-detail').innerHTML=`
+    <div class="font-semibold text-slate-500 text-xs uppercase tracking-wide pb-1 border-b border-slate-100">Appointments</div>
+    <div class="flex justify-between py-1 border-b border-slate-100">
+      <span class="text-slate-500">Total appointments</span>
+      <span><span class="font-semibold yr26">${acts26.length.toLocaleString()}</span> <span class="text-slate-300 mx-1">|</span> <span class="font-semibold yr25">${acts25.length.toLocaleString()}</span></span>
+    </div>
+    <div class="font-semibold text-slate-500 text-xs uppercase tracking-wide pb-1 pt-2 border-b border-slate-100">Conversion Rates</div>
+    <div class="flex justify-between py-1 border-b border-slate-100">
+      <span class="text-slate-600 font-medium">% Won (all values)</span>
+      <span class="text-right">
+        <span class="font-bold text-blue-700">${rAll26}%</span> <span class="text-slate-300 mx-1">|</span> <span class="text-slate-500">${rAll25}%</span>
+        <span class="ml-2">${arrow(dAll)}</span>
+      </span>
+    </div>
+    <div class="flex justify-between py-1 border-b border-slate-100" style="background:#EFF6FF;margin:0 -4px;padding:4px 4px;">
+      <span class="text-blue-700 font-semibold">% Won ≥ $${(MIN/1000).toFixed(0)}K</span>
+      <span class="text-right">
+        <span class="font-bold text-blue-700">${rMin26}%</span> <span class="text-slate-300 mx-1">|</span> <span class="text-slate-500">${rMin25}%</span>
+        <span class="ml-2">${arrow(dMin)}</span>
+      </span>
+    </div>
+    <div class="flex justify-between py-1">
+      <span class="text-slate-600 font-medium">% Won &lt; $${(MIN/1000).toFixed(0)}K</span>
+      <span class="text-right">
+        <span class="font-bold text-amber-600">${rSub26}%</span> <span class="text-slate-300 mx-1">|</span> <span class="text-slate-500">${rSub25}%</span>
+        <span class="ml-2">${arrow(dSub)}</span>
+      </span>
+    </div>
+    <div class="pt-2 border-t border-slate-100 mt-1 grid grid-cols-3 gap-1 text-center">
+      <div><div class="text-xs text-slate-400">Won (all) '26</div><div class="font-bold text-blue-700">${all26.length}</div></div>
+      <div><div class="text-xs text-slate-400">Won ≥$${(MIN/1000).toFixed(0)}K '26</div><div class="font-bold text-blue-700">${j26.length}</div></div>
+      <div><div class="text-xs text-slate-400">Won &lt;$${(MIN/1000).toFixed(0)}K '26</div><div class="font-bold text-amber-600">${sub26.length}</div></div>
+    </div>
+  `;
+
+  // Monthly chart — 3 conversion lines + appointment bars
+  const monthsOf=arr=>[...new Set(arr.map(r=>(r.Start||'').slice(0,7)))].filter(Boolean).sort();
+  const mths26=monthsOf(acts26), mths25=monthsOf(acts25);
+  const monthLabel=m=>{ const [y,mo]=m.split('-'); return new Date(+y,+mo-1,1).toLocaleDateString('en-AU',{month:'short',year:'2-digit'}); };
+  const allLabels=(mths26.length?mths26:mths25).map(monthLabel);
+
+  const actsByMth=(acts,mths)=>mths.map(m=>acts.filter(a=>(a.Start||'').startsWith(m)).length);
+  const jobsByMth=(jobs,mths)=>mths.map(m=>jobs.filter(j=>(j.month||'')===m).length);
+
+  const a26=actsByMth(acts26,mths26), a25=actsByMth(acts25,mths25);
+  const wMin26=jobsByMth(j26,mths26),   wMin25=jobsByMth(j25,mths25);
+  const wAll26=jobsByMth(all26,mths26), wAll25=jobsByMth(all25,mths25);
+  const wSub26=jobsByMth(sub26,mths26), wSub25=jobsByMth(sub25,mths25);
+
+  const toRate=(w,a)=>a.map((n,i)=>n>0?Math.round(w[i]/n*1000)/10:0);
+
+  const n=allLabels.length;
+  mkChart('conv-rate-chart','bar',{
+    labels:allLabels,
+    datasets:[
+      {type:'bar',label:'2026 Appts',data:a26,backgroundColor:'rgba(46,109,180,.15)',borderColor:'rgba(46,109,180,.4)',borderWidth:1,yAxisID:'y2'},
+      {type:'bar',label:'2025 Appts',data:a25.slice(0,n),backgroundColor:'rgba(148,163,184,.12)',borderColor:'rgba(148,163,184,.4)',borderWidth:1,yAxisID:'y2'},
+      {type:'line',label:'2026 All Won %',data:toRate(wAll26,a26),borderColor:'#059669',backgroundColor:'transparent',tension:.3,pointRadius:3,borderWidth:2,yAxisID:'y1'},
+      {type:'line',label:'2026 ≥$5K %',data:toRate(wMin26,a26),borderColor:'#2E6DB4',backgroundColor:'transparent',tension:.3,pointRadius:3,borderWidth:2,yAxisID:'y1'},
+      {type:'line',label:'2026 <$5K %',data:toRate(wSub26,a26),borderColor:'#D97706',backgroundColor:'transparent',tension:.3,pointRadius:3,borderWidth:2,borderDash:[4,2],yAxisID:'y1'},
+      {type:'line',label:'2025 All Won %',data:toRate(wAll25,a25).slice(0,n),borderColor:'#059669',backgroundColor:'transparent',tension:.3,pointRadius:2,borderWidth:1,borderDash:[5,3],yAxisID:'y1'},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}}},
+    scales:{
+      y1:{type:'linear',position:'left',title:{display:true,text:'Conversion Rate (%)',font:{size:10}},ticks:{callback:v=>v+'%'},min:0},
+      y2:{type:'linear',position:'right',title:{display:true,text:'Appointments',font:{size:10}},grid:{drawOnChartArea:false}},
+    }
+  });
+}
+
+// ── AOV section
+function renderAOV(c){
+  const MIN=c.minVal;
+  const all26=S.jobs26, all25=S.jobs25;
+  const over26=S.jobs26.filter(j=>j.revenue>=MIN), over25=S.jobs25.filter(j=>j.revenue>=MIN);
+  const under26=S.jobs26.filter(j=>j.revenue<MIN),  under25=S.jobs25.filter(j=>j.revenue<MIN);
+
+  const aov=(arr)=>arr.length?arr.reduce((s,j)=>s+j.revenue,0)/arr.length:0;
+  const totRev=(arr)=>arr.reduce((s,j)=>s+j.revenue,0);
+
+  const fmtDelta=(d)=>{
+    if(!d) return '<span style="color:#94A3B8">—</span>';
+    const up=d>0; const clr=up?'color:#059669':'color:#DC2626';
+    return `<span style="${clr};font-weight:700">${up?'▲':'▼'} ${fmtM(Math.abs(d))}</span>`;
+  };
+
+  const rows=[
+    {label:'All Jobs',         j26:all26,  j25:all25,  highlight:false},
+    {label:`Jobs ≥ $${(MIN/1000).toFixed(0)}K`, j26:over26, j25:over25, highlight:true},
+    {label:`Jobs < $${(MIN/1000).toFixed(0)}K`, j26:under26,j25:under25,highlight:false},
+  ];
+
+  $('aov-tbody').innerHTML=rows.map(r=>{
+    const a26=aov(r.j26), a25=aov(r.j25);
+    const d=a26-a25;
+    const up=d>=0; const clr=up?'color:#059669':'color:#DC2626';
+    const pctChg=a25>0?Math.round(d/a25*1000)/10:0;
+    const bg=r.highlight?'background:#EFF6FF':'';
+    return `<tr style="${bg}">
+      <td class="font-semibold">${r.label}</td>
+      <td class="num">${r.j26.length}</td>
+      <td class="num" style="color:#059669">${fmtM(totRev(r.j26))}</td>
+      <td class="num font-bold" style="color:#2E6DB4">${fmtM(a26)}</td>
+      <td class="num text-slate-400">${r.j25.length}</td>
+      <td class="num text-slate-400">${fmtM(a25)}</td>
+      <td class="num">${a25?`<span style="${clr};font-weight:700">${up?'▲':'▼'} ${fmtM(Math.abs(d))} (${Math.abs(pctChg)}%)</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Bar chart: AOV for all 3 segments, 2026 vs 2025
+  const labels=['All Jobs',`≥ $${(MIN/1000).toFixed(0)}K`,`< $${(MIN/1000).toFixed(0)}K`];
+  const d26=rows.map(r=>Math.round(aov(r.j26)));
+  const d25=rows.map(r=>Math.round(aov(r.j25)));
+  mkChart('aov-chart','bar',{
+    labels,
+    datasets:[
+      {label:'2026 AOV',data:d26,backgroundColor:['rgba(46,109,180,.75)','rgba(5,150,105,.75)','rgba(217,119,6,.75)'],borderWidth:1},
+      {label:'2025 AOV',data:d25,backgroundColor:['rgba(46,109,180,.25)','rgba(5,150,105,.25)','rgba(217,119,6,.25)'],borderWidth:1},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{y:{title:{display:true,text:'Avg Order Value ($)',font:{size:10}},ticks:{callback:v=>fmtM(v)}}},
+  });
+}
+
+// ── Bucket chart (count side by side)
+function renderBucketChart(j26,j25){
+  const labels=BUCKETS.map(b=>b.label);
+  const d26=BUCKETS.map((_,i)=>j26.filter(j=>j.bucketIdx===i).length);
+  const d25=BUCKETS.map((_,i)=>j25.filter(j=>j.bucketIdx===i).length);
+  const bgColors=BUCKETS.map(b=>b.initiative?'rgba(124,58,237,.85)':'rgba(46,109,180,.7)');
+  const bg25=BUCKETS.map(b=>b.initiative?'rgba(124,58,237,.35)':'rgba(46,109,180,.25)');
+  mkChart('bucket-chart','bar',{
+    labels,
+    datasets:[
+      {label:'2026 YTD',data:d26,backgroundColor:bgColors,borderColor:bgColors.map(c=>c.replace('.85','.9').replace('.7','1')),borderWidth:1},
+      {label:'2025 YTD',data:d25,backgroundColor:bg25,borderColor:bg25.map(c=>c.replace('.35','.5').replace('.25','.5')),borderWidth:1,borderDash:[4,2]},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},
+    scales:{y:{title:{display:true,text:'Jobs Won',font:{size:10}}}},
+  });
+}
+
+// ── Bucket sidebar stats
+function renderBucketStats(j26,j25){
+  const html=BUCKETS.map((b,i)=>{
+    const c26=j26.filter(j=>j.bucketIdx===i).length;
+    const c25=j25.filter(j=>j.bucketIdx===i).length;
+    const pct26=j26.length?pct(c26,j26.length):0;
+    const pct25=j25.length?pct(c25,j25.length):0;
+    const cls=b.initiative?'border-purple-400 bg-purple-50':'border-slate-200 bg-white';
+    const lclr=b.initiative?'text-purple-700':'text-slate-700';
+    return `<div class="border rounded-lg p-3 ${cls}">
+      <div class="flex justify-between items-center">
+        <span class="text-xs font-bold ${lclr}">${b.label}${b.initiative?' ★':''}</span>
+        <span class="text-xs font-semibold yr26">${c26} <span class="text-slate-400 font-normal">vs</span> <span class="yr25">${c25}</span></span>
+      </div>
+      <div class="init-bar mt-1.5">
+        <div class="init-fill" style="width:${clamp(pct26*2,0,100)}%;background:${b.initiative?'#7C3AED':'#2E6DB4'}"></div>
+      </div>
+      <div class="text-xs text-slate-400 mt-1">${pct26}% of 2026 won jobs</div>
+    </div>`;
+  }).join('');
+  $('bucket-stats').innerHTML=html;
+}
+
+// ── Monthly trend
+function renderMonthlyChart(j26,j25){
+  const months26=[...new Set(j26.map(j=>j.month))].sort();
+  const months25=[...new Set(j25.map(j=>j.month))].sort();
+  // Map 2025 months to 2026 labels (shift year for display)
+  const all26 = months26.length ? months26 : ['No data'];
+  const d26cnt=all26.map(m=>j26.filter(j=>j.month===m).length);
+  const d26init=all26.map(m=>j26.filter(j=>j.month===m&&j.bucketIdx===4).length);
+  // For 2025, align by month index (same period)
+  const d25cnt=months25.map(m=>j25.filter(j=>j.month===m).length);
+  const d25init=months25.map(m=>j25.filter(j=>j.month===m&&j.bucketIdx===4).length);
+  mkChart('monthly-chart','bar',{
+    labels:all26,
+    datasets:[
+      {label:'2026 All $5K+ Won',data:d26cnt,backgroundColor:'rgba(46,109,180,.55)',borderColor:'#2E6DB4',borderWidth:1},
+      {label:'2026 Init Bracket',data:d26init,backgroundColor:'rgba(124,58,237,.75)',borderColor:'#7C3AED',borderWidth:1},
+      {type:'line',label:'2025 All $5K+ Won',data:d25cnt.slice(0,all26.length),borderColor:'#94A3B8',backgroundColor:'transparent',borderDash:[5,3],tension:.3,pointRadius:3},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{y:{title:{display:true,text:'Jobs Won',font:{size:10}}}},
+  });
+}
+
+// ── Revenue by bucket
+function renderRevBucketChart(j26,j25){
+  const labels=BUCKETS.map(b=>b.label);
+  const r26=BUCKETS.map((_,i)=>Math.round(j26.filter(j=>j.bucketIdx===i).reduce((s,j)=>s+j.revenue,0)/1000));
+  const r25=BUCKETS.map((_,i)=>Math.round(j25.filter(j=>j.bucketIdx===i).reduce((s,j)=>s+j.revenue,0)/1000));
+  const bgColors=BUCKETS.map(b=>b.initiative?'rgba(124,58,237,.8)':'rgba(5,150,105,.65)');
+  mkChart('rev-bucket-chart','bar',{
+    labels,
+    datasets:[
+      {label:"2026 Rev ($K)",data:r26,backgroundColor:bgColors,borderWidth:1},
+      {label:"2025 Rev ($K)",data:r25,backgroundColor:bgColors.map(c=>c.replace('.8','.3').replace('.65','.3')),borderWidth:1},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{y:{title:{display:true,text:'Revenue ($K)',font:{size:10}}}},
+  });
+}
+
+// ── Opp pipeline chart
+function renderOppChart(c,MIN){
+  const opps26=S.opps26.filter(o=>(o.ExpectedRevenue||o.Value||0)>=MIN);
+  const opps25=S.opps25.filter(o=>(o.ExpectedRevenue||o.Value||0)>=MIN);
+  const count=(arr,st)=>arr.filter(o=>(o.Status||'').toLowerCase()===st).length;
+  mkChart('opp-chart','bar',{
+    labels:['Open','Won','Lost'],
+    datasets:[
+      {label:'2026 YTD',data:[count(opps26,'open'),count(opps26,'won'),count(opps26,'lost')],
+       backgroundColor:['rgba(8,145,178,.7)','rgba(5,150,105,.7)','rgba(220,38,38,.6)'],borderWidth:1},
+      {label:'2025 YTD',data:[count(opps25,'open'),count(opps25,'won'),count(opps25,'lost')],
+       backgroundColor:['rgba(8,145,178,.3)','rgba(5,150,105,.3)','rgba(220,38,38,.25)'],borderWidth:1},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{y:{title:{display:true,text:'Opportunities',font:{size:10}}}},
+  });
+}
+
+// ── Avg value by price segment
+const PRICE_SEGS = [
+  { label:'<$1K',    min:0,     max:1000  },
+  { label:'$1K–$2K', min:1000,  max:2000  },
+  { label:'$2K–$3K', min:2000,  max:3000  },
+  { label:'$3K–$5K', min:3000,  max:5000  },
+  { label:'$5K–$10K',min:5000,  max:10000 },
+  { label:'$10K+',   min:10000, max:Infinity },
+];
+function renderAvgValChart(j26,j25){
+  const labels=PRICE_SEGS.map(s=>s.label);
+  const seg=(arr,s)=>arr.filter(j=>j.revenue>=s.min&&j.revenue<s.max);
+  const avg=(arr,s)=>{ const g=seg(arr,s); return g.length?Math.round(g.reduce((a,j)=>a+j.revenue,0)/g.length):0; };
+  const cnt=(arr,s)=>seg(arr,s).length;
+
+  mkChart('avgval-chart','bar',{
+    labels,
+    datasets:[
+      {label:'2026 Avg Value',data:PRICE_SEGS.map(s=>avg(j26,s)),backgroundColor:'rgba(46,109,180,.7)',borderWidth:1},
+      {label:'2025 Avg Value',data:PRICE_SEGS.map(s=>avg(j25,s)),backgroundColor:'rgba(46,109,180,.28)',borderWidth:1},
+    ]
+  },{
+    plugins:{
+      legend:{position:'bottom',labels:{font:{size:10}}},
+      tooltip:{callbacks:{
+        label:ctx=>{
+          const s=PRICE_SEGS[ctx.dataIndex];
+          const arr=ctx.datasetIndex===0?j26:j25;
+          return `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString()} (${cnt(arr,s)} jobs)`;
+        }
+      }}
+    },
+    scales:{y:{title:{display:true,text:'Avg Job Value ($)',font:{size:10}},ticks:{callback:v=>'$'+v.toLocaleString()}}},
+  });
+}
+
+// ── Rep Table
+function renderRepTable(j26=null,j25=null){
+  const yr  = $('rep-yr')?.value||'26';
+  const sort= $('rep-sort')?.value||'rev';
+  const jobs= yr==='26' ? (j26||S.jobs26.filter(j=>j.revenue>=(cfg().minVal))) : (j25||S.jobs25.filter(j=>j.revenue>=(cfg().minVal)));
+  if(!jobs.length){ $('rep-tbody').innerHTML='<tr><td colspan="7" class="text-center text-slate-400 py-4 text-xs">No data</td></tr>'; return; }
+
+  const byRep={};
+  jobs.forEach(j=>{
+    if(!byRep[j.rep]) byRep[j.rep]={rep:j.rep,count:0,rev:0,discSum:0,init:0};
+    byRep[j.rep].count++;
+    byRep[j.rep].rev+=j.revenue;
+    byRep[j.rep].discSum+=j.discPct;
+    if(j.bucketIdx===4) byRep[j.rep].init++;
+  });
+  let rows=Object.values(byRep);
+  if(sort==='rev')   rows.sort((a,b)=>b.rev-a.rev);
+  if(sort==='count') rows.sort((a,b)=>b.count-a.count);
+  if(sort==='disc')  rows.sort((a,b)=>(b.discSum/b.count)-(a.discSum/a.count));
+  if(sort==='init')  rows.sort((a,b)=>pct(b.init,b.count)-pct(a.init,a.count));
+  const maxRev=Math.max(...rows.map(r=>r.rev),1);
+
+  $('rep-tbody').innerHTML=rows.map(r=>{
+    const avg=Math.round(r.discSum/r.count*10)/10;
+    const initPct=pct(r.init,r.count);
+    const discClr=avg>=35&&avg<40?'color:#7C3AED;font-weight:700':avg>=40?'color:#DC2626':'';
+    const initClr=initPct>=20?'color:#7C3AED;font-weight:700':initPct>=10?'color:#D97706':'color:#64748B';
+    const barW=Math.round((r.rev/maxRev)*100);
+    return `<tr>
+      <td>
+        <div class="font-medium text-slate-700">${r.rep}</div>
+        <div style="height:4px;border-radius:2px;background:#E2E8F0;width:80px;margin-top:3px"><div style="height:100%;width:${barW}%;border-radius:2px;background:#2E6DB4"></div></div>
+      </td>
+      <td class="num font-semibold">${r.count}</td>
+      <td class="num font-semibold" style="color:#059669">${fmtM(r.rev)}</td>
+      <td class="num">${fmtM(r.rev/r.count)}</td>
+      <td class="num" style="${discClr}">${avg}%</td>
+      <td class="num" style="color:#7C3AED;font-weight:700">${r.init}</td>
+      <td class="num" style="${initClr}">${initPct}%</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Margin table
+function renderMarginTable(j26,j25){
+  const fmtDelta=(d,dollars=true)=>{
+    if(d===0) return '<span style="color:#94A3B8">—</span>';
+    const up=d>0;
+    const clr=up?'color:#059669':'color:#DC2626';
+    const val=dollars?fmtM(Math.abs(d)):(Math.abs(d).toFixed(1)+'pp');
+    return `<span style="${clr};font-weight:700">${up?'+':'-'}${val}</span>`;
+  };
+
+  const rows=BUCKETS.map((b,i)=>{
+    const g26=j26.filter(j=>j.bucketIdx===i);
+    const g25=j25.filter(j=>j.bucketIdx===i);
+    const rev26=g26.reduce((s,j)=>s+j.revenue,0);
+    const gp26 =g26.reduce((s,j)=>s+j.gpTotal,0);
+    const gpPct26=rev26>0?Math.round(gp26/rev26*1000)/10:0;
+    const rev25=g25.reduce((s,j)=>s+j.revenue,0);
+    const gp25 =g25.reduce((s,j)=>s+j.gpTotal,0);
+    const gpPct25=rev25>0?Math.round(gp25/rev25*1000)/10:0;
+    const gpDelta=Math.round((gpPct26-gpPct25)*10)/10;
+    const rowCls=b.initiative?'background:#F5F3FF':'';
+    return `<tr style="${rowCls}">
+      <td class="font-semibold">${b.label}${b.initiative?' ★':''}</td>
+      <td class="num">${g26.length}</td>
+      <td class="num" style="color:#059669">${fmtM(rev26)}</td>
+      <td class="num">${fmtDelta(rev26-rev25,true)}</td>
+      <td class="num">${fmtM(gp26)}</td>
+      <td class="num">${fmtDelta(gp26-gp25,true)}</td>
+      <td class="num">${gpPct26}%</td>
+      <td class="num text-slate-400">${gpPct25}%</td>
+      <td class="num font-bold">${fmtDelta(gpDelta,false)}</td>
+    </tr>`;
+  });
+
+  // Totals row
+  const tot=(arr,f)=>arr.reduce((s,j)=>s+j[f],0);
+  const tRev26=tot(j26,'revenue'), tRev25=tot(j25,'revenue');
+  const tGP26=tot(j26,'gpTotal'),      tGP25=tot(j25,'gpTotal');
+  const tGpPct26=tRev26>0?Math.round(tGP26/tRev26*1000)/10:0;
+  const tGpPct25=tRev25>0?Math.round(tGP25/tRev25*1000)/10:0;
+  rows.push(`<tr style="background:#EFF6FF;font-weight:700;border-top:2px solid #CBD5E1">
+    <td>Total</td>
+    <td class="num">${j26.length}</td>
+    <td class="num" style="color:#059669">${fmtM(tRev26)}</td>
+    <td class="num">${fmtDelta(tRev26-tRev25,true)}</td>
+    <td class="num">${fmtM(tGP26)}</td>
+    <td class="num">${fmtDelta(tGP26-tGP25,true)}</td>
+    <td class="num">${tGpPct26}%</td>
+    <td class="num text-slate-400">${tGpPct25}%</td>
+    <td class="num">${fmtDelta(Math.round((tGpPct26-tGpPct25)*10)/10,false)}</td>
+  </tr>`);
+
+  $('margin-tbody').innerHTML=rows.join('');
+
+  // GP donut chart
+  const gpByBucket=BUCKETS.map((_,i)=>Math.max(0,j26.filter(j=>j.bucketIdx===i).reduce((s,j)=>s+j.gpTotal,0)));
+  const COLS=BUCKETS.map(b=>b.initiative?'#7C3AED':'#2E6DB4');
+  mkChart('margin-chart','doughnut',{
+    labels:BUCKETS.map(b=>b.label),
+    datasets:[{data:gpByBucket,backgroundColor:COLS,borderWidth:2}],
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10}}},
+    cutout:'50%',
+  });
+}
+
+// ── Commission Analysis
+function renderCommission(c){
+  const MIN=c.minVal, BR=c.baseComm/100, IR=c.initComm/100;
+  const j26=S.jobs26.filter(j=>j.revenue>=MIN);
+  const j25=S.jobs25.filter(j=>j.revenue>=MIN);
+
+  const commJob=(j)=> j.bucketIdx===4 ? j.revenue*IR : j.revenue*BR;
+  const commBase=(j)=> j.revenue*BR;
+  const commInit=(j)=> j.bucketIdx===4 ? j.revenue*(IR-BR) : 0; // extra on top of base
+
+  const totalComm=(arr)=>arr.reduce((s,j)=>s+commJob(j),0);
+  const tc26=totalComm(j26), tc25=totalComm(j25);
+  const rev26=j26.reduce((s,j)=>s+j.revenue,0);
+  const effRate26=rev26>0?Math.round(tc26/rev26*1000)/10:0;
+  const delta=tc26-tc25;
+  const up=delta>=0;
+
+  set('k-comm26', fmtM(tc26));
+  set('k-comm25', fmtM(tc25));
+  set('k-comm-pct', effRate26+'%');
+  $('k-comm-delta').innerHTML=`<span style="color:${up?'#059669':'#DC2626'}">${up?'▲':'▼'} ${fmtM(Math.abs(delta))}</span>`;
+
+  // ── Monthly chart
+  const mths26=[...new Set(j26.map(j=>j.month))].sort();
+  const mths25=[...new Set(j25.map(j=>j.month))].sort();
+  const monthLabel=m=>{ const [y,mo]=m.split('-'); return new Date(+y,+mo-1,1).toLocaleDateString('en-AU',{month:'short',year:'2-digit'}); };
+  const labels=mths26.length?mths26.map(monthLabel):mths25.map(monthLabel);
+  const n=labels.length;
+
+  const baseByMth =mths26.map(m=>Math.round(j26.filter(j=>j.month===m).reduce((s,j)=>s+commBase(j),0)));
+  const initByMth =mths26.map(m=>Math.round(j26.filter(j=>j.month===m).reduce((s,j)=>s+commInit(j),0)));
+  const total25Mth=mths25.map(m=>Math.round(j25.filter(j=>j.month===m).reduce((s,j)=>s+commJob(j),0)));
+
+  mkChart('comm-monthly-chart','bar',{
+    labels,
+    datasets:[
+      {label:`Base Comm (${c.baseComm}%)`,data:baseByMth,backgroundColor:'rgba(46,109,180,.7)',borderWidth:1,stack:'s26'},
+      {label:`Initiative Premium (+${(c.initComm-c.baseComm).toFixed(1)}%)`,data:initByMth,backgroundColor:'rgba(124,58,237,.75)',borderWidth:1,stack:'s26'},
+      {type:'line',label:'2025 Total Comm',data:total25Mth.slice(0,n),borderColor:'#94A3B8',backgroundColor:'transparent',borderDash:[5,3],tension:.3,pointRadius:3,borderWidth:2},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{
+      x:{stacked:true},
+      y:{stacked:true,title:{display:true,text:'Commission ($)',font:{size:10}},ticks:{callback:v=>fmtM(v)}},
+    }
+  });
+
+  // ── Bucket chart
+  const bucketComm26=BUCKETS.map((_,i)=>Math.round(j26.filter(j=>j.bucketIdx===i).reduce((s,j)=>s+commJob(j),0)));
+  const bucketComm25=BUCKETS.map((_,i)=>Math.round(j25.filter(j=>j.bucketIdx===i).reduce((s,j)=>s+commJob(j),0)));
+  mkChart('comm-bucket-chart','bar',{
+    labels:BUCKETS.map(b=>b.label),
+    datasets:[
+      {label:'2026',data:bucketComm26,backgroundColor:BUCKETS.map(b=>b.initiative?'rgba(124,58,237,.8)':'rgba(46,109,180,.7)'),borderWidth:1},
+      {label:'2025',data:bucketComm25,backgroundColor:BUCKETS.map(b=>b.initiative?'rgba(124,58,237,.3)':'rgba(46,109,180,.25)'),borderWidth:1},
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{y:{title:{display:true,text:'Commission ($)',font:{size:10}},ticks:{callback:v=>fmtM(v)}}},
+  });
+
+  // ── Rep table
+  const byRep26={}, byRep25={};
+  j26.forEach(j=>{
+    if(!byRep26[j.rep]) byRep26[j.rep]={jobs:0,rev:0,base:0,init:0,total:0};
+    byRep26[j.rep].jobs++;
+    byRep26[j.rep].rev   +=j.revenue;
+    byRep26[j.rep].base  +=commBase(j);
+    byRep26[j.rep].init  +=commInit(j);
+    byRep26[j.rep].total +=commJob(j);
+  });
+  j25.forEach(j=>{
+    if(!byRep25[j.rep]) byRep25[j.rep]={total:0};
+    byRep25[j.rep].total+=commJob(j);
+  });
+
+  const allReps=[...new Set([...Object.keys(byRep26),...Object.keys(byRep25)])];
+  let rows=allReps.map(rep=>({
+    rep,
+    ...( byRep26[rep]||{jobs:0,rev:0,base:0,init:0,total:0}),
+    prev: byRep25[rep]?.total||0,
+  }));
+
+  const sort=$('comm-sort')?.value||'total26';
+  if(sort==='total26') rows.sort((a,b)=>b.total-a.total);
+  if(sort==='delta')   rows.sort((a,b)=>(b.total-b.prev)-(a.total-a.prev));
+  if(sort==='jobs')    rows.sort((a,b)=>b.jobs-a.jobs);
+  if(sort==='rate')    rows.sort((a,b)=>(b.rev?b.total/b.rev:0)-(a.rev?a.total/a.rev:0));
+
+  const maxTotal=Math.max(...rows.map(r=>r.total),1);
+  const fmtD=(d)=>{
+    if(!d&&d!==0) return '—';
+    const up=d>=0; const clr=up?'color:#059669':'color:#DC2626';
+    return `<span style="${clr};font-weight:700">${up?'+':'-'}${fmtM(Math.abs(d))}</span>`;
+  };
+
+  // Totals
+  const totBase=rows.reduce((s,r)=>s+r.base,0);
+  const totInit=rows.reduce((s,r)=>s+r.init,0);
+  const totTotal=rows.reduce((s,r)=>s+r.total,0);
+  const totPrev=rows.reduce((s,r)=>s+r.prev,0);
+  const totRev=rows.reduce((s,r)=>s+r.rev,0);
+
+  $('comm-tbody').innerHTML=rows.map(r=>{
+    const effR=r.rev>0?Math.round(r.total/r.rev*1000)/10:0;
+    const barW=Math.round(r.total/maxTotal*100);
+    return `<tr>
+      <td>
+        <div class="font-semibold text-slate-700">${r.rep}</div>
+        <div style="height:3px;border-radius:2px;background:#E2E8F0;width:80px;margin-top:3px"><div style="height:100%;width:${barW}%;border-radius:2px;background:#2E6DB4"></div></div>
+      </td>
+      <td class="num">${r.jobs}</td>
+      <td class="num" style="color:#059669">${fmtM(r.rev)}</td>
+      <td class="num text-slate-500">${fmtM(r.base)}</td>
+      <td class="num" style="color:#7C3AED;font-weight:${r.init>0?'700':'400'}">${r.init>0?fmtM(r.init):'—'}</td>
+      <td class="num font-bold" style="color:#1E3A5F">${fmtM(r.total)}</td>
+      <td class="num text-slate-400">${r.prev?fmtM(r.prev):'—'}</td>
+      <td class="num">${fmtD(r.prev?r.total-r.prev:null)}</td>
+      <td class="num text-slate-500">${effR}%</td>
+    </tr>`;
+  }).join('')+
+  `<tr style="background:#EFF6FF;font-weight:700;border-top:2px solid #CBD5E1">
+    <td>Total</td>
+    <td class="num">${rows.reduce((s,r)=>s+r.jobs,0)}</td>
+    <td class="num" style="color:#059669">${fmtM(totRev)}</td>
+    <td class="num">${fmtM(totBase)}</td>
+    <td class="num" style="color:#7C3AED">${fmtM(totInit)}</td>
+    <td class="num" style="color:#1E3A5F">${fmtM(totTotal)}</td>
+    <td class="num text-slate-400">${fmtM(totPrev)}</td>
+    <td class="num">${fmtD(totTotal-totPrev)}</td>
+    <td class="num">${totRev>0?Math.round(totTotal/totRev*1000)/10:0}%</td>
+  </tr>`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ORDER ECONOMICS WATERFALL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let _wfView = 'order';
+
+function setWfView(v) {
+  _wfView = v;
+  const on  = 'background:var(--blue);color:#fff;border-color:var(--blue)';
+  const off = 'background:#fff;color:#374151;border-color:#E2E8F0';
+  $('wf-btn-order').style.cssText = v === 'order' ? on : off;
+  $('wf-btn-total').style.cssText = v === 'total' ? on : off;
+  renderWaterfall(cfg());
+}
+
+function renderWaterfall(c) {
+  const MIN = c.minVal;
+  const j26 = S.jobs26.filter(j => j.revenue >= MIN);
+  if (!j26.length) return;
+
+  const leadCost     = parseFloat($('wf-lead-cost').value)  || 135;
+  const leadConvRate = (parseFloat($('wf-lead-conv').value) || 83) / 100;
+
+  // ── Core aggregates ──────────────────────────────────────
+  const nOrders   = j26.length;
+  const totalRev  = j26.reduce((s,j) => s + j.revenue, 0);
+  const totalGP   = j26.reduce((s,j) => s + j.gpTotal, 0);
+  const totalCOGS = totalRev - totalGP;
+  const gpPct     = totalRev > 0 ? totalGP / totalRev : 0;
+
+  // Commission (respects configured rates)
+  const BR = c.baseComm / 100, IR = c.initComm / 100;
+  const commOf = j => j.bucketIdx === 4 ? j.revenue * IR : j.revenue * BR;
+  const totalComm = j26.reduce((s,j) => s + commOf(j), 0);
+
+  // Lead funnel
+  const nAppts        = S.acts26.length;
+  const apptToOrder   = nAppts > 0 ? nOrders / nAppts : 0;          // e.g. 7.5%
+  const leadsPerAppt  = 1 / leadConvRate;                             // 1/0.83 = 1.205
+  const leadsPerOrder = nAppts > 0 ? leadsPerAppt / apptToOrder : 0; // leads to win 1 order
+  const leadCostPerOrder  = leadsPerOrder * leadCost;
+  const totalLeadCost     = nOrders * leadCostPerOrder;
+  const nLeadsTotal       = Math.round(nAppts * leadsPerAppt);
+
+  const netTotal    = totalGP - totalComm - totalLeadCost;
+  const netPerOrder = netTotal / nOrders;
+
+  // ── Scale to view ─────────────────────────────────────────
+  const isPO = _wfView === 'order';
+  const S_ = isPO
+    ? { rev: totalRev/nOrders, cogs: totalCOGS/nOrders, gp: totalGP/nOrders,
+        comm: totalComm/nOrders, lead: leadCostPerOrder, net: netPerOrder }
+    : { rev: totalRev, cogs: totalCOGS, gp: totalGP,
+        comm: totalComm, lead: totalLeadCost, net: netTotal };
+
+  const fmtV = v => isPO
+    ? (v < 0 ? '-' : '') + '$' + Math.round(Math.abs(v)).toLocaleString()
+    : (v < 0 ? '-' : '') + fmtM(Math.abs(v));
+
+  // ── Build waterfall bars ──────────────────────────────────
+  // Each bar: [bottom, top] — for negative steps bar floats above the new lower level
+  const bars = [
+    { label:'Revenue',          bottom:0,              top:S_.rev,
+      color:'rgba(46,109,180,.82)',  border:'#2E6DB4', value:S_.rev,   desc:'Avg order value won' },
+    { label:'Direct Cost',      bottom:S_.gp,          top:S_.rev,
+      color:'rgba(220,38,38,.72)',   border:'#DC2626', value:-S_.cogs, desc:'COGS incl. install & delivery' },
+    { label:'Gross Profit',     bottom:0,              top:S_.gp,
+      color:'rgba(5,150,105,.82)',   border:'#059669', value:S_.gp,    desc:(gpPct*100).toFixed(1)+'% GP margin' },
+    { label:'Commission',       bottom:S_.gp-S_.comm,  top:S_.gp,
+      color:'rgba(124,58,237,.75)',  border:'#7C3AED', value:-S_.comm, desc:`${c.baseComm}% base / ${c.initComm}% initiative` },
+    { label:'Lead Acquisition', bottom:S_.gp-S_.comm-S_.lead, top:S_.gp-S_.comm,
+      color:'rgba(217,119,6,.80)',   border:'#D97706', value:-S_.lead,
+      desc:`${leadsPerOrder.toFixed(1)} leads × $${leadCost}` },
+    { label:'Net Contribution', bottom:S_.net>=0?0:S_.net, top:S_.net>=0?S_.net:0,
+      color: S_.net>=0 ? 'rgba(8,145,178,.85)' : 'rgba(220,38,38,.85)',
+      border: S_.net>=0 ? '#0891B2' : '#DC2626', value:S_.net, desc:'After all costs' },
+  ];
+
+  // Connector lines dataset (transparent bars behind each step bar to give the "floating" context)
+  const connectors = bars.map(b => [
+    Math.min(b.bottom, b.top),
+    Math.max(b.bottom, b.top)
+  ]);
+
+  mkChart('waterfall-chart','bar',{
+    labels: bars.map(b => b.label),
+    datasets:[{
+      data: bars.map(b => [b.bottom, b.top]),
+      backgroundColor: bars.map(b => b.color),
+      borderColor: bars.map(b => b.border),
+      borderWidth: 2,
+      borderRadius: 4,
+    }]
+  },{
+    plugins:{
+      legend:{ display:false },
+      tooltip:{
+        callbacks:{
+          title: ctx => bars[ctx[0].dataIndex].label,
+          label: ctx => {
+            const b = bars[ctx.dataIndex];
+            const sign = b.value >= 0 ? '+' : '';
+            return `  ${sign}${fmtV(b.value)}  —  ${b.desc}`;
+          }
+        }
+      },
+      // Value labels on bars
+      datalabels: false,
+    },
+    scales:{
+      x:{ grid:{ display:false } },
+      y:{
+        min: Math.min(0, S_.net * 1.15),
+        title:{ display:true, text: isPO ? 'Per Won Order ($)' : 'Total H1 2026 ($)', font:{size:10} },
+        ticks:{ callback: v => isPO ? '$'+Math.round(v).toLocaleString() : fmtM(v) },
+        grid:{ color:'rgba(0,0,0,.06)' },
+      }
+    }
+  });
+
+  // ── KPI strip ─────────────────────────────────────────────
+  const netPct = totalRev > 0 ? (netTotal / totalRev * 100) : 0;
+  const commPct = totalRev > 0 ? (totalComm / totalRev * 100) : 0;
+  const leadPctRev = totalRev > 0 ? (totalLeadCost / totalRev * 100) : 0;
+
+  const kpis = [
+    { label:'Avg Order Value',     val: fmtM(totalRev/nOrders),            sub:`${nOrders} $5K+ orders`,             color:'#2E6DB4' },
+    { label:'Gross Profit',        val: (gpPct*100).toFixed(1)+'%',         sub: fmtV(S_.gp) + ' GP',                color:'#059669' },
+    { label:'Commission Cost',     val: fmtV(S_.comm),                      sub: commPct.toFixed(1)+'% of revenue',  color:'#7C3AED' },
+    { label:'Lead Cost / Order',   val: '$'+Math.round(leadCostPerOrder).toLocaleString(),
+                                    sub:`${leadsPerOrder.toFixed(1)} leads × $${leadCost}`, color:'#D97706' },
+    { label:'Net Contribution',    val: fmtV(S_.net),                       sub: netPct.toFixed(1)+'% of revenue',
+      color: netTotal >= 0 ? '#0891B2' : '#DC2626' },
+  ];
+
+  $('wf-kpi-strip').innerHTML = kpis.map(k=>`
+    <div class="flex items-center justify-between px-3 py-2.5 rounded-lg border border-slate-100 bg-slate-50">
+      <div class="text-xs text-slate-500 font-medium">${k.label}</div>
+      <div class="text-right ml-2">
+        <div class="font-black text-sm leading-tight" style="color:${k.color}">${k.val}</div>
+        <div class="text-xs text-slate-400 leading-tight">${k.sub}</div>
+      </div>
+    </div>`).join('');
+
+  // ── Lead funnel strip ──────────────────────────────────────
+  const box = (title, val, sub, bg, tc, bc) =>
+    `<div class="px-3 py-2 rounded-lg border text-center" style="border-color:${bc};background:${bg};min-width:110px">
+       <div class="text-xs font-semibold" style="color:${tc}">${title}</div>
+       <div class="font-black text-base" style="color:${tc}">${val}</div>
+       <div class="text-xs" style="color:${tc};opacity:.7">${sub}</div>
+     </div>`;
+  const arrow = (pct, label) =>
+    `<div class="flex flex-col items-center justify-center px-1">
+       <div class="text-slate-400 font-bold text-lg">→</div>
+       <div class="text-xs font-semibold text-slate-500">${pct}</div>
+       <div class="text-xs text-slate-400">${label}</div>
+     </div>`;
+
+  $('wf-funnel').innerHTML =
+    `<div class="flex flex-wrap items-center gap-1">
+      ${box('Leads',          nLeadsTotal.toLocaleString(),   `$${leadCost} / lead`,             '#FEF3C7','#92400E','#FDE68A')}
+      ${arrow((leadConvRate*100).toFixed(0)+'%','→ Appt')}
+      ${box('Appointments',   nAppts.toLocaleString(),        `${(leadConvRate*100).toFixed(0)}% of leads`, '#DBEAFE','#1E40AF','#BFDBFE')}
+      ${arrow((apptToOrder*100).toFixed(1)+'%','→ $5K+ Order')}
+      ${box('$5K+ Orders',    nOrders.toLocaleString(),       `${(apptToOrder*100).toFixed(1)}% of appts`,  '#D1FAE5','#065F46','#A7F3D0')}
+      <div class="flex flex-col items-center justify-center px-2 text-slate-300 text-xl font-bold">|</div>
+      ${box('Total Lead Cost', fmtM(totalLeadCost),           fmtM(leadCostPerOrder)+' / order', '#FFF7ED','#C2410C','#FDBA74')}
+      ${box('Total Revenue',   fmtM(totalRev),                fmtM(totalRev/nOrders)+' / order', '#FEF9C3','#854D0E','#FDE047')}
+      ${box('Total GP',        fmtM(totalGP),                 (gpPct*100).toFixed(1)+'% margin', '#F0FDF4','#166534','#86EFAC')}
+      ${box('Total Commission',fmtM(totalComm),               commPct.toFixed(1)+'% of rev',     '#F5F3FF','#5B21B6','#C4B5FD')}
+      ${box('Net Contribution',fmtM(netTotal),                (netPct).toFixed(1)+'% of rev',
+            netTotal>=0?'#ECFEFF':'#FEF2F2', netTotal>=0?'#164E63':'#991B1B', netTotal>=0?'#A5F3FC':'#FECACA')}
+    </div>
+    <p class="text-xs text-slate-400 mt-3">
+      <strong>How lead cost is allocated:</strong>
+      Each $5K+ order requires ${leadsPerOrder.toFixed(1)} leads
+      (= 1 ÷ (${(leadConvRate*100).toFixed(0)}% lead→appt × ${(apptToOrder*100).toFixed(1)}% appt→order)).
+      At $${leadCost}/lead that is <strong>$${Math.round(leadCostPerOrder).toLocaleString()}</strong> in acquisition cost per won order.
+      Net contribution = GP − Commission − Lead Cost.
+    </p>`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+loadCfg();
+</script>
+</body>
+</html>

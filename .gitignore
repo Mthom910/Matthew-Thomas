@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.pyc
+~$*
+
+# Generated data outputs — contain customer PII / staff commission data,
+# regenerable from the scripts, deliberately kept out of git history.
+*.csv
+*.xlsx
+*.pptx
+/commission_payments.json
+/disposal_takedown_analysis.json
+/initiative_data.json
+template_unpacked/
+
+# Personal/local Claude Code settings, not shared project config
+.claude/settings.local.json

@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Sales by ETA</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#F1F5F9;margin:0;}
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:18px 20px;}
+.stitle{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:8px;}
+.kpi{padding:14px 16px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.kv{font-size:1.55rem;font-weight:800;line-height:1;}
+.ks{font-size:.7rem;color:#64748B;margin-top:3px;}
+.kd{font-size:.73rem;font-weight:600;margin-top:5px;}
+
+.dt{width:100%;border-collapse:collapse;font-size:.81rem;}
+.dt th{background:#1E3A5F;color:#fff;padding:8px 12px;text-align:left;font-size:.72rem;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2;}
+.dt td{padding:7px 12px;border-bottom:1px solid #F1F5F9;}
+.dt tr:hover td{background:#F8FAFC;}
+.dt .r{text-align:right;font-variant-numeric:tabular-nums;}
+.dt .wk{font-weight:700;color:#1E3A5F;}
+.dt .total{background:#EFF6FF!important;font-weight:700;}
+
+.spin{width:16px;height:16px;border:3px solid #E2E8F0;border-top-color:#2E6DB4;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.up{color:#059669;} .dn{color:#DC2626;} .neu{color:#64748B;}
+.bar-bg{height:6px;border-radius:3px;background:#E2E8F0;width:100%;min-width:60px;}
+.bar-fill{height:100%;border-radius:3px;background:#2E6DB4;}
+
+#toast{position:fixed;bottom:14px;right:14px;z-index:9999;}
+.tmsg{padding:7px 13px;border-radius:7px;font-size:.8rem;font-weight:600;margin-top:4px;transition:opacity .3s;}
+</style>
+</head>
+<body class="p-4 md:p-5">
+
+<!-- HEADER -->
+<div class="flex items-start justify-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 class="text-xl font-black text-slate-800 leading-tight">Weekly Sales by ETA</h1>
+    <p class="text-xs text-slate-500 mt-0.5">JobLine sales (ex tax) grouped by week — based on ETA date field</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <span id="lu" class="text-xs text-slate-400"></span>
+    <div id="sw" class="hidden"><div class="spin"></div></div>
+    <span id="lstatus" class="text-xs text-slate-500 font-medium"></span>
+    <button onclick="loadData()" class="px-3 py-1.5 text-sm font-semibold text-white rounded-lg shadow" style="background:#2E6DB4">&#8635; Load</button>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div class="card mb-4">
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    <div class="lg:col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">API Base URL</label>
+      <input id="c-base" value="https://api.myinsyte.com.au/v2" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+      <input id="c-email" value="" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">API Key</label>
+      <input id="c-key" type="password" value="" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">ETA Field Name</label>
+      <input id="c-eta" value="ETA" placeholder="ETA / ETADate / ..." class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Week Starts On</label>
+      <select id="c-wkstart" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white">
+        <option value="1">Monday</option><option value="0">Sunday</option>
+      </select></div>
+
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">ETA From</label>
+      <input id="c-from" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div><label class="block text-xs font-semibold text-slate-600 mb-1">ETA To</label>
+      <input id="c-to" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
+    <div class="flex items-end gap-2 col-span-2 md:col-span-2">
+      <button onclick="setRange(7)"  class="px-3 py-1.5 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Last 7d</button>
+      <button onclick="setRange(30)" class="px-3 py-1.5 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Last 30d</button>
+      <button onclick="setRange(90)" class="px-3 py-1.5 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Last 90d</button>
+      <button onclick="setRange(365)"class="px-3 py-1.5 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">Last 12m</button>
+      <button onclick="setYTD()"     class="px-3 py-1.5 text-xs font-semibold text-white rounded-lg hover:opacity-90" style="background:#059669">YTD</button>
+    </div>
+    <div class="flex items-end gap-2 lg:col-span-2">
+      <label class="text-xs font-semibold text-slate-600 self-center">Group by:</label>
+      <select id="c-group" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+        <option value="week">Week</option><option value="month">Month</option>
+      </select>
+      <label class="text-xs font-semibold text-slate-600 self-center ml-2">Rep filter:</label>
+      <select id="c-rep" onchange="renderAll()" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white flex-1">
+        <option value="">All Reps</option>
+      </select>
+    </div>
+  </div>
+  <div id="field-warn" class="hidden mt-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-800"></div>
+</div>
+
+<!-- KPI ROW -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+  <div class="kpi"><div class="stitle">Total Sales Ex Tax</div><div class="kv text-blue-600" id="k-total">—</div><div class="ks" id="k-period">select a range</div></div>
+  <div class="kpi"><div class="stitle">Weeks / Periods</div><div class="kv text-slate-600" id="k-weeks">—</div><div class="ks">with sales data</div></div>
+  <div class="kpi"><div class="stitle">Avg Weekly Sales</div><div class="kv text-green-600" id="k-avg">—</div><div class="ks">ex tax</div></div>
+  <div class="kpi"><div class="stitle">Total Job Lines</div><div class="kv text-amber-600" id="k-lines">—</div><div class="ks">in period</div></div>
+  <div class="kpi"><div class="stitle">Unique Jobs</div><div class="kv text-purple-600" id="k-jobs">—</div><div class="ks">distinct refs</div></div>
+</div>
+
+<!-- CHART -->
+<div class="card mb-4">
+  <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+    <div class="stitle mb-0" id="chart-title">Sales Ex Tax by Week</div>
+    <div class="flex gap-2 items-center text-xs text-slate-500">
+      <span>Show:</span>
+      <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="ck-avg" checked onchange="renderChart()"> Avg line</label>
+      <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="ck-trend" checked onchange="renderChart()"> Trend</label>
+    </div>
+  </div>
+  <canvas id="main-chart" height="180"></canvas>
+</div>
+
+<!-- WEEK TABLE -->
+<div class="card mb-4">
+  <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+    <div class="stitle mb-0" id="tbl-title">Week-by-Week Breakdown</div>
+    <button onclick="exportCSV()" class="px-3 py-1 text-xs font-semibold border border-slate-200 bg-white rounded-lg hover:bg-slate-50">&#8595; Export CSV</button>
+  </div>
+  <div style="max-height:400px;overflow-y:auto;">
+    <table class="dt">
+      <thead><tr>
+        <th>Period</th>
+        <th class="r">Lines</th>
+        <th class="r">Jobs</th>
+        <th class="r">Sales Ex Tax</th>
+        <th class="r">Avg / Line</th>
+        <th class="r">vs Prev</th>
+        <th style="min-width:100px">Share</th>
+      </tr></thead>
+      <tbody id="week-tbody"><tr><td colspan="7" class="text-center text-slate-400 py-6 text-xs">Load data to view report</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- REP + PRODUCT -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="card">
+    <div class="stitle">Sales by Rep</div>
+    <div style="max-height:300px;overflow-y:auto;">
+      <table class="dt">
+        <thead><tr>
+          <th>Rep</th><th class="r">Lines</th><th class="r">Sales Ex Tax</th><th class="r">%</th>
+        </tr></thead>
+        <tbody id="rep-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="stitle">Sales by Product</div>
+    <div style="max-height:300px;overflow-y:auto;">
+      <table class="dt">
+        <thead><tr>
+          <th>Product</th><th class="r">Lines</th><th class="r">Sales Ex Tax</th><th class="r">%</th>
+        </tr></thead>
+        <tbody id="prod-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL (collapsed) -->
+<details class="card mb-4">
+  <summary class="cursor-pointer text-sm font-semibold text-slate-600">&#9660; Raw Line Detail (click to expand)</summary>
+  <div class="mt-3" style="max-height:400px;overflow-y:auto;">
+    <table class="dt">
+      <thead><tr>
+        <th>ETA Week</th><th>Job Ref</th><th>Product</th><th>Rep</th><th class="r">Std Price ExTax</th><th class="r">Disc Price ExTax</th><th>ETA Date</th>
+      </tr></thead>
+      <tbody id="detail-tbody"><tr><td colspan="7" class="text-center text-slate-400 py-4 text-xs">No data</td></tr></tbody>
+    </table>
+  </div>
+</details>
+
+<div id="toast"></div>
+
+<script>
+// ── UTILS ──────────────────────────────────────────────────
+const LS = 'insyte_eta_cfg';
+const $ = id => document.getElementById(id);
+const set = (id, v) => { const e=$(id); if(e) e.textContent=v; };
+const fmt  = (n,d=0) => n==null?'—':n.toLocaleString('en-AU',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtM = n => {
+  if(n==null) return '—';
+  const abs=Math.abs(n);
+  if(abs>=1e6) return '$'+fmt(n/1e6,2)+'M';
+  if(abs>=1e3) return '$'+fmt(n/1e3,1)+'K';
+  return '$'+fmt(n,0);
+};
+const fmtD = iso => { if(!iso) return ''; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}); };
+
+function toast(msg, type='blue'){
+  const c={green:'#D1FAE5 #065F46',red:'#FEE2E2 #991B1B',amber:'#FEF3C7 #92400E',blue:'#DBEAFE #1E40AF'};
+  const [bg,tx]=(c[type]||c.blue).split(' ');
+  const el=document.createElement('div'); el.className='tmsg';
+  el.style.cssText=`background:${bg};color:${tx}`;
+  el.textContent=msg; $('toast').appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),400); }, 4000);
+}
+function status(msg){ $('lstatus').textContent=msg; }
+
+// ── DATE HELPERS ───────────────────────────────────────────
+const today = () => new Date().toISOString().slice(0,10);
+function setRange(days){
+  const t=new Date(); const f=new Date(t); f.setDate(t.getDate()-days);
+  $('c-from').value=f.toISOString().slice(0,10); $('c-to').value=t.toISOString().slice(0,10);
+}
+function setYTD(){
+  const t=today(); $('c-from').value=t.slice(0,4)+'-01-01'; $('c-to').value=t;
+}
+
+// Week key: YYYY-WNN (ISO week, Monday start) or month YYYY-MM
+function weekKey(dateStr, groupBy, weekStart){
+  if(!dateStr) return 'No ETA';
+  const d = new Date(dateStr.slice(0,10)+'T00:00:00');
+  if(groupBy === 'month') return dateStr.slice(0,7);
+  // ISO week (Mon=1 start) or Sun=0 start
+  const day = d.getDay(); // 0=Sun, 1=Mon…6=Sat
+  const ws  = parseInt(weekStart||'1');
+  const diff = (day - ws + 7) % 7;
+  const monday = new Date(d); monday.setDate(d.getDate() - diff);
+  return monday.toISOString().slice(0,10);
+}
+function weekLabel(key, groupBy){
+  if(key==='No ETA') return 'No ETA';
+  if(groupBy==='month'){
+    const [y,m]=key.split('-');
+    return new Date(+y,+m-1,1).toLocaleDateString('en-AU',{month:'short',year:'numeric'});
+  }
+  const d=new Date(key+'T00:00:00');
+  const end=new Date(d); end.setDate(d.getDate()+6);
+  return `${d.toLocaleDateString('en-AU',{day:'2-digit',month:'short'})} – ${end.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})}`;
+}
+
+// ── API ────────────────────────────────────────────────────
+function auth(){ return 'Basic '+btoa($('c-email').value.trim()+':'+$('c-key').value.trim()); }
+async function apiGet(path){
+  const r=await fetch($('c-base').value.trim().replace(/\/$/,'')+path, {headers:{Authorization:auth(),Accept:'application/json'}});
+  if(!r.ok) throw new Error(r.status+' '+path.split('?')[0]);
+  return r.json();
+}
+async function fetchAll(path, lbl){
+  const PAGE=500; const sep=path.includes('?')?'&':'?';
+  let rows=[], skip=0, pg=1;
+  while(true){
+    status(`${lbl} p${pg}…`);
+    const d=await apiGet(`${path}${sep}$top=${PAGE}&$skip=${skip}`);
+    const p=d.value||(Array.isArray(d)?d:[]);
+    rows=rows.concat(p);
+    if(p.length<PAGE) break;
+    skip+=PAGE; pg++;
+  }
+  return rows;
+}
+
+async function batchJobs(ids){
+  const MAP={}, CHUNK=15, WAVE=5;
+  const chunks=[]; for(let i=0;i<ids.length;i+=CHUNK) chunks.push(ids.slice(i,i+CHUNK));
+  for(let i=0;i<chunks.length;i+=WAVE){
+    status(`Jobs ${Math.min((i+WAVE)*CHUNK,ids.length)}/${ids.length}…`);
+    await Promise.all(chunks.slice(i,i+WAVE).map(ch=>{
+      const f=encodeURIComponent(ch.map(id=>`ID eq ${id}`).join(' or '));
+      return fetchAll(`/Jobs?$filter=${f}`,'J').then(rows=>rows.forEach(j=>MAP[j.ID]=j));
+    }));
+  }
+  return MAP;
+}
+
+// ── STATE ──────────────────────────────────────────────────
+let LINES=[], JOBS={}, USERS={};
+
+async function loadData(){
+  const etaField=$('c-eta').value.trim()||'ETA';
+  const from=$('c-from').value, to=$('c-to').value;
+  if(!from){ toast('Set a From date','amber'); return; }
+  $('sw').classList.remove('hidden');
+  try{
+    // Users
+    status('Users…');
+    const users=await fetchAll('/Users','U');
+    USERS={}; users.forEach(u=>USERS[u.ID]=(u.FullName||`${u.FirstName||''} ${u.LastName||''}`.trim()||`Rep ${u.ID}`));
+
+    // Job lines — filter by ETA field
+    const parts=[];
+    if(from) parts.push(`${etaField} ge ${from}T00:00:00Z`);
+    if(to)   parts.push(`${etaField} le ${to}T23:59:59Z`);
+    const filter=parts.length?`?$filter=${encodeURIComponent(parts.join(' and '))}`: '';
+
+    status('Job lines…');
+    LINES=await fetchAll(`/JobLines${filter}`,'Lines');
+
+    // Warn if no ETA values found
+    const etaVals=LINES.filter(l=>l[etaField]);
+    if(etaVals.length===0 && LINES.length>0){
+      // Try to discover what the field might actually be named
+      const sample=LINES[0];
+      const dateFields=Object.keys(sample).filter(k=> sample[k] && typeof sample[k]==='string' && /\d{4}-\d{2}-\d{2}/.test(sample[k]));
+      $('field-warn').classList.remove('hidden');
+      $('field-warn').innerHTML=`<strong>Warning:</strong> No values found in field "<strong>${etaField}</strong>". `+
+        (dateFields.length ? `Date fields found on this record: <strong>${dateFields.join(', ')}</strong>. Update the ETA Field Name above and reload.` :
+         `No date fields detected on sample line. Check field name.`);
+    } else {
+      $('field-warn').classList.add('hidden');
+    }
+
+    // Batch jobs
+    const jobIds=[...new Set(LINES.map(l=>l.JobID).filter(Boolean))];
+    if(jobIds.length) JOBS=await batchJobs(jobIds);
+
+    // Populate rep filter
+    const repNames=[...new Set(LINES.map(l=>{
+      const j=JOBS[l.JobID]||{};
+      return USERS[j.SalesRepID]||j.SalesRepID||'Unknown';
+    }))].filter(Boolean).sort();
+    const repSel=$('c-rep');
+    const curVal=repSel.value;
+    repSel.innerHTML='<option value="">All Reps</option>'+repNames.map(r=>`<option${r===curVal?' selected':''}>${r}</option>`).join('');
+
+    status('');
+    renderAll();
+    $('lu').textContent='Updated '+new Date().toLocaleTimeString();
+    toast(`${LINES.length.toLocaleString()} lines loaded`,'green');
+  }catch(e){
+    console.error(e); toast('Error: '+e.message,'red'); status('Error');
+  }
+  $('sw').classList.add('hidden');
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+let _chart = null;
+let _weekData = [];
+
+function getFilteredLines(){
+  const rep=$('c-rep').value;
+  if(!rep) return LINES;
+  return LINES.filter(l=>{
+    const j=JOBS[l.JobID]||{};
+    return (USERS[j.SalesRepID]||j.SalesRepID||'Unknown')===rep;
+  });
+}
+
+function renderAll(){
+  const lines=getFilteredLines();
+  const etaField=$('c-eta').value.trim()||'ETA';
+  const groupBy=$('c-group').value||'week';
+  const weekStart=$('c-wkstart').value||'1';
+
+  // Group by week/month
+  const byKey={};
+  lines.forEach(l=>{
+    const job=JOBS[l.JobID]||{};
+    const rep=USERS[job.SalesRepID]||job.SalesRepID||'Unknown';
+    const etaDate=l[etaField]||l.ETA||l.ETADate||l.ExpectedDate||'';
+    const key=weekKey(etaDate, groupBy, weekStart);
+    if(!byKey[key]) byKey[key]={key, label:'', lines:0, jobs:new Set(), salesExTax:0, rows:[]};
+    const salesExTax = l.DiscountedPriceExTax || l.StandardPriceExTax || 0;
+    byKey[key].lines++;
+    if(l.JobID) byKey[key].jobs.add(l.JobID);
+    byKey[key].salesExTax+=salesExTax;
+    byKey[key].rows.push({...l, _rep:rep, _etaDate:etaDate, _jobRef:job.Reference||String(l.JobID||'')});
+  });
+
+  // Sort by key (chronological), keep 'No ETA' last
+  _weekData=Object.values(byKey).sort((a,b)=>{
+    if(a.key==='No ETA') return 1; if(b.key==='No ETA') return -1;
+    return a.key.localeCompare(b.key);
+  }).map(w=>({...w, label:weekLabel(w.key,groupBy), jobs:w.jobs.size}));
+
+  const total=_weekData.filter(w=>w.key!=='No ETA').reduce((s,w)=>s+w.salesExTax,0);
+  const weeksWithData=_weekData.filter(w=>w.key!=='No ETA'&&w.salesExTax>0).length;
+  const avg=weeksWithData>0?total/weeksWithData:0;
+  const totalLines=lines.length;
+  const totalJobs=new Set(lines.map(l=>l.JobID).filter(Boolean)).size;
+
+  set('k-total',fmtM(total));
+  set('k-period',$('c-from').value+' to '+($('c-to').value||'now'));
+  set('k-weeks',fmt(weeksWithData));
+  set('k-avg',fmtM(avg));
+  set('k-lines',fmt(totalLines));
+  set('k-jobs',fmt(totalJobs));
+
+  const lbl=groupBy==='month'?'Monthly':'Weekly';
+  set('chart-title',`${lbl} Sales Ex Tax`);
+  set('tbl-title',`${lbl} Breakdown`);
+
+  renderChart(total);
+  renderWeekTable(total);
+  renderRepTable(lines, total);
+  renderProductTable(lines, total);
+  renderDetail(lines, etaField, groupBy, weekStart);
+}
+
+function renderChart(total){
+  const data=_weekData.filter(w=>w.key!=='No ETA');
+  const labels=data.map(w=>w.label);
+  const values=data.map(w=>w.salesExTax);
+  const avg=values.length>0?values.reduce((s,v)=>s+v,0)/values.length:0;
+  const showAvg=$('ck-avg').checked;
+  const showTrend=$('ck-trend').checked;
+
+  // Linear trend
+  const n=values.length;
+  let slope=0, intercept=0;
+  if(n>1){
+    const xm=(n-1)/2, ym=values.reduce((s,v)=>s+v,0)/n;
+    const sxy=values.reduce((s,v,i)=>s+(i-xm)*(v-ym),0);
+    const sxx=values.reduce((s,_,i)=>s+(i-xm)*(i-xm),0);
+    slope=sxy/sxx; intercept=ym-slope*xm;
+  }
+
+  const datasets=[{
+    label:'Sales Ex Tax',
+    data:values,
+    backgroundColor:'rgba(46,109,180,.65)',
+    borderColor:'#2E6DB4',
+    borderWidth:1,
+    type:'bar',
+  }];
+  if(showAvg) datasets.push({label:`Avg ${fmtM(avg)}`,type:'line',data:values.map(()=>avg),borderColor:'#D97706',borderDash:[5,3],borderWidth:2,pointRadius:0,tension:0});
+  if(showTrend&&n>1) datasets.push({label:'Trend',type:'line',data:values.map((_,i)=>Math.max(0,slope*i+intercept)),borderColor:'#059669',borderDash:[3,2],borderWidth:2,pointRadius:0,tension:0});
+
+  if(_chart) _chart.destroy();
+  _chart=new Chart($('main-chart').getContext('2d'),{type:'bar',data:{labels,datasets},options:{
+    responsive:true,
+    plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+    scales:{y:{title:{display:true,text:'Sales Ex Tax ($)',font:{size:10}},ticks:{callback:v=>fmtM(v)}}},
+  }});
+}
+
+function renderWeekTable(total){
+  $('week-tbody').innerHTML=_weekData.map((w,i)=>{
+    const prev=i>0?_weekData[i-1].salesExTax:null;
+    const pct=total>0?Math.round(w.salesExTax/total*1000)/10:0;
+    let cmp='';
+    if(prev!=null&&w.key!=='No ETA'){
+      const d=w.salesExTax-prev;
+      const p=prev>0?Math.round(d/prev*1000)/10:0;
+      const cl=d>=0?'up':'dn';
+      cmp=`<span class="${cl}">${d>=0?'▲':'▼'} ${fmtM(Math.abs(d))} (${Math.abs(p)}%)</span>`;
+    }
+    const barW=total>0?Math.round(w.salesExTax/total*100):0;
+    const isTotal=w.key==='No ETA';
+    return `<tr class="${isTotal?'':''}">
+      <td class="wk">${w.label}</td>
+      <td class="r">${fmt(w.lines)}</td>
+      <td class="r">${fmt(w.jobs)}</td>
+      <td class="r font-bold text-blue-700">${fmtM(w.salesExTax)}</td>
+      <td class="r text-slate-500">${w.lines>0?fmtM(w.salesExTax/w.lines):'—'}</td>
+      <td class="r">${cmp||'—'}</td>
+      <td><div class="bar-bg"><div class="bar-fill" style="width:${barW}%"></div></div><span class="text-xs text-slate-400 ml-1">${pct}%</span></td>
+    </tr>`;
+  }).join('')+
+  (()=>{
+    const t=_weekData.reduce((s,w)=>s+w.salesExTax,0);
+    const tl=_weekData.reduce((s,w)=>s+w.lines,0);
+    const tj=_weekData.reduce((s,w)=>s+(typeof w.jobs==='number'?w.jobs:0),0);
+    return `<tr class="total"><td>Total</td><td class="r">${fmt(tl)}</td><td class="r">${fmt(tj)}</td><td class="r text-blue-700">${fmtM(t)}</td><td class="r">—</td><td class="r">—</td><td>100%</td></tr>`;
+  })();
+}
+
+function renderRepTable(lines, total){
+  const byRep={};
+  lines.forEach(l=>{
+    const job=JOBS[l.JobID]||{};
+    const rep=USERS[job.SalesRepID]||job.SalesRepID||'Unknown';
+    if(!byRep[rep]) byRep[rep]={rep,lines:0,sales:0};
+    byRep[rep].lines++;
+    byRep[rep].sales+=l.DiscountedPriceExTax||l.StandardPriceExTax||0;
+  });
+  const rows=Object.values(byRep).sort((a,b)=>b.sales-a.sales);
+  const tot=rows.reduce((s,r)=>s+r.sales,0);
+  $('rep-tbody').innerHTML=rows.map(r=>{
+    const pct=tot>0?Math.round(r.sales/tot*1000)/10:0;
+    return `<tr><td class="font-medium">${r.rep}</td><td class="r text-slate-500">${fmt(r.lines)}</td><td class="r font-semibold text-blue-700">${fmtM(r.sales)}</td><td class="r text-slate-500">${pct}%</td></tr>`;
+  }).join('')+`<tr class="total"><td>Total</td><td class="r">${fmt(rows.reduce((s,r)=>s+r.lines,0))}</td><td class="r text-blue-700">${fmtM(tot)}</td><td class="r">100%</td></tr>`;
+}
+
+function renderProductTable(lines, total){
+  const byP={};
+  lines.forEach(l=>{
+    const p=l.Product||'(none)';
+    if(!byP[p]) byP[p]={prod:p,lines:0,sales:0};
+    byP[p].lines++;
+    byP[p].sales+=l.DiscountedPriceExTax||l.StandardPriceExTax||0;
+  });
+  const rows=Object.values(byP).sort((a,b)=>b.sales-a.sales);
+  const tot=rows.reduce((s,r)=>s+r.sales,0);
+  $('prod-tbody').innerHTML=rows.map(r=>{
+    const pct=tot>0?Math.round(r.sales/tot*1000)/10:0;
+    return `<tr><td class="font-medium">${r.prod}</td><td class="r text-slate-500">${fmt(r.lines)}</td><td class="r font-semibold text-blue-700">${fmtM(r.sales)}</td><td class="r text-slate-500">${pct}%</td></tr>`;
+  }).join('')+`<tr class="total"><td>Total</td><td class="r">${fmt(rows.reduce((s,r)=>s+r.lines,0))}</td><td class="r text-blue-700">${fmtM(tot)}</td><td class="r">100%</td></tr>`;
+}
+
+function renderDetail(lines, etaField, groupBy, weekStart){
+  const sorted=[...lines].sort((a,b)=>{
+    const ka=weekKey(a[etaField]||'',groupBy,weekStart);
+    const kb=weekKey(b[etaField]||'',groupBy,weekStart);
+    return ka.localeCompare(kb);
+  });
+  $('detail-tbody').innerHTML=sorted.slice(0,500).map(l=>{
+    const job=JOBS[l.JobID]||{};
+    const rep=USERS[job.SalesRepID]||job.SalesRepID||'—';
+    const etaDate=l[etaField]||'';
+    const wk=weekKey(etaDate,groupBy,weekStart);
+    return `<tr>
+      <td class="text-slate-500 text-xs">${wk==='No ETA'?'No ETA':weekLabel(wk,groupBy)}</td>
+      <td class="font-medium">${job.Reference||String(l.JobID||'—')}</td>
+      <td>${l.Product||'—'}</td>
+      <td>${rep}</td>
+      <td class="r text-slate-400">${fmtM(l.StandardPriceExTax||0)}</td>
+      <td class="r font-semibold text-blue-700">${fmtM(l.DiscountedPriceExTax||l.StandardPriceExTax||0)}</td>
+      <td class="text-slate-400">${etaDate?etaDate.slice(0,10):''}</td>
+    </tr>`;
+  }).join('')+(sorted.length>500?`<tr><td colspan="7" class="text-center text-slate-400 py-2 text-xs">…${sorted.length-500} more rows — export CSV for full data</td></tr>`:'');
+}
+
+// ── EXPORT CSV ─────────────────────────────────────────────
+function exportCSV(){
+  const etaField=$('c-eta').value.trim()||'ETA';
+  const groupBy=$('c-group').value||'week';
+  const weekStart=$('c-wkstart').value||'1';
+  const header=['Period','ETA Date','Job Ref','Product','Rep','Std Price ExTax','Disc Price ExTax'];
+  const lines=getFilteredLines();
+  const rows=lines.map(l=>{
+    const job=JOBS[l.JobID]||{};
+    const rep=USERS[job.SalesRepID]||job.SalesRepID||'Unknown';
+    const eta=l[etaField]||'';
+    const wk=eta?weekLabel(weekKey(eta,groupBy,weekStart),groupBy):'No ETA';
+    return [
+      `"${wk}"`,
+      eta.slice(0,10),
+      `"${job.Reference||String(l.JobID||'')}"`,
+      `"${l.Product||''}"`,
+      `"${rep}"`,
+      l.StandardPriceExTax||0,
+      l.DiscountedPriceExTax||l.StandardPriceExTax||0,
+    ].join(',');
+  });
+  const csv=[header.join(','), ...rows].join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`weekly_sales_eta_${today()}.csv`; a.click();
+}
+
+// ── INIT ───────────────────────────────────────────────────
+(function(){
+  setYTD();
+  try{
+    const s=JSON.parse(localStorage.getItem(LS)||'{}');
+    if(s.eta) $('c-eta').value=s.eta;
+    if(s.from) $('c-from').value=s.from;
+    if(s.to)   $('c-to').value=s.to;
+  }catch(e){}
+  // Auto-save config on change
+  ['c-email','c-key','c-base','c-eta'].forEach(id=>{
+    const el=$(id); if(el) el.addEventListener('blur',()=>{
+      localStorage.setItem(LS,JSON.stringify({
+        eta:$('c-eta').value, from:$('c-from').value, to:$('c-to').value
+      }));
+    });
+  });
+})();
+</script>
+</body>
+</html>

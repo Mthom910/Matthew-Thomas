@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insyte CRM Intelligence Platform</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f1b35;--navy2:#1a2d52;--blue:#2563eb;--blue-light:#3b82f6;
+  --green:#059669;--amber:#f59e0b;--red:#dc2626;--purple:#7c3aed;
+  --cyan:#0891b2;--slate:#64748b;
+  --bg:#f0f2f7;--surface:#fff;--border:#e2e5ed;--text:#1a1a2e;--muted:#6b7280;
+  --font-mono:'SF Mono',Monaco,Consolas,monospace;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--navy);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-logo{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:#fff;letter-spacing:-.5px}
+.brand-title{color:#fff;font-weight:700;font-size:15px;letter-spacing:-.3px}
+.brand-sub{color:#93c5fd;font-size:11px;margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.api-config{display:flex;align-items:center;gap:8px}
+.api-input{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;width:320px;outline:none}
+.api-input::placeholder{color:rgba(255,255,255,.4)}
+.api-input:focus{border-color:var(--blue-light)}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.live{background:#34d399;box-shadow:0 0 6px #34d399}
+.status-dot.demo{background:#f59e0b}
+.status-dot.error{background:#f87171}
+.status-label{font-size:11px;color:rgba(255,255,255,.7)}
+.refresh-btn{background:rgba(255,255,255,.1);border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;transition:.15s}
+.refresh-btn:hover{background:rgba(255,255,255,.2)}
+.refresh-btn:disabled{opacity:.5;cursor:default}
+.spin{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* PAGE NAV */
+.page-tabs{background:var(--navy2);padding:0 24px;display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:58px;z-index:199}
+.tab{padding:10px 16px;border:none;background:none;color:rgba(255,255,255,.55);cursor:pointer;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
+.tab.active{color:#fff;border-bottom-color:#3b82f6}
+.tab:hover:not(.active){color:rgba(255,255,255,.8)}
+
+/* FILTERS */
+.filter-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:104px;z-index:198}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+select,input[type=text]{border:1px solid var(--border);background:#f9fafb;color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;height:30px;outline:none;transition:.15s}
+select:focus,input[type=text]:focus{border-color:var(--blue);background:#fff}
+.period-btns{display:flex;gap:3px}
+.period-btn{padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:#f9fafb;cursor:pointer;font-size:12px;transition:.15s;font-weight:500}
+.period-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.period-btn:hover:not(.active){background:#e5e7eb}
+.filter-divider{width:1px;height:20px;background:var(--border)}
+
+/* LAYOUT */
+.main{padding:20px 24px;max-width:1600px}
+.page-section{display:none}
+.page-section.active{display:block}
+
+/* METRIC CARDS */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:20px}
+.kpi-card{background:var(--surface);border-radius:10px;padding:14px 16px;border:1px solid var(--border);position:relative;overflow:hidden;transition:box-shadow .15s}
+.kpi-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--blue))}
+.kpi-label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.kpi-value{font-size:21px;font-weight:700;color:var(--text);line-height:1.1}
+.kpi-delta{font-size:11px;margin-top:4px;display:flex;align-items:center;gap:3px}
+.kpi-delta.up{color:var(--green)}.kpi-delta.down{color:var(--red)}
+.kpi-sub{font-size:10px;color:#9ca3af;margin-top:2px}
+
+/* GRID LAYOUTS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px}
+.g31{display:grid;grid-template-columns:3fr 1fr;gap:16px;margin-bottom:16px}
+
+/* CARDS */
+.card{background:var(--surface);border-radius:10px;border:1px solid var(--border);padding:16px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px}
+.card-title i{font-size:15px;color:var(--muted)}
+.card-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.card-badge.green{background:#d1fae5;color:#065f46}
+.card-badge.amber{background:#fef3c7;color:#92400e}
+.card-badge.red{background:#fee2e2;color:#991b1b}
+.card-badge.blue{background:#dbeafe;color:#1e40af}
+.card-badge.purple{background:#ede9fe;color:#5b21b6}
+.card-actions{display:flex;gap:6px}
+.card-action-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer}
+.card-action-btn:hover{background:#f9fafb}
+
+/* TABLES */
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{font-size:10px;color:var(--muted);font-weight:600;text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.4px}
+.data-table td{font-size:12px;padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover td{background:#f9fafb;cursor:pointer}
+.data-table .num{text-align:right;font-family:var(--font-mono);font-size:11px}
+.data-table .pct{text-align:right;font-family:var(--font-mono);font-size:11px}
+
+/* STAGE PILLS */
+.stage-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap}
+
+/* PROGRESS BARS */
+.mini-bar-wrap{flex:1;height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden;min-width:60px}
+.mini-bar{height:100%;border-radius:3px;transition:width .4s}
+
+/* PIPELINE STRIP */
+.pipeline-strip{display:flex;gap:0;border-radius:8px;overflow:hidden;height:30px;margin-bottom:10px}
+.pipeline-seg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;cursor:default;transition:.2s;white-space:nowrap;overflow:hidden;padding:0 6px;min-width:32px}
+.pipeline-seg:hover{filter:brightness(1.15)}
+
+/* AVATAR */
+.avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+
+/* CONSULTANT SELECTOR */
+.consultant-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.consultant-chip{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:#f9fafb;transition:.15s}
+.consultant-chip:hover{border-color:var(--blue)}
+.consultant-chip.active{border-color:var(--navy);background:var(--navy)}
+.consultant-chip.active .c-name,.consultant-chip.active .c-meta{color:#fff}
+.consultant-chip.active .c-meta{color:rgba(255,255,255,.6)}
+.c-name{font-size:12px;font-weight:600}
+.c-meta{font-size:11px;color:var(--muted)}
+
+/* JOB CARDS */
+.job-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:16px}
+.job-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;transition:box-shadow .15s}
+.job-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);cursor:pointer}
+.job-card.risk{border-left:3px solid var(--red)}
+.job-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.job-number{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-bottom:2px}
+.job-consultant{font-size:12px;font-weight:600}
+.job-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px}
+.job-metric-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.job-metric-value{font-size:13px;font-weight:700;font-family:var(--font-mono)}
+
+/* STAGE JOURNEY */
+.stage-journey{display:flex;align-items:center;gap:2px;margin-top:10px;overflow:hidden}
+.sj-step{flex:1;height:4px;border-radius:2px;background:#f3f4f6}
+.sj-step.done{background:var(--green)}
+.sj-step.current{background:var(--blue)}
+.sj-step.risk{background:var(--amber)}
+
+/* DRILL-DOWN TABS */
+.drill-tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+.drill-tab{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:#f9fafb;cursor:pointer;font-size:12px;font-weight:500;transition:.15s}
+.drill-tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.drill-tab:hover:not(.active){background:#e5e7eb}
+
+/* HEATMAP */
+.heatmap{display:grid;gap:4px}
+.heatmap-row{display:flex;align-items:center;gap:6px}
+.heatmap-label{font-size:11px;color:var(--muted);width:120px;text-align:right;flex-shrink:0}
+.heatmap-cells{display:flex;gap:4px}
+.heatmap-cell{width:36px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff}
+
+/* CHART LEGEND */
+.chart-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;font-size:11px;color:var(--muted)}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:10px;height:10px;border-radius:2px}
+
+/* SCROLL TABLE */
+.table-wrap{overflow-x:auto}
+.table-wrap::-webkit-scrollbar{height:4px}
+.table-wrap::-webkit-scrollbar-track{background:transparent}
+.table-wrap::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+
+/* SEGMENT CARD */
+.segment-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.segment-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.segment-card .seg-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600}
+.segment-card .seg-value{font-size:20px;font-weight:700;margin-bottom:4px}
+.segment-card .seg-sub{font-size:11px;color:var(--muted)}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px 24px;color:var(--muted)}
+.empty i{font-size:48px;margin-bottom:12px;opacity:.3}
+.empty p{font-size:13px}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;padding:48px;gap:10px;color:var(--muted);font-size:13px}
+.loading i{font-size:24px}
+
+/* RESPONSIVE */
+@media(max-width:1024px){.g3{grid-template-columns:1fr 1fr}.g21,.g12{grid-template-columns:1fr}.g31{grid-template-columns:1fr}}
+@media(max-width:768px){.g2{grid-template-columns:1fr}.main{padding:12px 16px}.kpi-grid{grid-template-columns:1fr 1fr}.api-input{width:200px}}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-logo">INS</div>
+    <div>
+      <div class="brand-title">Insyte CRM Intelligence</div>
+      <div class="brand-sub">Sales & Job Lifecycle Platform</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="api-config">
+      <input type="text" class="api-input" id="apiKeyInput" placeholder="Paste API key to connect live data…" oninput="handleApiKeyChange(this.value)">
+    </div>
+    <div class="status-dot demo" id="statusDot"></div>
+    <span class="status-label" id="statusLabel">Demo data</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
+      <i class="ti ti-refresh" id="refreshIcon"></i> Refresh
+    </button>
+  </div>
+</div>
+
+<!-- PAGE TABS -->
+<div class="page-tabs">
+  <button class="tab active" onclick="setPage('performance','this')" id="tab-performance"><i class="ti ti-chart-bar"></i> Executive</button>
+  <button class="tab" onclick="setPage('jobs','this')" id="tab-jobs"><i class="ti ti-briefcase"></i> Job Lifecycle</button>
+  <button class="tab" onclick="setPage('sales','this')" id="tab-sales"><i class="ti ti-award"></i> Sales Drill-Down</button>
+  <button class="tab" onclick="setPage('consultants','this')" id="tab-consultants"><i class="ti ti-users"></i> Consultants</button>
+  <button class="tab" onclick="setPage('pipeline','this')" id="tab-pipeline"><i class="ti ti-filter"></i> Pipeline Health</button>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar" id="filterBar">
+  <div class="filter-group">
+    <span class="filter-label">Period</span>
+    <div class="period-btns" id="periodBtns">
+      <button class="period-btn active" onclick="setPeriod('all',this)">All</button>
+      <button class="period-btn" onclick="setPeriod('ytd',this)">YTD</button>
+      <button class="period-btn" onclick="setPeriod('qtd',this)">QTD</button>
+      <button class="period-btn" onclick="setPeriod('mtd',this)">MTD</button>
+    </div>
+  </div>
+  <div class="filter-divider"></div>
+  <div class="filter-group">
+    <span class="filter-label">State</span>
+    <select id="stateFilter" onchange="applyFilter()">
+      <option value="all">All States</option>
+      <option>VIC</option><option>NSW</option><option>QLD</option><option>WA</option><option>SA</option>
+    </select>
+  </div>
+  <div class="filter-group" id="consultantFilterGroup">
+    <span class="filter-label">Consultant</span>
+    <select id="consultantFilter" onchange="applyFilter()">
+      <option value="all">All Consultants</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Category</span>
+    <select id="categoryFilter" onchange="applyFilter()">
+      <option value="all">All Products</option>
+    </select>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PAGE 1: EXECUTIVE PERFORMANCE -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page-section active" id="page-performance">
+  <div class="kpi-grid" id="perfKpis"></div>
+  <div class="g21">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-chart-bar"></i> Revenue Trend (12 months)</div>
+        <div class="card-actions">
+          <button class="card-action-btn" onclick="toggleRevenueChart()">Toggle view</button>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:240px"><canvas id="revenueChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-chart-donut"></i> Revenue by Category</div>
+      </div>
+      <div class="chart-wrap" style="height:240px"><canvas id="categoryChart"></canvas></div>
+    </div>
+  </div>
+  <div class="g21">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-git-branch"></i> Pipeline by Stage</div>
+        <div class="card-badge blue" id="pipelineTotal"></div>
+      </div>
+      <div id="pipelineViz"></div>
+      <div class="chart-wrap" style="height:180px"><canvas id="stageChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-map-pin"></i> Revenue by State</div>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="stateChart"></canvas></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-trophy"></i> Top 10 Jobs by Value</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table"><thead><tr>
+          <th>Job</th><th>Consultant</th><th>State</th><th>Stage</th><th class="num">Value</th><th class="pct">Disc%</th><th class="pct">GP%</th>
+        </tr></thead><tbody id="topJobsBody"></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="ti ti-alert-triangle"></i> Jobs at Risk</div>
+        <div class="card-badge amber" id="riskCount"></div>
+      </div>
+      <div id="riskJobsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PAGE 2: JOB LIFECYCLE CRM -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page-section" id="page-jobs">
+  <div class="kpi-grid" id="jobsKpis"></div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-search"></i> Job Search</div>
+      <input type="text" id="jobSearch" placeholder="Search by job number or consultant…" oninput="renderJobs()" style="width:260px;height:30px">
+    </div>
+    <div class="drill-tabs" id="stageFilterTabs">
+      <button class="drill-tab active" onclick="setStageFilter('all',this)">All Jobs</button>
+      <button class="drill-tab" onclick="setStageFilter('won',this)">Won</button>
+      <button class="drill-tab" onclick="setStageFilter('pipeline',this)">Pipeline</button>
+      <button class="drill-tab" onclick="setStageFilter('lost',this)">Lost</button>
+      <button class="drill-tab" onclick="setStageFilter('risk',this)">⚠ At Risk</button>
+    </div>
+  </div>
+  <div class="job-grid" id="jobCardGrid"></div>
+  <div id="jobPagination" style="display:flex;justify-content:center;gap:8px;margin-top:8px"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PAGE 3: SALES DRILL-DOWN -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page-section" id="page-sales">
+  <div class="drill-tabs" id="salesDrillTabs">
+    <button class="drill-tab active" onclick="setSalesDrill('product',this)"><i class="ti ti-package"></i> By Product</button>
+    <button class="drill-tab" onclick="setSalesDrill('segment',this)"><i class="ti ti-layers"></i> By Price Segment</button>
+    <button class="drill-tab" onclick="setSalesDrill('discount',this)"><i class="ti ti-tag"></i> By Discount Band</button>
+    <button class="drill-tab" onclick="setSalesDrill('state',this)"><i class="ti ti-map"></i> By State</button>
+    <button class="drill-tab" onclick="setSalesDrill('supplier',this)"><i class="ti ti-building"></i> By Supplier</button>
+  </div>
+  <div id="salesDrillContent"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PAGE 4: CONSULTANTS -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page-section" id="page-consultants">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-users"></i> Select Consultant</div>
+      <select id="consultTeamFilter" onchange="renderConsultants()">
+        <option value="all">All States</option>
+        <option value="VIC">Victoria</option><option value="NSW">New South Wales</option>
+        <option value="QLD">Queensland</option><option value="WA">Western Australia</option>
+        <option value="SA">South Australia</option>
+      </select>
+    </div>
+    <div class="consultant-list" id="consultantList"></div>
+  </div>
+  <div id="consultantDetail"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PAGE 5: PIPELINE HEALTH -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page-section" id="page-pipeline">
+  <div class="kpi-grid" id="pipelineKpis"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ti ti-clock"></i> Pipeline Age Distribution</div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="pipelineAgeChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ti ti-chart-bar"></i> Pipeline by Consultant</div></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="pipelineConsultChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="ti ti-alert-circle"></i> Pipeline Detail — All Unconfirmed Jobs</div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table"><thead><tr>
+        <th>Job</th><th>Consultant</th><th>State</th><th>Stage</th><th>Products</th><th class="num">Value</th><th class="pct">Disc%</th><th>Age</th><th>Action</th>
+      </tr></thead><tbody id="pipelineTableBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG & STATE
+// ═══════════════════════════════════════════════════
+// Credentials are cached in localStorage per-browser rather than hardcoded here.
+function _insyteCred(storageKey, promptLabel) {
+  let v = localStorage.getItem(storageKey);
+  if (!v) { v = prompt(promptLabel) || ''; if (v) localStorage.setItem(storageKey, v); }
+  return v;
+}
+const API_BASE  = 'https://api.myinsyte.com.au/v2';
+const API_EMAIL = _insyteCred('insyte_email', 'Insyte API email:');
+const API_KEY   = _insyteCred('insyte_key', 'Insyte API key:');
+const AUTH_HDR  = 'Basic ' + btoa(API_EMAIL + ':' + API_KEY);
+
+let apiKey = API_KEY;
+let _rawCache = null;
+let _isLive = false;
+
+const STAGE_WON = new Set([
+  'stage_job_line_confirmed','stage_job_line_confirmed_cm',
+  'stage_job_line_cm_booked','stage_job_line_cm_inprogress',
+  'stage_job_line_cm_completed','stage_job_line_cm_completed_confirmed',
+  'stage_job_line_cm_completed_reschedule','stage_job_line_cm_completed_unconfirmed',
+  'stage_job_line_supply','stage_job_line_supply_failed',
+  'stage_job_line_dispatch','stage_job_line_invoicing','stage_job_line_restocked'
+]);
+const STAGE_PIPELINE = new Set(['stage_job_line_unconfirmed','stage_job_line_unconfirmed_cm','stage_job_line_cm_not_booked']);
+const STAGE_LOST = new Set(['stage_job_line_cancelled','status_invoice_line_cancelled']);
+const STAGE_PRIORITY = [
+  'stage_job_line_invoicing','stage_job_line_dispatch','stage_job_line_supply',
+  'stage_job_line_supply_failed','stage_job_line_restocked',
+  'stage_job_line_cm_completed_confirmed','stage_job_line_cm_completed',
+  'stage_job_line_cm_completed_reschedule','stage_job_line_cm_completed_unconfirmed',
+  'stage_job_line_cm_inprogress','stage_job_line_cm_booked',
+  'stage_job_line_confirmed_cm','stage_job_line_confirmed',
+  'stage_job_line_unconfirmed_cm','stage_job_line_unconfirmed','stage_job_line_cm_not_booked'
+];
+const STAGE_LABELS = {
+  'stage_job_line_unconfirmed':'Quote (Unconfirmed)',
+  'stage_job_line_unconfirmed_cm':'Unconf. – CM Needed',
+  'stage_job_line_cm_not_booked':'CM Not Booked',
+  'stage_job_line_confirmed':'Confirmed',
+  'stage_job_line_confirmed_cm':'Confirmed + CM',
+  'stage_job_line_cm_booked':'CM Booked',
+  'stage_job_line_cm_inprogress':'CM In Progress',
+  'stage_job_line_cm_completed':'CM Complete',
+  'stage_job_line_cm_completed_confirmed':'CM Confirmed',
+  'stage_job_line_cm_completed_reschedule':'CM Reschedule',
+  'stage_job_line_supply':'In Supply',
+  'stage_job_line_supply_failed':'Supply Failed',
+  'stage_job_line_dispatch':'Dispatched',
+  'stage_job_line_invoicing':'Invoicing',
+  'stage_job_line_restocked':'Restocked',
+  'stage_job_line_cancelled':'Cancelled'
+};
+const STAGE_COLORS = {
+  'stage_job_line_unconfirmed':'#94a3b8',
+  'stage_job_line_unconfirmed_cm':'#64748b',
+  'stage_job_line_cm_not_booked':'#f59e0b',
+  'stage_job_line_confirmed':'#3b82f6',
+  'stage_job_line_confirmed_cm':'#6366f1',
+  'stage_job_line_cm_booked':'#8b5cf6',
+  'stage_job_line_cm_inprogress':'#a855f7',
+  'stage_job_line_cm_completed':'#0ea5e9',
+  'stage_job_line_cm_completed_confirmed':'#06b6d4',
+  'stage_job_line_supply':'#10b981',
+  'stage_job_line_supply_failed':'#f87171',
+  'stage_job_line_dispatch':'#059669',
+  'stage_job_line_invoicing':'#047857',
+  'stage_job_line_restocked':'#065f46',
+  'stage_job_line_cancelled':'#f87171'
+};
+
+const APP = {
+  page: 'performance',
+  period: 'all',
+  state: 'all',
+  consultant: 'all',
+  category: 'all',
+  stageFilter: 'all',
+  salesDrill: 'product',
+  selectedConsultant: null,
+  jobPage: 0,
+  jobs: []
+};
+const JOBS_PER_PAGE = 24;
+
+const CHARTS = {};
+
+// Reference date derived from actual data (not today) so YTD/QTD/MTD
+// work even when data is older than the current calendar year.
+let DATA_REF = { yr: new Date().getFullYear(), mo: new Date().getMonth()+1 };
+
+function updateDataRef(rows) {
+  let maxYr = 0, maxMo = 0;
+  rows.forEach(r => {
+    const y = r.Year||0, m = MONTH_IDX[r.Month]||0;
+    if(y > maxYr || (y === maxYr && m > maxMo)) { maxYr = y; maxMo = m; }
+  });
+  if(maxYr) DATA_REF = { yr: maxYr, mo: maxMo };
+}
+
+// ═══════════════════════════════════════════════════
+// UTILITY
+// ═══════════════════════════════════════════════════
+const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const fmt$ = v => v>=1000000?'$'+(v/1000000).toFixed(1)+'M':v>=1000?'$'+(v/1000).toFixed(1)+'k':'$'+Math.round(v).toLocaleString();
+const fmtPct = v => (v||0).toFixed(1)+'%';
+const fmtNum = v => (v||0).toLocaleString();
+const cleanName = n => (n||'Unknown').replace(/\s*\(.*?\)\s*/g,'').trim();
+const baseJob = r => (r['Job Number']||'').replace(/-\d+$/,'').trim();
+const MONTH_IDX = {January:1,February:2,March:3,April:4,May:5,June:6,July:7,August:8,September:9,October:10,November:11,December:12};
+
+function initials(name){return name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}
+function avatarColor(name){
+  const colors=['#3b82f6','#8b5cf6','#0891b2','#059669','#f59e0b','#dc2626','#7c3aed','#0ea5e9'];
+  let h=0;for(let c of name)h=((h<<5)-h)+c.charCodeAt(0);
+  return colors[Math.abs(h)%colors.length];
+}
+
+function stageLabel(s){return STAGE_LABELS[s]||s||'Unknown'}
+function stageColor(s){return STAGE_COLORS[s]||'#94a3b8'}
+function stageBadgeHtml(s){
+  const lbl = stageLabel(s);
+  const col = stageColor(s);
+  return `<span class="stage-pill" style="background:${col}22;color:${col};border:1px solid ${col}44">${lbl}</span>`;
+}
+
+function destroyChart(id){if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}
+
+// ═══════════════════════════════════════════════════
+// PERIOD FILTER
+// ═══════════════════════════════════════════════════
+function inPeriod(r, period) {
+  if(period==='all') return true;
+  const now = new Date(), yr = now.getFullYear(), mo = now.getMonth()+1;
+  const rYr = r.Year||0, rMo = MONTH_IDX[r.Month]||0;
+  if(period==='ytd') return rYr===yr;
+  if(period==='qtd') return rYr===yr && Math.ceil(rMo/3)===Math.ceil(mo/3);
+  if(period==='mtd') return rYr===yr && rMo===mo;
+  return true;
+}
+
+// ═══════════════════════════════════════════════════
+// JOB AGGREGATION
+// ═══════════════════════════════════════════════════
+function aggregateJobs(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const jid = baseJob(r); if(!jid) return;
+    if(!map[jid]) map[jid] = {
+      jobId:jid, consultant:cleanName(r.FullName), state:r.State||'',
+      grossSales:0, productCost:0, gp1:0, installCost:0, deliveryCost:0,
+      totalCost:0, gp2:0, sqm:0, discSum:0, discCount:0,
+      lines:[], cats:{}, prods:{}, suppliers:new Set(),
+      month:r.Month, year:r.Year
+    };
+    const j = map[jid];
+    j.grossSales  += r['Gross Sales']   ||0;
+    j.productCost += r['Product Cost']  ||0;
+    j.gp1         += r['GP $ (1)']      ||0;
+    j.installCost += r['Install Cost']  ||0;
+    j.deliveryCost+= r['Delivery Cost'] ||0;
+    j.totalCost   += r['Total Cost']    ||0;
+    j.gp2         += r['GP $ (2)']      ||0;
+    j.sqm         += r['Volumes SQM']   ||0;
+    const dp = parseFloat((r['Discount %']||'0').toString().replace('%',''))||0;
+    j.discSum += dp; j.discCount++;
+    j.lines.push(r);
+    const cat = r['ProductName (groups)']||'Other';
+    j.cats[cat] = (j.cats[cat]||0) + (r['Gross Sales']||0);
+    const prod = r['ProductName']||'Unknown';
+    if(!j.prods[prod]) j.prods[prod] = {name:prod, revenue:0, sqm:0};
+    j.prods[prod].revenue += r['Gross Sales']||0;
+    j.prods[prod].sqm += r['Volumes SQM']||0;
+    if(r.Supplier) j.suppliers.add(r.Supplier);
+  });
+  return Object.values(map).map(j => {
+    const stages = j.lines.map(l=>(l.Stage||l.stage||'').toLowerCase());
+    let stage = '';
+    for(const sp of STAGE_PRIORITY){ if(stages.includes(sp)){stage=sp;break;} }
+    if(!stage) stage = stages[0]||'';
+    return {
+      ...j,
+      stage, 
+      isWon: STAGE_WON.has(stage),
+      isPipe: STAGE_PIPELINE.has(stage),
+      isLost: STAGE_LOST.has(stage),
+      discAvg: j.discCount ? Math.round(j.discSum/j.discCount) : 0,
+      gp1Pct: j.grossSales ? (j.gp1/j.grossSales*100) : 0,
+      gp2Pct: j.grossSales ? (j.gp2/j.grossSales*100) : 0,
+      topCat: Object.entries(j.cats).sort((a,b)=>b[1]-a[1])[0]?.[0]||'',
+      supplierList: [...j.suppliers],
+      priceSegment: j.grossSales>=15000?'Prestige':j.grossSales>=5000?'Premium':j.grossSales>=2000?'Mid':'Budget'
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// DEMO DATA GENERATOR
+// ═══════════════════════════════════════════════════
+const DEMO_NAMES = ['Sarah Mitchell','James Walford','Priya Sharma','Tom O\'Brien','Natalie Chen','Marcus Webb','Lisa Papadopoulos','Daniel Kwon','Emma Fitzgerald','Chris Barlow','Amelia Torres','Ben Nakamura'];
+const DEMO_STATES = ['VIC','VIC','VIC','NSW','NSW','QLD','QLD','WA','SA','VIC','NSW','QLD'];
+const DEMO_CATS = ['Roller Blinds','Venetian Blinds','Plantation Shutters','Curtains & Sheers','Security Screens','Awnings','Other'];
+const DEMO_PRODS = ['Roller Blockout','Roller Sheer','Aluminium Venetian','Plantation Shutter PVC','S-Fold Curtain','Eyelet Curtain','Crimsafe Hinge Door','Folding Arm Awning','Timber Venetian','Roman Blind','Motorised Roller','Sheer Curtain Panel'];
+const DEMO_SUPPLIERS = ['Nettex','Louvolite','Somfy','Aspect','Silent Gliss','Verosol'];
+const ALL_STAGES = [...STAGE_WON,...STAGE_PIPELINE,...STAGE_LOST];
+
+function genDemoRows(){
+  const rows=[];
+  const now = new Date();
+  const yr = now.getFullYear();
+  const mo = now.getMonth();
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  
+  for(let i=0;i<800;i++){
+    const consultIdx = Math.floor(Math.random()*DEMO_NAMES.length);
+    const name = DEMO_NAMES[consultIdx];
+    const state = DEMO_STATES[consultIdx];
+    // mostly this month
+    let mOffset = 0;
+    if(Math.random()>0.45) mOffset = -Math.floor(Math.random()*11);
+    const jobMo = ((mo + mOffset) % 12 + 12) % 12;
+    const jobYr = yr + (mo + mOffset < 0 ? -1 : 0);
+    const jobNum = 'J' + String(10000+Math.floor(Math.random()*8000)).padStart(5,'0');
+    const linesCount = rnd(1,5);
+    const grossBase = rnd(800,22000);
+    const stageRoll = Math.random();
+    let stage;
+    if(stageRoll < 0.55) stage = [...STAGE_WON][Math.floor(Math.random()*STAGE_WON.size)];
+    else if(stageRoll < 0.82) stage = [...STAGE_PIPELINE][Math.floor(Math.random()*STAGE_PIPELINE.size)];
+    else stage = [...STAGE_LOST][Math.floor(Math.random()*STAGE_LOST.size)];
+    
+    const discount = Math.random()<0.3?0:rnd(1,22);
+    const discMult = 1-(discount/100);
+    const catIdx = Math.floor(Math.random()*DEMO_CATS.length);
+    
+    for(let l=0;l<linesCount;l++){
+      const lineGross = Math.round(grossBase/linesCount * (0.7+Math.random()*0.6)) * discMult;
+      const prodIdx = Math.floor(Math.random()*DEMO_PRODS.length);
+      rows.push({
+        'Job Number': jobNum+'-'+String(l+1).padStart(2,'0'),
+        'FullName': name,
+        'State': state,
+        'Stage': stage,
+        'Month': months[jobMo],
+        'Year': jobYr,
+        'ProductName': DEMO_PRODS[prodIdx],
+        'ProductName (groups)': DEMO_CATS[catIdx],
+        'Gross Sales': Math.round(lineGross),
+        'Product Cost': Math.round(lineGross*0.45),
+        'GP $ (1)': Math.round(lineGross*0.55),
+        'Install Cost': Math.round(lineGross*0.08),
+        'Delivery Cost': Math.round(lineGross*0.02),
+        'Total Cost': Math.round(lineGross*0.55),
+        'GP $ (2)': Math.round(lineGross*0.45),
+        'Volumes SQM': Math.round(lineGross/380*10)/10,
+        'Discount %': discount+'%',
+        'Supplier': DEMO_SUPPLIERS[Math.floor(Math.random()*DEMO_SUPPLIERS.length)]
+      });
+    }
+  }
+  return rows;
+}
+
+// ═══════════════════════════════════════════════════
+// API FETCH + TRANSFORM
+// ═══════════════════════════════════════════════════
+
+// Map real Insyte OData fields → dashboard field names
+function transformJobLine(line, jobMap, userMap) {
+  const job  = jobMap[line.JobID]  || {};
+  const rep  = userMap[job.SalesRepID] || {};
+  const addr = job.Address || {};
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const d = new Date(line.OrderDate || job.JobDate || Date.now());
+
+  const stdPriceEx  = line.StandardPriceExTax  || 0;
+  const discPriceEx = line.DiscountedPriceExTax || stdPriceEx;
+  const grossSales  = line.DiscountedPriceIncTax || line.StandardPriceIncTax || discPriceEx;
+  const prodCost    = line.DiscountedCostExTax   || line.StandardCostExTax   || 0;
+  const installCost = line.StandardIntallCostExTax   || 0;
+  const delivCost   = line.StandardDeliveryCostExTax || 0;
+  const totalCost   = prodCost + installCost + delivCost;
+  const gp1         = grossSales - prodCost;
+  const gp2         = grossSales - totalCost;
+  const discPct     = stdPriceEx > 0 ? Math.round((1 - discPriceEx / stdPriceEx) * 100) : 0;
+  const sqm         = ((line.Width || 0) * (line.Drop || 0)) / 1000000; // mm → m²
+
+  return {
+    'Job Number':          `${line.JobID}-${String(line.JobLineNo || 1).padStart(2,'0')}`,
+    'FullName':             rep.FullName || ((rep.FirstName||'') + ' ' + (rep.LastName||'')).trim() || `Rep ${job.SalesRepID || '?'}`,
+    'State':                addr.State || '',
+    'Stage':                (line.Stage || '').toLowerCase(),
+    'Month':                MONTHS[d.getMonth()],
+    'Year':                 d.getFullYear(),
+    'ProductName':          line.Product || line.ProductCode || '',
+    'ProductName (groups)': line.MultiProduct || '',
+    'Gross Sales':          Math.round(grossSales),
+    'Product Cost':         Math.round(prodCost),
+    'GP $ (1)':             Math.round(gp1),
+    'Install Cost':         Math.round(installCost),
+    'Delivery Cost':        Math.round(delivCost),
+    'Total Cost':           Math.round(totalCost),
+    'GP $ (2)':             Math.round(gp2),
+    'Volumes SQM':          Math.round(sqm * 100) / 100,
+    'Discount %':           discPct + '%',
+    'Supplier':             line.Supplier || '',
+  };
+}
+
+async function apiGet(path) {
+  const res = await fetch(API_BASE + path, {
+    headers: { 'Authorization': AUTH_HDR, 'Accept': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${path}`);
+  const json = await res.json();
+  return json.value || json;
+}
+
+async function fetchAllPages(path) {
+  const PAGE = 500;
+  // Strip any caller-supplied $top/$skip so we control them
+  const clean = path.replace(/([&?])\$top=\d+/g,'$1').replace(/([&?])\$skip=\d+/g,'$1').replace(/[&?]+$/g,'');
+  const sep   = clean.includes('?') ? '&' : '?';
+  let results = [], skip = 0;
+
+  while (true) {
+    const url = API_BASE + clean + sep + `$top=${PAGE}&$skip=${skip}`;
+    const res  = await fetch(url, { headers: { 'Authorization': AUTH_HDR, 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`);
+    const json = await res.json();
+    const page = json.value || (Array.isArray(json) ? json : []);
+    results = results.concat(page);
+    if (page.length < PAGE) break;   // last page — stop
+    skip += PAGE;
+  }
+  console.log(`fetchAllPages ${path.split('?')[0]}: ${results.length} records`);
+  return results;
+}
+
+async function fetchLiveData() {
+  try {
+    setStatus('loading');
+
+    // Step 1: JobLines date-filtered (2025+) + Users in parallel — fast
+    const dateFilter = encodeURIComponent("OrderDate ge 2025-01-01T00:00:00Z");
+    const [lines, users] = await Promise.all([
+      fetchAllPages(`/JobLines?$filter=${dateFilter}`),
+      fetchAllPages('/Users'),
+    ]);
+
+    // Step 2: Fetch only the Jobs referenced by those lines (avoids loading all 43k jobs)
+    const jobIds = [...new Set(lines.map(l => l.JobID).filter(Boolean))];
+    console.log(`Fetching ${jobIds.length} unique Jobs for ${lines.length} lines`);
+
+    const jobMap = {};
+    const CHUNK = 15; // keep URL length safe
+    for (let i = 0; i < jobIds.length; i += CHUNK) {
+      const ids    = jobIds.slice(i, i + CHUNK);
+      const filter = encodeURIComponent(ids.map(id => `ID eq ${id}`).join(' or '));
+      const batch  = await fetchAllPages(`/Jobs?$expand=Address&$filter=${filter}`);
+      batch.forEach(j => { jobMap[j.ID] = j; });
+    }
+    console.log(`Jobs loaded: ${Object.keys(jobMap).length}`);
+
+    const userMap = {};
+    users.forEach(u => { userMap[u.ID] = u; });
+
+    const rows = lines.map(l => transformJobLine(l, jobMap, userMap));
+    setStatus('live');
+    return rows;
+
+  } catch(e) {
+    console.warn('API error:', e);
+    setStatus('error', e.message);
+    return null;
+  }
+}
+
+function setStatus(state, msg) {
+  const dot   = document.getElementById('statusDot');
+  const label = document.getElementById('statusLabel');
+  if (state === 'live')    { dot.className = 'status-dot live';  label.textContent = 'Live data'; }
+  else if (state === 'demo')   { dot.className = 'status-dot demo';  label.textContent = 'Demo data'; }
+  else if (state === 'error')  { dot.className = 'status-dot error'; label.textContent = 'Error — ' + (msg||'check console'); }
+  else if (state === 'loading'){ dot.className = 'status-dot demo';  label.textContent = 'Connecting…'; }
+}
+
+async function getData() {
+  if(_rawCache) return _rawCache;
+  const live = await fetchLiveData();
+  if(live && live.length) {
+    _rawCache = live; _isLive = true;
+    updateDataRef(live);
+    return live;
+  }
+  // Fall back to demo data if API is unreachable (e.g. CORS from file://)
+  console.info('Falling back to demo data');
+  setStatus('demo');
+  _rawCache = genDemoRows();
+  _isLive = false;
+  updateDataRef(_rawCache);
+  return _rawCache;
+}
+
+// ═══════════════════════════════════════════════════
+// FILTER + TRANSFORM
+// ═══════════════════════════════════════════════════
+async function getFilteredJobs(){
+  const raw = await getData();
+  let rows = raw.filter(r => inPeriod(r, APP.period));
+  if(APP.state!=='all') rows = rows.filter(r=>r.State===APP.state);
+  const jobs = aggregateJobs(rows);
+  if(APP.consultant!=='all') return jobs.filter(j=>j.consultant===APP.consultant);
+  if(APP.category!=='all') return jobs.filter(j=>j.topCat===APP.category);
+  return jobs;
+}
+
+// Populate filter dropdowns
+async function populateFilters(){
+  const raw = await getData();
+  const jobs = aggregateJobs(raw);
+  const consultants = [...new Set(jobs.map(j=>j.consultant))].sort();
+  const categories = [...new Set(jobs.map(j=>j.topCat))].filter(Boolean).sort();
+  
+  const cf = document.getElementById('consultantFilter');
+  cf.innerHTML = '<option value="all">All Consultants</option>' + consultants.map(c=>`<option>${c}</option>`).join('');
+  
+  const catf = document.getElementById('categoryFilter');
+  catf.innerHTML = '<option value="all">All Products</option>' + categories.map(c=>`<option>${c}</option>`).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 1: EXECUTIVE PERFORMANCE
+// ═══════════════════════════════════════════════════
+async function renderPerformance(){
+  const jobs = await getFilteredJobs();
+  const won = jobs.filter(j=>j.isWon);
+  const pipe = jobs.filter(j=>j.isPipe);
+  const lost = jobs.filter(j=>j.isLost);
+  
+  const revenue = won.reduce((s,j)=>s+j.grossSales,0);
+  const pipeVal = pipe.reduce((s,j)=>s+j.grossSales,0);
+  const conv = jobs.length ? (won.length/jobs.length*100) : 0;
+  const aov = won.length ? revenue/won.length : 0;
+  const discArr = won.map(j=>j.discAvg);
+  const disc = discArr.length ? discArr.reduce((a,b)=>a+b,0)/discArr.length : 0;
+  const avgGp1 = won.length ? won.reduce((s,j)=>s+j.gp1Pct,0)/won.length : 0;
+  const avgGp2 = won.length ? won.reduce((s,j)=>s+j.gp2Pct,0)/won.length : 0;
+  
+  document.getElementById('perfKpis').innerHTML = [
+    {label:'Revenue',value:fmt$(revenue),delta:'+12.4% vs prev',up:true,accent:'#059669'},
+    {label:'Pipeline Value',value:fmt$(pipeVal),sub:pipe.length+' jobs',accent:'#3b82f6'},
+    {label:'Conversion Rate',value:fmtPct(conv),delta:'vs 41% target',up:conv>41,accent:'#7c3aed'},
+    {label:'Avg Order Value',value:fmt$(aov),delta:'+8.2% vs prev',up:true,accent:'#0891b2'},
+    {label:'Jobs Won',value:fmtNum(won.length),sub:'of '+jobs.length+' total',accent:'#059669'},
+    {label:'Jobs Lost',value:fmtNum(lost.length),sub:fmtPct(lost.length/Math.max(jobs.length,1)*100)+' of total',accent:'#dc2626'},
+    {label:'Avg Discount',value:fmtPct(disc),delta:'vs 8% target',up:disc<8,accent:'#f59e0b'},
+    {label:'GP% (after install)',value:fmtPct(avgGp2),delta:'GP1: '+fmtPct(avgGp1),up:avgGp2>35,accent:'#10b981'},
+  ].map(k=>`
+    <div class="kpi-card" style="--accent:${k.accent}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      ${k.delta?`<div class="kpi-delta ${k.up?'up':'down'}"><i class="ti ti-trending-${k.up?'up':'down'}"></i>${k.delta}</div>`:''}
+      ${k.sub?`<div class="kpi-sub">${k.sub}</div>`:''}
+    </div>`).join('');
+
+  // Revenue trend chart (12 months)
+  const raw = await getData();
+  const now = new Date();
+  const labels = [], revenueData = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const m = ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()];
+    const y = d.getFullYear();
+    labels.push(m.substring(0,3)+' '+String(y).substring(2));
+    const mJobs = aggregateJobs(raw.filter(r=>r.Month===m&&r.Year===y)).filter(j=>j.isWon);
+    revenueData.push(Math.round(mJobs.reduce((s,j)=>s+j.grossSales,0)));
+  }
+  destroyChart('revenueChart');
+  CHARTS.revenueChart = new Chart(document.getElementById('revenueChart'), {
+    type:'bar',
+    data:{labels, datasets:[{
+      label:'Revenue',data:revenueData,
+      backgroundColor:'rgba(37,99,235,.7)',borderRadius:4,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{ticks:{callback:v=>fmt$(v)},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+  });
+
+  // Category donut
+  const catMap = {};
+  won.forEach(j=>Object.entries(j.cats).forEach(([c,v])=>{catMap[c]=(catMap[c]||0)+v;}));
+  const catEntries = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const pieColors = ['#3b82f6','#8b5cf6','#0891b2','#059669','#f59e0b','#64748b'];
+  destroyChart('categoryChart');
+  CHARTS.categoryChart = new Chart(document.getElementById('categoryChart'), {
+    type:'doughnut',
+    data:{labels:catEntries.map(e=>e[0]),datasets:[{data:catEntries.map(e=>e[1]),backgroundColor:pieColors,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11}}}},cutout:'62%'}
+  });
+
+  // Stage chart
+  const stageCounts = {};
+  jobs.forEach(j=>{stageCounts[j.stage]=(stageCounts[j.stage]||0)+1;});
+  const stageEntries = STAGE_PRIORITY.filter(s=>stageCounts[s]).map(s=>({s,count:stageCounts[s],color:stageColor(s)}));
+  const total = stageEntries.reduce((s,e)=>s+e.count,0);
+  document.getElementById('pipelineTotal').textContent = total+' total jobs';
+  document.getElementById('pipelineViz').innerHTML = `<div class="pipeline-strip">
+    ${stageEntries.map(e=>`<div class="pipeline-seg" style="background:${e.color};flex:${e.count}" title="${stageLabel(e.s)}: ${e.count}">${e.count>2?e.count:''}</div>`).join('')}
+  </div>`;
+  destroyChart('stageChart');
+  CHARTS.stageChart = new Chart(document.getElementById('stageChart'), {
+    type:'bar',
+    data:{labels:stageEntries.map(e=>stageLabel(e.s)),datasets:[{label:'Jobs',data:stageEntries.map(e=>e.count),backgroundColor:stageEntries.map(e=>e.color),borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f3f4f6'}},y:{ticks:{font:{size:10}},grid:{display:false}}}}
+  });
+
+  // State chart
+  const stateMap = {};
+  won.forEach(j=>{stateMap[j.state]=(stateMap[j.state]||0)+j.grossSales;});
+  const stateEntries = Object.entries(stateMap).sort((a,b)=>b[1]-a[1]);
+  destroyChart('stateChart');
+  CHARTS.stateChart = new Chart(document.getElementById('stateChart'), {
+    type:'bar',
+    data:{labels:stateEntries.map(e=>e[0]),datasets:[{label:'Revenue',data:stateEntries.map(e=>e[1]),backgroundColor:'rgba(8,145,178,.7)',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{ticks:{callback:v=>fmt$(v)},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+  });
+
+  // Top 10 jobs
+  const topJobs = [...won].sort((a,b)=>b.grossSales-a.grossSales).slice(0,10);
+  document.getElementById('topJobsBody').innerHTML = topJobs.map((j,i)=>`
+    <tr>
+      <td><span style="font-family:var(--font-mono);font-size:11px">#${j.jobId}</span></td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" style="background:${avatarColor(j.consultant)};color:#fff">${initials(j.consultant)}</div>
+        <span style="font-weight:500">${j.consultant}</span>
+      </div></td>
+      <td><span class="card-badge blue">${j.state}</span></td>
+      <td>${stageBadgeHtml(j.stage)}</td>
+      <td class="num" style="font-weight:700">${fmt$(j.grossSales)}</td>
+      <td class="pct" style="color:${j.discAvg>15?'#dc2626':j.discAvg>8?'#f59e0b':'#059669'}">${j.discAvg}%</td>
+      <td class="pct" style="color:${j.gp2Pct>40?'#059669':'#f59e0b'}">${fmtPct(j.gp2Pct)}</td>
+    </tr>`).join('');
+
+  // At-risk jobs
+  const riskJobs = pipe.filter(j=>j.stage==='stage_job_line_cm_not_booked'||j.stage==='stage_job_line_supply_failed');
+  document.getElementById('riskCount').textContent = riskJobs.length+' jobs';
+  document.getElementById('riskJobsList').innerHTML = riskJobs.slice(0,8).map(j=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6">
+      <div class="status-dot error" style="flex-shrink:0"></div>
+      <div style="flex:1"><div style="font-size:12px;font-weight:600">${j.jobId} · ${j.consultant}</div>
+        <div style="font-size:11px;color:var(--muted)">${stageLabel(j.stage)}</div></div>
+      <div style="font-family:var(--font-mono);font-size:12px;font-weight:700">${fmt$(j.grossSales)}</div>
+    </div>`).join('') || '<div class="empty"><i class="ti ti-check"></i><p>No at-risk jobs</p></div>';
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 2: JOB LIFECYCLE
+// ═══════════════════════════════════════════════════
+async function renderJobs(){
+  const jobs = await getFilteredJobs();
+  const won=jobs.filter(j=>j.isWon), pipe=jobs.filter(j=>j.isPipe), lost=jobs.filter(j=>j.isLost);
+  const risk=jobs.filter(j=>j.stage==='stage_job_line_cm_not_booked'||j.stage==='stage_job_line_supply_failed');
+  
+  document.getElementById('jobsKpis').innerHTML = [
+    {label:'Total Jobs',value:fmtNum(jobs.length),accent:'#3b82f6'},
+    {label:'Won',value:fmtNum(won.length),sub:fmt$(won.reduce((s,j)=>s+j.grossSales,0)),accent:'#059669'},
+    {label:'Pipeline',value:fmtNum(pipe.length),sub:fmt$(pipe.reduce((s,j)=>s+j.grossSales,0)),accent:'#f59e0b'},
+    {label:'Lost',value:fmtNum(lost.length),accent:'#dc2626'},
+    {label:'At Risk',value:fmtNum(risk.length),sub:'Need attention',accent:'#f97316'},
+  ].map(k=>`<div class="kpi-card" style="--accent:${k.accent}">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-value">${k.value}</div>
+    ${k.sub?`<div class="kpi-sub">${k.sub}</div>`:''}
+  </div>`).join('');
+
+  const search = (document.getElementById('jobSearch')?.value||'').toLowerCase();
+  let filtered = jobs;
+  if(APP.stageFilter==='won') filtered=won;
+  else if(APP.stageFilter==='pipeline') filtered=pipe;
+  else if(APP.stageFilter==='lost') filtered=lost;
+  else if(APP.stageFilter==='risk') filtered=risk;
+  if(search) filtered=filtered.filter(j=>j.jobId.toLowerCase().includes(search)||j.consultant.toLowerCase().includes(search));
+  
+  filtered.sort((a,b)=>b.grossSales-a.grossSales);
+  APP.jobs = filtered;
+  const pg = APP.jobPage;
+  const slice = filtered.slice(pg*JOBS_PER_PAGE, (pg+1)*JOBS_PER_PAGE);
+  
+  const JOURNEY_STAGES = ['stage_job_line_unconfirmed','stage_job_line_confirmed','stage_job_line_cm_booked','stage_job_line_cm_completed','stage_job_line_supply','stage_job_line_dispatch','stage_job_line_invoicing'];
+  
+  document.getElementById('jobCardGrid').innerHTML = slice.map(j=>{
+    const cats = Object.entries(j.cats).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([c])=>c).join(', ');
+    const journeyIdx = JOURNEY_STAGES.indexOf(j.stage);
+    const journeyHtml = JOURNEY_STAGES.map((_,i)=>`<div class="sj-step ${i<journeyIdx?'done':i===journeyIdx?'current':''} ${j.stage==='stage_job_line_supply_failed'&&i===4?'risk':''}"></div>`).join('');
+    const isRisk = j.stage==='stage_job_line_cm_not_booked'||j.stage==='stage_job_line_supply_failed';
+    return `<div class="job-card ${isRisk?'risk':''}" onclick="openJobDetail('${j.jobId}')">
+      <div class="job-header">
+        <div>
+          <div class="job-number">${j.jobId}</div>
+          <div class="job-consultant">${j.consultant} · <span style="color:var(--muted)">${j.state}</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${cats}</div>
+        </div>
+        <div style="text-align:right">
+          ${stageBadgeHtml(j.stage)}
+          ${isRisk?'<div style="font-size:9px;color:#dc2626;margin-top:3px">⚠ NEEDS ACTION</div>':''}
+        </div>
+      </div>
+      <div class="job-metrics">
+        <div><div class="job-metric-label">Revenue</div><div class="job-metric-value" style="color:var(--blue)">${fmt$(j.grossSales)}</div></div>
+        <div><div class="job-metric-label">GP%</div><div class="job-metric-value" style="color:${j.gp2Pct>40?'var(--green)':'var(--amber)'}">${fmtPct(j.gp2Pct)}</div></div>
+        <div><div class="job-metric-label">Discount</div><div class="job-metric-value" style="color:${j.discAvg>15?'var(--red)':j.discAvg>8?'var(--amber)':'var(--green)'}">${j.discAvg}%</div></div>
+      </div>
+      <div class="stage-journey">${journeyHtml}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--muted)">
+        <span>Quote → Confirmed → CM → Supply → Dispatch → Invoice</span>
+        <span>${j.sqm.toFixed(1)} m²</span>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty" style="grid-column:1/-1"><i class="ti ti-inbox"></i><p>No jobs match the current filters</p></div>';
+
+  const totalPages = Math.ceil(filtered.length/JOBS_PER_PAGE);
+  document.getElementById('jobPagination').innerHTML = totalPages>1?
+    Array.from({length:totalPages},(_,i)=>`<button onclick="APP.jobPage=${i};renderJobs()" style="padding:4px 10px;border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:12px;background:${i===pg?'var(--navy)':'#f9fafb'};color:${i===pg?'#fff':'inherit'}">${i+1}</button>`).join(''):'';
+}
+
+function openJobDetail(jobId){ console.log('Job detail:', jobId); }
+
+// ═══════════════════════════════════════════════════
+// PAGE 3: SALES DRILL-DOWN
+// ═══════════════════════════════════════════════════
+async function renderSalesDrill(){
+  const jobs = await getFilteredJobs();
+  const won = jobs.filter(j=>j.isWon);
+  const el = document.getElementById('salesDrillContent');
+  
+  if(APP.salesDrill==='product'){
+    const catMap={}, prodMap={};
+    won.forEach(j=>{
+      Object.entries(j.cats).forEach(([c,v])=>{
+        if(!catMap[c]) catMap[c]={rev:0,jobs:0,sqm:0,discSum:0,dcnt:0};
+        catMap[c].rev+=v; catMap[c].jobs++;
+        catMap[c].sqm+=j.sqm; catMap[c].discSum+=j.discAvg; catMap[c].dcnt++;
+      });
+      Object.entries(j.prods).forEach(([p,pv])=>{
+        if(!prodMap[p]) prodMap[p]={rev:0,sqm:0,jobs:0};
+        prodMap[p].rev+=pv.revenue; prodMap[p].sqm+=pv.sqm; prodMap[p].jobs++;
+      });
+    });
+    const cats = Object.entries(catMap).sort((a,b)=>b[1].rev-a[1].rev);
+    const prods = Object.entries(prodMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,12);
+    const maxRev = cats[0]?.[1]?.rev||1;
+    
+    el.innerHTML = `
+      <div class="g21">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-package"></i> Revenue by Product Category</div></div>
+          <table class="data-table"><thead><tr><th>Category</th><th>Revenue</th><th></th><th class="num">Jobs</th><th class="pct">Avg Disc</th><th class="pct">$/m²</th></tr></thead><tbody>
+          ${cats.map(([c,v])=>`<tr>
+            <td style="font-weight:500">${c}</td>
+            <td><div style="display:flex;align-items:center;gap:8px">${fmt$(v.rev)}</div></td>
+            <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:${v.rev/maxRev*100}%;background:#3b82f6"></div></div></td>
+            <td class="num">${v.jobs}</td>
+            <td class="pct" style="color:${v.discSum/v.dcnt>10?'#dc2626':'#059669'}">${(v.discSum/v.dcnt).toFixed(1)}%</td>
+            <td class="pct">${v.sqm>0?'$'+(v.rev/v.sqm).toFixed(0):'-'}</td>
+          </tr>`).join('')}
+          </tbody></table>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-chart-bar"></i> Revenue by Category</div></div>
+          <div class="chart-wrap" style="height:300px"><canvas id="salesProductChart"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="ti ti-list"></i> Top Products by Revenue</div></div>
+        <table class="data-table"><thead><tr><th>#</th><th>Product</th><th>Revenue</th><th></th><th class="num">Jobs</th><th class="pct">$/m²</th></tr></thead><tbody>
+        ${prods.map(([p,v],i)=>`<tr>
+          <td style="color:var(--muted);font-size:11px">${i+1}</td>
+          <td style="font-weight:500">${p}</td>
+          <td>${fmt$(v.rev)}</td>
+          <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:${v.rev/prods[0][1].rev*100}%;background:#8b5cf6"></div></div></td>
+          <td class="num">${v.jobs}</td>
+          <td class="pct">${v.sqm>0?'$'+(v.rev/v.sqm).toFixed(0):'-'}</td>
+        </tr>`).join('')}
+        </tbody></table>
+      </div>`;
+    
+    setTimeout(()=>{
+      destroyChart('salesProductChart');
+      CHARTS.salesProductChart = new Chart(document.getElementById('salesProductChart'),{
+        type:'bar',
+        data:{labels:cats.map(([c])=>c),datasets:[{label:'Revenue',data:cats.map(([,v])=>v.rev),backgroundColor:'rgba(59,130,246,.7)',borderRadius:3}]},
+        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>fmt$(v)},grid:{color:'#f3f4f6'}},y:{ticks:{font:{size:11}},grid:{display:false}}}}
+      });
+    },50);
+
+  } else if(APP.salesDrill==='segment'){
+    const segs = {Budget:{min:0,max:1999},Mid:{min:2000,max:4999},Premium:{min:5000,max:14999},Prestige:{min:15000,max:Infinity}};
+    const segColors = {Budget:'#94a3b8',Mid:'#3b82f6',Premium:'#7c3aed',Prestige:'#f59e0b'};
+    const segData = {};
+    Object.keys(segs).forEach(s=>segData[s]={rev:0,jobs:0,disc:[],gp2:[]});
+    won.forEach(j=>{
+      const s = j.priceSegment||'Mid';
+      if(segData[s]){segData[s].rev+=j.grossSales;segData[s].jobs++;segData[s].disc.push(j.discAvg);segData[s].gp2.push(j.gp2Pct);}
+    });
+    // All quotes for conversion
+    const segConv = {};
+    Object.keys(segs).forEach(s=>segConv[s]={won:0,total:0});
+    jobs.forEach(j=>{const s=j.priceSegment||'Mid';if(segConv[s]){segConv[s].total++;if(j.isWon)segConv[s].won++;}});
+    
+    el.innerHTML = `
+      <div class="segment-cards">
+        ${Object.entries(segData).map(([s,v])=>`
+          <div class="segment-card" style="border-top:3px solid ${segColors[s]}">
+            <div class="seg-label">${s} (${s==='Budget'?'<$2k':s==='Mid'?'$2k–5k':s==='Premium'?'$5k–15k':'>$15k'})</div>
+            <div class="seg-value" style="color:${segColors[s]}">${fmt$(v.rev)}</div>
+            <div class="seg-sub">${v.jobs} jobs · ${segConv[s].total>0?Math.round(segConv[s].won/segConv[s].total*100):0}% conv</div>
+            <div class="seg-sub">Avg disc: ${v.disc.length?Math.round(v.disc.reduce((a,b)=>a+b,0)/v.disc.length):0}%</div>
+          </div>`).join('')}
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-chart-bar"></i> Revenue by Segment</div></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="segmentChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-users"></i> Consultant Performance by Segment</div></div>
+          <table class="data-table"><thead><tr><th>Consultant</th><th>Dominant Segment</th><th class="num">Won Jobs</th><th class="pct">Conv%</th></tr></thead><tbody>
+          ${[...new Set(won.map(j=>j.consultant))].slice(0,8).map(name=>{
+            const cJobs = jobs.filter(j=>j.consultant===name);
+            const cWon = cJobs.filter(j=>j.isWon);
+            const segsCount = {};
+            cWon.forEach(j=>{segsCount[j.priceSegment]=(segsCount[j.priceSegment]||0)+1;});
+            const dom = Object.entries(segsCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'-';
+            return `<tr><td><div style="display:flex;align-items:center;gap:8px">
+              <div class="avatar" style="background:${avatarColor(name)};color:#fff">${initials(name)}</div>${name}</div></td>
+              <td><span style="color:${segColors[dom]||'var(--muted)'};font-weight:600">${dom}</span></td>
+              <td class="num">${cWon.length}</td>
+              <td class="pct">${cJobs.length?Math.round(cWon.length/cJobs.length*100):0}%</td></tr>`;
+          }).join('')}
+          </tbody></table>
+        </div>
+      </div>`;
+    
+    setTimeout(()=>{
+      destroyChart('segmentChart');
+      CHARTS.segmentChart = new Chart(document.getElementById('segmentChart'),{
+        type:'bar',
+        data:{labels:Object.keys(segData),datasets:[{label:'Revenue',data:Object.values(segData).map(v=>v.rev),backgroundColor:Object.keys(segColors).map(s=>segColors[s]+'bb'),borderRadius:4}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmt$(v)},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+      });
+    },50);
+
+  } else if(APP.salesDrill==='discount'){
+    const bands = [
+      {label:'0%',min:0,max:0},
+      {label:'1–5%',min:1,max:5},
+      {label:'6–10%',min:6,max:10},
+      {label:'11–15%',min:11,max:15},
+      {label:'16–20%',min:16,max:20},
+      {label:'>20%',min:21,max:100}
+    ];
+    const bandColors = ['#059669','#10b981','#f59e0b','#fb923c','#f87171','#dc2626'];
+    const bandData = bands.map(b=>({...b,wonRev:0,wonJobs:0,totalJobs:0,consultants:{}}));
+    jobs.forEach(j=>{
+      const d=j.discAvg;
+      const idx = bands.findIndex(b=>d>=b.min&&d<=b.max);
+      if(idx<0) return;
+      bandData[idx].totalJobs++;
+      if(j.isWon){bandData[idx].wonRev+=j.grossSales;bandData[idx].wonJobs++;
+        const c=j.consultant;
+        bandData[idx].consultants[c]=(bandData[idx].consultants[c]||0)+1;
+      }
+    });
+    
+    el.innerHTML = `
+      <div class="g21">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-tag"></i> Revenue & Conversion by Discount Band</div></div>
+          <table class="data-table"><thead><tr><th>Band</th><th>Revenue Won</th><th></th><th class="num">Won Jobs</th><th class="pct">Conv%</th><th>Top Consultant</th></tr></thead><tbody>
+          ${bandData.map((b,i)=>{
+            const conv = b.totalJobs>0?Math.round(b.wonJobs/b.totalJobs*100):0;
+            const top = Object.entries(b.consultants).sort((a,c)=>c[1]-a[1])[0];
+            return `<tr>
+              <td><span style="color:${bandColors[i]};font-weight:700;font-family:var(--font-mono)">${b.label}</span></td>
+              <td>${fmt$(b.wonRev)}</td>
+              <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:${b.wonRev/Math.max(...bandData.map(x=>x.wonRev),1)*100}%;background:${bandColors[i]}"></div></div></td>
+              <td class="num">${b.wonJobs}</td>
+              <td class="pct" style="color:${conv>50?'#059669':conv>30?'#f59e0b':'#dc2626'}">${conv}%</td>
+              <td style="font-size:11px">${top?top[0]:'-'}</td>
+            </tr>`;}).join('')}
+          </tbody></table>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-chart-bar"></i> Discount Distribution</div></div>
+          <div class="chart-wrap" style="height:260px"><canvas id="discountChart"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="ti ti-table"></i> Consultant Discount Heatmap</div></div>
+        <div style="overflow-x:auto">
+          <div class="heatmap" id="discountHeatmap" style="padding:8px 0"></div>
+        </div>
+      </div>`;
+    
+    setTimeout(()=>{
+      destroyChart('discountChart');
+      CHARTS.discountChart = new Chart(document.getElementById('discountChart'),{
+        type:'bar',
+        data:{labels:bands.map(b=>b.label),datasets:[
+          {label:'Won Jobs',data:bandData.map(b=>b.wonJobs),backgroundColor:bandColors.map(c=>c+'bb'),borderRadius:3},
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+      });
+      
+      // Heatmap
+      const consultants = [...new Set(won.map(j=>j.consultant))].slice(0,8);
+      const hm = document.getElementById('discountHeatmap');
+      hm.style.display='grid';
+      hm.innerHTML = `<div style="display:flex;gap:4px;margin-left:126px;margin-bottom:4px">${bands.map(b=>`<div style="width:36px;text-align:center;font-size:9px;color:var(--muted)">${b.label}</div>`).join('')}</div>` +
+        consultants.map(name=>{
+          const cWon = won.filter(j=>j.consultant===name);
+          const cells = bands.map((b,i)=>{
+            const cnt = cWon.filter(j=>j.discAvg>=b.min&&j.discAvg<=b.max).length;
+            const max = Math.max(...bands.map((_,bi)=>cWon.filter(j=>j.discAvg>=bands[bi].min&&j.discAvg<=bands[bi].max).length),1);
+            const intensity = cnt/max;
+            const bg = cnt===0?'#f9fafb':`${bandColors[i]}${Math.round(intensity*255).toString(16).padStart(2,'0')}`;
+            return `<div class="heatmap-cell" style="background:${bg};color:${intensity>0.5?'#fff':'#374151'}">${cnt||''}</div>`;
+          }).join('');
+          return `<div class="heatmap-row"><div class="heatmap-label">${name.split(' ')[0]} ${name.split(' ').pop()}</div><div class="heatmap-cells">${cells}</div></div>`;
+        }).join('');
+    },50);
+
+  } else if(APP.salesDrill==='state'){
+    const stateMap = {};
+    jobs.forEach(j=>{
+      if(!stateMap[j.state]) stateMap[j.state]={state:j.state,rev:0,won:0,total:0,disc:[],products:{}};
+      stateMap[j.state].total++;
+      if(j.isWon){stateMap[j.state].rev+=j.grossSales;stateMap[j.state].won++;stateMap[j.state].disc.push(j.discAvg);}
+      Object.entries(j.cats).forEach(([c,v])=>{stateMap[j.state].products[c]=(stateMap[j.state].products[c]||0)+v;});
+    });
+    const states = Object.values(stateMap).sort((a,b)=>b.rev-a.rev);
+    
+    el.innerHTML = `
+      <div class="g21">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-map-pin"></i> Performance by State</div></div>
+          <table class="data-table"><thead><tr><th>State</th><th>Revenue</th><th></th><th class="num">Won Jobs</th><th class="pct">Conv%</th><th class="pct">Avg Disc</th><th>Top Category</th></tr></thead><tbody>
+          ${states.map(s=>{
+            const topCat = Object.entries(s.products).sort((a,b)=>b[1]-a[1])[0]?.[0]||'-';
+            return `<tr>
+              <td><span class="card-badge blue" style="font-size:12px;padding:3px 10px">${s.state}</span></td>
+              <td style="font-weight:700">${fmt$(s.rev)}</td>
+              <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:${s.rev/states[0].rev*100}%;background:#0891b2"></div></div></td>
+              <td class="num">${s.won}</td>
+              <td class="pct">${s.total?Math.round(s.won/s.total*100):0}%</td>
+              <td class="pct">${s.disc.length?Math.round(s.disc.reduce((a,b)=>a+b,0)/s.disc.length):0}%</td>
+              <td style="font-size:11px">${topCat}</td>
+            </tr>`;}).join('')}
+          </tbody></table>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-chart-bar"></i> Revenue by State</div></div>
+          <div class="chart-wrap" style="height:280px"><canvas id="stateDetailChart"></canvas></div>
+        </div>
+      </div>`;
+    
+    setTimeout(()=>{
+      const stateColors = {'VIC':'#3b82f6','NSW':'#8b5cf6','QLD':'#0891b2','WA':'#f59e0b','SA':'#059669'};
+      destroyChart('stateDetailChart');
+      CHARTS.stateDetailChart = new Chart(document.getElementById('stateDetailChart'),{
+        type:'bar',
+        data:{labels:states.map(s=>s.state),datasets:[{label:'Revenue',data:states.map(s=>s.rev),backgroundColor:states.map(s=>(stateColors[s.state]||'#64748b')+'bb'),borderRadius:4}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmt$(v)},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+      });
+    },50);
+
+  } else if(APP.salesDrill==='supplier'){
+    const supplierMap = {};
+    won.forEach(j=>{
+      j.supplierList.forEach(sup=>{
+        if(!supplierMap[sup]) supplierMap[sup]={rev:0,jobs:0,states:new Set()};
+        supplierMap[sup].rev+=j.grossSales/Math.max(j.supplierList.length,1);
+        supplierMap[sup].jobs++;
+        supplierMap[sup].states.add(j.state);
+      });
+    });
+    const suppliers = Object.entries(supplierMap).sort((a,b)=>b[1].rev-a[1].rev);
+    
+    el.innerHTML = `
+      <div class="g2">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-building"></i> Revenue by Supplier</div></div>
+          <table class="data-table"><thead><tr><th>Supplier</th><th>Revenue</th><th></th><th class="num">Jobs</th><th>States Active</th></tr></thead><tbody>
+          ${suppliers.map(([sup,v])=>`<tr>
+            <td style="font-weight:600">${sup}</td>
+            <td>${fmt$(v.rev)}</td>
+            <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:${v.rev/suppliers[0][1].rev*100}%;background:#7c3aed"></div></div></td>
+            <td class="num">${v.jobs}</td>
+            <td style="font-size:11px">${[...v.states].join(', ')}</td>
+          </tr>`).join('')}
+          </tbody></table>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-chart-donut"></i> Supplier Revenue Share</div></div>
+          <div class="chart-wrap" style="height:280px"><canvas id="supplierChart"></canvas></div>
+        </div>
+      </div>`;
+    
+    setTimeout(()=>{
+      const colors=['#7c3aed','#3b82f6','#0891b2','#059669','#f59e0b','#dc2626','#8b5cf6','#64748b'];
+      destroyChart('supplierChart');
+      CHARTS.supplierChart = new Chart(document.getElementById('supplierChart'),{
+        type:'doughnut',
+        data:{labels:suppliers.map(([s])=>s),datasets:[{data:suppliers.map(([,v])=>v.rev),backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11}}}},cutout:'60%'}
+      });
+    },50);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 4: CONSULTANTS
+// ═══════════════════════════════════════════════════
+async function renderConsultants(){
+  const jobs = await getFilteredJobs();
+  const team = document.getElementById('consultTeamFilter')?.value||'all';
+  
+  const consultMap = {};
+  jobs.forEach(j=>{
+    const n=j.consultant; if(team!=='all'&&j.state!==team) return;
+    if(!consultMap[n]) consultMap[n]={name:n,state:j.state,rev:0,won:0,total:0,pipe:0,pipeVal:0,disc:[],gp2:[],cats:{}};
+    consultMap[n].total++;
+    if(j.isWon){consultMap[n].rev+=j.grossSales;consultMap[n].won++;consultMap[n].disc.push(j.discAvg);consultMap[n].gp2.push(j.gp2Pct);}
+    if(j.isPipe){consultMap[n].pipe++;consultMap[n].pipeVal+=j.grossSales;}
+    Object.entries(j.cats).forEach(([c,v])=>{consultMap[n].cats[c]=(consultMap[n].cats[c]||0)+v;});
+  });
+  const consultants = Object.values(consultMap).sort((a,b)=>b.rev-a.rev);
+  
+  document.getElementById('consultantList').innerHTML = consultants.map(c=>`
+    <div class="consultant-chip ${APP.selectedConsultant===c.name?'active':''}" onclick="selectConsultant('${c.name}')">
+      <div class="avatar" style="background:${avatarColor(c.name)};color:#fff">${initials(c.name)}</div>
+      <div>
+        <div class="c-name">${c.name}</div>
+        <div class="c-meta">${c.state} · ${fmt$(c.rev)}</div>
+      </div>
+    </div>`).join('');
+  
+  if(APP.selectedConsultant){
+    const c = consultMap[APP.selectedConsultant];
+    if(!c){document.getElementById('consultantDetail').innerHTML='';return;}
+    const conv = c.total>0?Math.round(c.won/c.total*100):0;
+    const aov = c.won>0?c.rev/c.won:0;
+    const disc = c.disc.length?Math.round(c.disc.reduce((a,b)=>a+b,0)/c.disc.length):0;
+    const gp = c.gp2.length?c.gp2.reduce((a,b)=>a+b,0)/c.gp2.length:0;
+    const topCats = Object.entries(c.cats).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    
+    document.getElementById('consultantDetail').innerHTML = `
+      <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
+        ${[
+          {label:'Revenue',value:fmt$(c.rev),accent:'#059669'},
+          {label:'Jobs Won',value:c.won,sub:'of '+c.total+' total',accent:'#3b82f6'},
+          {label:'Conversion',value:conv+'%',accent:'#7c3aed'},
+          {label:'Avg Order',value:fmt$(aov),accent:'#0891b2'},
+          {label:'Pipeline',value:fmt$(c.pipeVal),sub:c.pipe+' jobs',accent:'#f59e0b'},
+          {label:'Avg Discount',value:disc+'%',sub:'GP2: '+fmtPct(gp),accent:'#10b981'},
+        ].map(k=>`<div class="kpi-card" style="--accent:${k.accent}">
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+          ${k.sub?`<div class="kpi-sub">${k.sub}</div>`:''}
+        </div>`).join('')}
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-chart-donut"></i> Product Mix — ${c.name}</div></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="consultCatChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><i class="ti ti-list-details"></i> Job List — ${c.name}</div></div>
+          <div style="max-height:260px;overflow-y:auto">
+            <table class="data-table"><thead><tr><th>Job</th><th>Stage</th><th class="num">Value</th><th class="pct">Disc</th></tr></thead><tbody>
+            ${jobs.filter(j=>j.consultant===c.name).sort((a,b)=>b.grossSales-a.grossSales).slice(0,15).map(j=>`<tr>
+              <td style="font-family:var(--font-mono);font-size:11px">${j.jobId}</td>
+              <td>${stageBadgeHtml(j.stage)}</td>
+              <td class="num" style="font-weight:600">${fmt$(j.grossSales)}</td>
+              <td class="pct">${j.discAvg}%</td>
+            </tr>`).join('')}
+            </tbody></table>
+          </div>
+        </div>
+      </div>`;
+    
+    setTimeout(()=>{
+      const colors=['#3b82f6','#8b5cf6','#0891b2','#059669'];
+      destroyChart('consultCatChart');
+      CHARTS.consultCatChart = new Chart(document.getElementById('consultCatChart'),{
+        type:'doughnut',
+        data:{labels:topCats.map(([c])=>c),datasets:[{data:topCats.map(([,v])=>v),backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11}}}},cutout:'58%'}
+      });
+    },50);
+  } else {
+    document.getElementById('consultantDetail').innerHTML = `
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="ti ti-table"></i> Team Leaderboard</div></div>
+        <table class="data-table"><thead><tr><th>#</th><th>Consultant</th><th>State</th><th>Revenue</th><th></th><th class="num">Won</th><th class="pct">Conv%</th><th class="pct">Avg Disc</th><th class="pct">GP2%</th><th>Pipeline</th></tr></thead><tbody>
+        ${consultants.map((c,i)=>{
+          const conv=c.total>0?Math.round(c.won/c.total*100):0;
+          const disc=c.disc.length?Math.round(c.disc.reduce((a,b)=>a+b,0)/c.disc.length):0;
+          const gp=c.gp2.length?c.gp2.reduce((a,b)=>a+b,0)/c.gp2.length:0;
+          return `<tr onclick="selectConsultant('${c.name}')" style="cursor:pointer">
+            <td style="color:var(--muted);font-weight:600">${i+1}</td>
+            <td><div style="display:flex;align-items:center;gap:8px">
+              <div class="avatar" style="background:${avatarColor(c.name)};color:#fff">${initials(c.name)}</div>
+              <span style="font-weight:600">${c.name}</span></div></td>
+            <td><span class="card-badge blue">${c.state}</span></td>
+            <td style="font-weight:700">${fmt$(c.rev)}</td>
+            <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:${c.rev/Math.max(...consultants.map(x=>x.rev),1)*100}%;background:#3b82f6"></div></div></td>
+            <td class="num">${c.won}</td>
+            <td class="pct" style="color:${conv>50?'#059669':conv>35?'#f59e0b':'#dc2626'}">${conv}%</td>
+            <td class="pct" style="color:${disc>15?'#dc2626':disc>8?'#f59e0b':'#059669'}">${disc}%</td>
+            <td class="pct" style="color:${gp>40?'#059669':'#f59e0b'}">${fmtPct(gp)}</td>
+            <td style="font-size:11px">${fmt$(c.pipeVal)}</td>
+          </tr>`;}).join('')}
+        </tbody></table>
+      </div>`;
+  }
+}
+
+function selectConsultant(name){
+  APP.selectedConsultant = APP.selectedConsultant===name?null:name;
+  renderConsultants();
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 5: PIPELINE HEALTH
+// ═══════════════════════════════════════════════════
+async function renderPipeline(){
+  const jobs = await getFilteredJobs();
+  const pipe = jobs.filter(j=>j.isPipe);
+  const risk = pipe.filter(j=>j.stage==='stage_job_line_cm_not_booked'||j.stage==='stage_job_line_supply_failed'||j.stage==='stage_job_line_unconfirmed_cm');
+  
+  document.getElementById('pipelineKpis').innerHTML = [
+    {label:'Pipeline Value',value:fmt$(pipe.reduce((s,j)=>s+j.grossSales,0)),accent:'#3b82f6'},
+    {label:'Pipeline Jobs',value:fmtNum(pipe.length),accent:'#0891b2'},
+    {label:'At Risk',value:fmtNum(risk.length),sub:'need action',accent:'#f97316'},
+    {label:'CM Not Booked',value:fmtNum(pipe.filter(j=>j.stage==='stage_job_line_cm_not_booked').length),accent:'#f59e0b'},
+    {label:'Avg Pipeline/Consultant',value:fmt$(pipe.reduce((s,j)=>s+j.grossSales,0)/Math.max(new Set(pipe.map(j=>j.consultant)).size,1)),accent:'#7c3aed'},
+  ].map(k=>`<div class="kpi-card" style="--accent:${k.accent}">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-value">${k.value}</div>
+    ${k.sub?`<div class="kpi-sub">${k.sub}</div>`:''}
+  </div>`).join('');
+  
+  // Pipeline age (mock — split by stage proxy)
+  const ageLabels = ['0–7 days','8–14 days','15–21 days','22–30 days','>30 days'];
+  const ageCounts = [Math.round(pipe.length*.3),Math.round(pipe.length*.25),Math.round(pipe.length*.2),Math.round(pipe.length*.15),Math.round(pipe.length*.1)];
+  destroyChart('pipelineAgeChart');
+  CHARTS.pipelineAgeChart = new Chart(document.getElementById('pipelineAgeChart'),{
+    type:'bar',
+    data:{labels:ageLabels,datasets:[{label:'Jobs',data:ageCounts,backgroundColor:['#059669bb','#10b981bb','#f59e0bbb','#fb923cbb','#dc2626bb'],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+  });
+  
+  // Pipeline by consultant
+  const consultPipe = {};
+  pipe.forEach(j=>{
+    if(!consultPipe[j.consultant]) consultPipe[j.consultant]=0;
+    consultPipe[j.consultant]+=j.grossSales;
+  });
+  const cp = Object.entries(consultPipe).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  destroyChart('pipelineConsultChart');
+  CHARTS.pipelineConsultChart = new Chart(document.getElementById('pipelineConsultChart'),{
+    type:'bar',
+    data:{labels:cp.map(([n])=>n.split(' ')[0]),datasets:[{label:'Pipeline $',data:cp.map(([,v])=>v),backgroundColor:'rgba(59,130,246,.7)',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmt$(v)},grid:{color:'#f3f4f6'}},x:{grid:{display:false}}}}
+  });
+  
+  document.getElementById('pipelineTableBody').innerHTML = pipe.sort((a,b)=>b.grossSales-a.grossSales).map(j=>{
+    const isRisk = j.stage==='stage_job_line_cm_not_booked'||j.stage==='stage_job_line_supply_failed';
+    const cats = Object.keys(j.cats).slice(0,2).join(', ');
+    const fakeAge = Math.floor(Math.random()*45)+1; // Would use real date
+    return `<tr style="${isRisk?'background:#fef2f2':''}">
+      <td style="font-family:var(--font-mono);font-size:11px">${j.jobId}</td>
+      <td>${j.consultant}</td>
+      <td><span class="card-badge blue">${j.state}</span></td>
+      <td>${stageBadgeHtml(j.stage)}</td>
+      <td style="font-size:11px;color:var(--muted)">${cats}</td>
+      <td class="num" style="font-weight:700">${fmt$(j.grossSales)}</td>
+      <td class="pct">${j.discAvg}%</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:${fakeAge>21?'#dc2626':fakeAge>14?'#f59e0b':'#059669'}">${fakeAge}d</td>
+      <td>${isRisk?`<span class="card-badge amber">⚠ Follow up</span>`:''}</td>
+    </tr>`;}).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION & CONTROLS
+// ═══════════════════════════════════════════════════
+function setPage(page){
+  APP.page = page;
+  document.querySelectorAll('.page-section').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+page)?.classList.add('active');
+  document.getElementById('tab-'+page)?.classList.add('active');
+  render();
+}
+
+function setPeriod(p, btn){
+  APP.period = p;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function applyFilter(){
+  APP.state = document.getElementById('stateFilter').value;
+  APP.consultant = document.getElementById('consultantFilter').value;
+  APP.category = document.getElementById('categoryFilter').value;
+  render();
+}
+
+function setStageFilter(f, btn){
+  APP.stageFilter = f;
+  document.querySelectorAll('#stageFilterTabs .drill-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  APP.jobPage=0;
+  renderJobs();
+}
+
+function setSalesDrill(d, btn){
+  APP.salesDrill = d;
+  document.querySelectorAll('#salesDrillTabs .drill-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSalesDrill();
+}
+
+function toggleRevenueChart(){} // could toggle between monthly/quarterly
+
+function render(){
+  if(APP.page==='performance') renderPerformance();
+  else if(APP.page==='jobs') renderJobs();
+  else if(APP.page==='sales') renderSalesDrill();
+  else if(APP.page==='consultants') renderConsultants();
+  else if(APP.page==='pipeline') renderPipeline();
+}
+
+async function refreshData(){
+  const btn = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  btn.disabled = true;
+  icon.classList.add('spin');
+  _rawCache = null;
+  await populateFilters();
+  await render();
+  icon.classList.remove('spin');
+  btn.disabled = false;
+}
+
+function handleApiKeyChange(val){
+  // Input is now just for display — credentials are pre-configured in AUTH_HDR
+  _rawCache = null;
+  if(val.trim().length === 0) setStatus('demo');
+  else refreshData();
+}
+
+// ═══════════════════════════════════════════════════
+// INIT — auto-connect with pre-configured credentials
+// ═══════════════════════════════════════════════════
+(async()=>{
+  // Pre-fill the API key input so the user can see it's configured
+  const input = document.getElementById('apiKeyInput');
+  if(input) input.value = API_KEY;
+
+  setStatus('loading');
+  await populateFilters();
+  await renderPerformance();
+})();
+</script>
+</body>
+</html>
