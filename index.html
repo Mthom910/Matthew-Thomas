@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insyte Dashboards</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --navy:  #1E3A5F;
+    --blue:  #2E6DB4;
+    --teal:  #0E9F8E;
+    --slate: #64748B;
+  }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #F1F5F9; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:20px; transition:box-shadow .15s, transform .15s; }
+  .card:hover { box-shadow:0 6px 16px rgba(0,0,0,.12); transform:translateY(-2px); }
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:.7rem; font-weight:700; }
+</style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+<div class="max-w-5xl mx-auto">
+  <h1 class="text-2xl font-black text-slate-800">Insyte Dashboards</h1>
+  <p class="text-sm text-slate-500 mt-1 mb-6">
+    Live, client-side reports against the Insyte API. Each dashboard prompts for your API email/key
+    the first time you open it in a browser, then remembers it locally — no credentials are stored in this repo.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <a href="insyte_consultant_product_dashboard.html" class="card block">
+      <span class="badge" style="background:#EDE9FE;color:#5B21B6">Reference build</span>
+      <h2 class="text-lg font-bold text-slate-800 mt-2">Consultant Performance &amp; Product Sales</h2>
+      <p class="text-sm text-slate-500 mt-1">Leads &rarr; appointments &rarr; orders funnel by consultant, AOV &amp; discounting, plus a full product / fabric / parts sales breakdown.</p>
+    </a>
+
+    <a href="insyte_executive_dashboard.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">Executive Sales Dashboard</h2>
+      <p class="text-sm text-slate-500 mt-1">Top-line revenue vs. target, trend, and executive KPIs.</p>
+    </a>
+
+    <a href="insyte_funnel_dashboard.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">Appointment &rarr; Order Conversion Funnel</h2>
+      <p class="text-sm text-slate-500 mt-1">Conversion analysis from first contact through to confirmed order.</p>
+    </a>
+
+    <a href="insyte_revenue_initiative.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">Revenue Initiative — $5K+ Conversion</h2>
+      <p class="text-sm text-slate-500 mt-1">Big-job conversion &amp; discount-bucket analysis for the revenue initiative.</p>
+    </a>
+
+    <a href="insyte_aov_segments.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">AOV by Price Segment</h2>
+      <p class="text-sm text-slate-500 mt-1">Average order value broken out by price band.</p>
+    </a>
+
+    <a href="insyte_commission_analysis.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">DC Commission Payments</h2>
+      <p class="text-sm text-slate-500 mt-1">Design consultant commission analysis.</p>
+    </a>
+
+    <a href="insyte_appointments_dashboard.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">Appointment Conversion</h2>
+      <p class="text-sm text-slate-500 mt-1">Appointment-level conversion detail.</p>
+    </a>
+
+    <a href="insyte_crm_dashboard.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">CRM Intelligence Platform</h2>
+      <p class="text-sm text-slate-500 mt-1">Contacts, companies, and pipeline overview.</p>
+    </a>
+
+    <a href="insyte_sale_to_invoice.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">Sale &rarr; Invoice Timeline</h2>
+      <p class="text-sm text-slate-500 mt-1">Time from confirmed sale through to invoicing.</p>
+    </a>
+
+    <a href="insyte_weekly_sales_eta.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">Weekly Sales by ETA</h2>
+      <p class="text-sm text-slate-500 mt-1">Weekly sales volume grouped by estimated arrival date.</p>
+    </a>
+
+    <a href="insyte_analytics_hub.html" class="card block">
+      <h2 class="text-lg font-bold text-slate-800">Analytics Hub</h2>
+      <p class="text-sm text-slate-500 mt-1">General analytics overview.</p>
+    </a>
+
+  </div>
+
+  <p class="text-xs text-slate-400 mt-8">
+    Source: <a href="https://github.com/Mthom910/Matthew-Thomas" class="underline">github.com/Mthom910/Matthew-Thomas</a>
+  </p>
+</div>
+
+</body>
+</html>
