@@ -144,6 +144,52 @@
   </div>
 </div>
 
+<!-- QUARTERLY PERFORMANCE -->
+<div class="card mb-4">
+  <div class="stitle">Quarterly Performance — Won Jobs (all categories)</div>
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+    <div class="lg:col-span-3" style="overflow-x:auto">
+      <table class="dt">
+        <thead><tr>
+          <th>Quarter</th>
+          <th class="num">Jobs Won</th>
+          <th class="num">Revenue</th>
+          <th class="num">Rev vs Prior Qtr</th>
+          <th class="num">AOV</th>
+          <th class="num">Avg Discount</th>
+          <th class="num">Quote &rarr; Order</th>
+        </tr></thead>
+        <tbody id="qtr-tbody"><tr><td colspan="7" class="text-center text-slate-400 py-4 text-xs">Load data to view</td></tr></tbody>
+      </table>
+    </div>
+    <div class="lg:col-span-2 chart-box" style="height:280px"><canvas id="qtr-rev-chart"></canvas></div>
+  </div>
+  <p class="note">Quarters are calendar quarters (Q1 = Jan&ndash;Mar) bucketed by job creation month. The most recent quarter may be partial.</p>
+</div>
+
+<!-- PERFORMANCE BY STATE -->
+<div class="card mb-4">
+  <div class="stitle">Performance by State — Won Jobs, Trailing 12 Months</div>
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+    <div class="lg:col-span-3" style="overflow-x:auto">
+      <table class="dt">
+        <thead><tr>
+          <th>State</th>
+          <th class="num">Jobs Won</th>
+          <th class="num">Revenue</th>
+          <th class="num">Rev Share</th>
+          <th class="num">AOV</th>
+          <th class="num">Avg Discount</th>
+          <th class="num">GP%</th>
+          <th class="num">Quote &rarr; Order</th>
+        </tr></thead>
+        <tbody id="state-perf-tbody"><tr><td colspan="8" class="text-center text-slate-400 py-4 text-xs">Load data to view</td></tr></tbody>
+      </table>
+    </div>
+    <div class="lg:col-span-2 chart-box" style="height:280px"><canvas id="state-rev-chart"></canvas></div>
+  </div>
+</div>
+
 <!-- AOV DEEP DIVE -->
 <div class="card mb-4">
   <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -240,6 +286,12 @@ const CATEGORY_COLORS = {
   'Venetian Blinds': '#eda100', 'Vertical Blinds': '#1baf7a', 'Awnings': '#eb6834', 'Accessories & Other': '#4a3aa7',
 };
 const STATUS_COLORS = { won:'#0ca30c', lost:'#d03b3b', quote:'#fab219' };
+const STATE_COLORS = {
+  'NSW':'#2a78d6', 'VIC':'#008300', 'QLD':'#e87ba4', 'WA':'#eda100',
+  'SA':'#1baf7a', 'TAS':'#eb6834', 'ACT':'#4a3aa7', 'NT':'#e34948',
+};
+const STATE_FALLBACK_COLOR = '#94A3B8';
+const stateColor = s => STATE_COLORS[s] || STATE_FALLBACK_COLOR;
 
 function toast(msg, type='blue') {
   const cols = {green:'#D1FAE5 #065F46', red:'#FEE2E2 #991B1B', amber:'#FEF3C7 #92400E', blue:'#DBEAFE #1E40AF'};
@@ -329,6 +381,16 @@ const CATEGORY_RULES = [
   ['pelmet','Curtains & Soft Furnishings'], ['pleated','Curtains & Soft Furnishings'], ['rod system','Curtains & Soft Furnishings'],
 ];
 const FALLBACK_CATEGORY = 'Accessories & Other';
+
+const STATE_NORMALIZE = {
+  'NSW':'NSW', 'VIC':'VIC', 'QLD':'QLD', 'SA':'SA', 'WA':'WA', 'TAS':'TAS', 'NT':'NT', 'ACT':'ACT',
+  'NEW SOUTH WALES':'NSW', 'VICTORIA':'VIC', 'QUEENSLAND':'QLD', 'SOUTH AUSTRALIA':'SA',
+  'WESTERN AUSTRALIA':'WA', 'TASMANIA':'TAS', 'NORTHERN TERRITORY':'NT', 'AUSTRALIAN CAPITAL TERRITORY':'ACT',
+};
+function normalizeState(raw) {
+  const s = (raw||'').trim().toUpperCase().replace(/\.$/,'');
+  return STATE_NORMALIZE[s] || 'Other';
+}
 function categorizeProduct(productName) {
   const name = (productName||'').trim().toLowerCase();
   for (const [kw,cat] of CATEGORY_RULES) if (name.includes(kw)) return cat;
@@ -366,7 +428,7 @@ const isoDateTime = d => d.toISOString().slice(0,19)+'Z';
 async function fetchMonth(c, start, end) {
   const f = `Job/JobDate ge ${isoDateTime(start)} and Job/JobDate lt ${isoDateTime(end)} and Job/JobType eq 'type_job_sales' and Status ne 'status_job_line_cancelled'`;
   const select = 'ID,JobID,Product,Qty,StandardPriceExTax,DiscountedPriceExTax,StandardCostExTax,DiscountedCostExTax,StandardIntallCostExTax,StandardDeliveryCostExTax,LineType,Status,Stage';
-  const expand = 'Job($select=Reference,Stage,Status,JobDate,SalesRepID)';
+  const expand = 'Job($select=Reference,Stage,Status,JobDate,SalesRepID;$expand=Address($select=State))';
   return fetchAll(c, '/JobLines', f, select, expand);
 }
 
@@ -381,6 +443,7 @@ function buildSubjobs(lines) {
     let sj = subjobs[jid];
     if (!sj) {
       sj = { reference: job.Reference || String(jid), stage: job.Stage, status: job.Status, jobDate: job.JobDate || '',
+             state: normalizeState((job.Address||{}).State),
              stdTotal:0, discTotal:0, costTotal:0, qty:0, catStd:{} };
       subjobs[jid] = sj;
     }
@@ -422,6 +485,7 @@ function canonicalizeJobs(subjobs) {
     canonical.push({
       month: (latest.jobDate||'').slice(0,7),
       category: dominantCat,
+      state: latest.state,
       stage,
       revenue: discTotal,
       stdRevenue: stdTotal,
@@ -435,11 +499,11 @@ function canonicalizeJobs(subjobs) {
 
 function aggregateJobs(canonicalJobs) {
   const monthlyCategory = {}, discountBandCategory = {};
-  const categoriesSeen = new Set(), monthsSeen = new Set();
+  const categoriesSeen = new Set(), monthsSeen = new Set(), statesSeen = new Set();
   canonicalJobs.forEach(j => {
-    categoriesSeen.add(j.category); monthsSeen.add(j.month);
-    const mk = j.month+'|'+j.category+'|'+j.stage;
-    if (!monthlyCategory[mk]) monthlyCategory[mk] = {month:j.month, category:j.category, stage:j.stage, jobs:0, qty:0, revenue:0, stdRevenue:0, gp:0};
+    categoriesSeen.add(j.category); monthsSeen.add(j.month); statesSeen.add(j.state);
+    const mk = j.month+'|'+j.category+'|'+j.state+'|'+j.stage;
+    if (!monthlyCategory[mk]) monthlyCategory[mk] = {month:j.month, category:j.category, state:j.state, stage:j.stage, jobs:0, qty:0, revenue:0, stdRevenue:0, gp:0};
     const m = monthlyCategory[mk];
     m.jobs++; m.qty += j.qty; m.revenue += j.revenue; m.stdRevenue += j.stdRevenue; m.gp += j.gp;
 
@@ -453,6 +517,7 @@ function aggregateJobs(canonicalJobs) {
   return {
     categories: [...categoriesSeen].sort(),
     months: [...monthsSeen].sort(),
+    states: [...statesSeen].sort(),
     monthlyCategory: Object.values(monthlyCategory),
     discountBandCategory: Object.values(discountBandCategory),
   };
@@ -543,6 +608,8 @@ function renderAll() {
   $('k-conv-delta').innerHTML = deltaHtml(convCurr.rate, convPriorV.rate, '', false, true);
 
   renderCategoryPerf(current, prior);
+  renderQuarterly();
+  renderByState(current, prior, resolvedCurrent, resolvedPrior);
   renderAOV(current, prior);
   renderConversion(current, prior, resolvedCurrent, resolvedPrior);
   renderCatPills();
@@ -587,6 +654,111 @@ function renderCategoryPerf(current, prior) {
   mkChart('cat-rev-chart', 'bar', {
     labels: rows.map(r=>r.cat),
     datasets: [{ data: rows.map(r=>r.revenue), backgroundColor: rows.map(r=>CATEGORY_COLORS[r.cat]), borderRadius:4, maxBarThickness:24 }]
+  }, {
+    indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtM(ctx.parsed.x) } } },
+    scales:{ x:{ ticks:{ callback:v=>fmtM(v) }, grid:{color:'var(--grid)'} }, y:{ grid:{display:false} } }
+  });
+}
+
+// ── QUARTERLY PERFORMANCE ─────────────────────────────
+function monthToQuarter(month) {
+  const [y,m] = month.split('-').map(Number);
+  return `${y}-Q${Math.ceil(m/3)}`;
+}
+function quarterlyRollup(rows, filterFn) {
+  const byQ = {};
+  rows.filter(filterFn).forEach(r => {
+    const q = monthToQuarter(r.month);
+    const key = q+'|'+r.stage;
+    if (!byQ[key]) byQ[key] = { quarter:q, stage:r.stage, jobs:0, qty:0, revenue:0, stdRevenue:0, gp:0 };
+    const b = byQ[key];
+    b.jobs+=r.jobs; b.qty+=r.qty; b.revenue+=r.revenue; b.stdRevenue+=r.stdRevenue; b.gp+=r.gp;
+  });
+  return Object.values(byQ);
+}
+function renderQuarterly() {
+  const mc = DATA.monthlyCategory;
+  const rolled = quarterlyRollup(mc, () => true);
+  const quarters = [...new Set(rolled.map(r=>r.quarter))].sort();
+
+  const sumStage = (q, stage) => {
+    const rows = rolled.filter(r=>r.quarter===q && r.stage===stage);
+    return rows.reduce((acc,r)=>({jobs:acc.jobs+r.jobs, revenue:acc.revenue+r.revenue, stdRevenue:acc.stdRevenue+r.stdRevenue}), {jobs:0,revenue:0,stdRevenue:0});
+  };
+
+  const data = quarters.map((q,i) => {
+    const won = sumStage(q,'won'), lost = sumStage(q,'lost'), quote = sumStage(q,'quote');
+    const denom = won.jobs+lost.jobs+quote.jobs;
+    const aov = won.jobs ? won.revenue/won.jobs : null;
+    const discPct = won.stdRevenue ? (1-won.revenue/won.stdRevenue)*100 : null;
+    const convRate = denom ? won.jobs/denom*100 : null;
+    return { quarter:q, jobs:won.jobs, revenue:won.revenue, aov, discPct, convRate };
+  });
+
+  $('qtr-tbody').innerHTML = data.map((d,i) => {
+    const prevRev = i>0 ? data[i-1].revenue : null;
+    return `<tr>
+      <td class="txt font-semibold">${d.quarter}</td>
+      <td class="num">${fmtN(d.jobs)}</td>
+      <td class="num font-semibold">${fmtM(d.revenue)}</td>
+      <td class="num">${prevRev!=null ? deltaHtml(d.revenue, prevRev) : '<span class="text-slate-400">—</span>'}</td>
+      <td class="num">${fmtM(d.aov)}</td>
+      <td class="num">${fmtPct(d.discPct)}</td>
+      <td class="num">${fmtPct(d.convRate)}</td>
+    </tr>`;
+  }).join('');
+
+  mkChart('qtr-rev-chart', 'bar', {
+    labels: data.map(d=>d.quarter),
+    datasets: [{ data: data.map(d=>d.revenue), backgroundColor:'#2a78d6', borderRadius:4, maxBarThickness:36 }]
+  }, {
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtM(ctx.parsed.y) } } },
+    scales:{ y:{ ticks:{ callback:v=>fmtM(v) }, grid:{color:'var(--grid)'} }, x:{ grid:{display:false} } }
+  });
+}
+
+// ── PERFORMANCE BY STATE ──────────────────────────────
+function byState(rows, months, stage) {
+  const states = [...new Set(rows.map(r=>r.state).filter(Boolean))];
+  const out = {};
+  states.forEach(s => { out[s] = sumRows(rows, r => r.state===s && r.stage===stage && months.includes(r.month)); });
+  return out;
+}
+function renderByState(current, prior, resolvedCurrent, resolvedPrior) {
+  const mc = DATA.monthlyCategory;
+  const currByState = byState(mc, current, 'won');
+  const states = Object.keys(currByState);
+  const totalRev = states.reduce((s,st)=>s+currByState[st].revenue,0);
+
+  const rows = states.map(st => {
+    const c = currByState[st];
+    const won = sumRows(mc, r=>r.state===st && r.stage==='won' && resolvedCurrent.includes(r.month)).jobs;
+    const lost = sumRows(mc, r=>r.state===st && r.stage==='lost' && resolvedCurrent.includes(r.month)).jobs;
+    const quote = sumRows(mc, r=>r.state===st && r.stage==='quote' && resolvedCurrent.includes(r.month)).jobs;
+    const denom = won+lost+quote;
+    const aov = c.jobs ? c.revenue/c.jobs : null;
+    const discPct = c.stdRevenue ? (1-c.revenue/c.stdRevenue)*100 : null;
+    const gpPct = c.revenue ? (c.gp/c.revenue)*100 : null;
+    const convRate = denom ? won/denom*100 : null;
+    return { state:st, jobs:c.jobs, revenue:c.revenue, share: totalRev? c.revenue/totalRev*100:0, aov, discPct, gpPct, convRate };
+  }).sort((a,b)=>b.revenue-a.revenue);
+
+  $('state-perf-tbody').innerHTML = rows.map(r => `
+    <tr>
+      <td class="txt"><span class="cat-swatch" style="background:${stateColor(r.state)}"></span>${r.state}</td>
+      <td class="num">${fmtN(r.jobs)}</td>
+      <td class="num font-semibold">${fmtM(r.revenue)}</td>
+      <td class="num">${r.share.toFixed(1)}%</td>
+      <td class="num">${fmtM(r.aov)}</td>
+      <td class="num">${fmtPct(r.discPct)}</td>
+      <td class="num">${fmtPct(r.gpPct)}</td>
+      <td class="num">${fmtPct(r.convRate)}</td>
+    </tr>`).join('');
+
+  mkChart('state-rev-chart', 'bar', {
+    labels: rows.map(r=>r.state),
+    datasets: [{ data: rows.map(r=>r.revenue), backgroundColor: rows.map(r=>stateColor(r.state)), borderRadius:4, maxBarThickness:24 }]
   }, {
     indexAxis:'y',
     plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtM(ctx.parsed.x) } } },
