@@ -54,6 +54,18 @@
   #cfg { transition:max-height .3s, opacity .3s; overflow:hidden; }
   #cfg.open { max-height:400px; opacity:1; }
   #cfg.shut { max-height:0; opacity:0; margin-bottom:0 !important; }
+
+  .tab-btn { padding:10px 18px; font-size:.85rem; font-weight:700; color:#64748B; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; transition:all .15s; }
+  .tab-btn:hover { color:#1E3A5F; }
+  .tab-btn.active { color:#1E3A5F; border-bottom-color:#2a78d6; }
+
+  .insight { border-left:4px solid; padding:10px 16px; border-radius:0 8px 8px 0; font-size:.85rem; }
+  .insight.positive { border-color:#0ca30c; background:#F0FDF4; }
+  .insight.warning  { border-color:#fab219; background:#FFFBEB; }
+  .insight.critical { border-color:#d03b3b; background:#FFF5F5; }
+  .insight.info     { border-color:#2a78d6; background:#EFF6FF; }
+  .insight .insight-title { font-weight:700; margin-bottom:2px; }
+  .insight .insight-action { color:#475569; margin-top:4px; }
 </style>
 </head>
 <body class="p-4 md:p-6">
@@ -92,6 +104,14 @@
     </div>
   </div>
 </div>
+
+<!-- TAB BAR -->
+<div class="flex gap-2 mb-4 border-b border-slate-200">
+  <button id="tab-btn-overview" onclick="switchTab('overview')" class="tab-btn active">Overview</button>
+  <button id="tab-btn-deepdive" onclick="switchTab('deepdive')" class="tab-btn">Category Deep Dive</button>
+</div>
+
+<div id="tab-overview">
 
 <!-- KPI ROW -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -271,6 +291,91 @@
   <div id="disc-summary" class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600"></div>
 </div>
 
+</div><!-- /tab-overview -->
+
+<!-- CATEGORY DEEP DIVE -->
+<div id="tab-deepdive" class="hidden">
+
+  <div class="card mb-4">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <div class="stitle mb-0">Category Deep Dive</div>
+        <p class="text-xs text-slate-400 mt-1">Trailing 12 months vs prior 12 months, one category at a time.</p>
+      </div>
+      <select id="dd-cat-select" onchange="renderDeepDive(this.value)" class="border border-slate-200 rounded-lg px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"></select>
+    </div>
+  </div>
+
+  <!-- DD KPI ROW -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    <div class="card">
+      <div class="stitle">Revenue Won</div>
+      <div class="stat-val" id="dd-k-rev">—</div>
+      <div class="stat-lbl">vs prior 12mo</div>
+      <div class="stat-delta" id="dd-k-rev-delta"></div>
+    </div>
+    <div class="card">
+      <div class="stitle">Jobs Won</div>
+      <div class="stat-val" id="dd-k-jobs">—</div>
+      <div class="stat-lbl">vs prior 12mo</div>
+      <div class="stat-delta" id="dd-k-jobs-delta"></div>
+    </div>
+    <div class="card">
+      <div class="stitle">Average Order Value</div>
+      <div class="stat-val" id="dd-k-aov">—</div>
+      <div class="stat-lbl">vs prior 12mo</div>
+      <div class="stat-delta" id="dd-k-aov-delta"></div>
+    </div>
+    <div class="card">
+      <div class="stitle">Quote &rarr; Order Conversion</div>
+      <div class="stat-val" id="dd-k-conv">—</div>
+      <div class="stat-lbl">vs prior 12mo</div>
+      <div class="stat-delta" id="dd-k-conv-delta"></div>
+    </div>
+  </div>
+
+  <!-- PRODUCT POPULARITY -->
+  <div class="card mb-4">
+    <div class="stitle">Products Within This Category — Popular &amp; Unpopular, Trailing 12 Months</div>
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+      <div class="lg:col-span-3" style="overflow-x:auto">
+        <table class="dt">
+          <thead><tr>
+            <th>Product</th>
+            <th class="num">Qty Sold</th>
+            <th class="num">Revenue</th>
+            <th class="num">Rev Share</th>
+            <th class="num">Revenue vs Prior</th>
+            <th class="num">Avg Discount</th>
+            <th class="num">GP%</th>
+          </tr></thead>
+          <tbody id="dd-product-tbody"><tr><td colspan="7" class="text-center text-slate-400 py-4 text-xs">Select a category to view</td></tr></tbody>
+        </table>
+      </div>
+      <div class="lg:col-span-2 chart-box" style="height:320px"><canvas id="dd-product-chart"></canvas></div>
+    </div>
+    <p class="note">"Products" are Insyte's raw product names within this category (e.g. within Roller Blinds: Roller Blind, Gravity Roller Blind, Sheerview Blind). Sorted by revenue &mdash; top rows are the popular sellers, bottom rows are the long tail.</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div class="card">
+      <div class="stitle">Quarterly Trend — This Category</div>
+      <div class="chart-box" style="height:240px"><canvas id="dd-qtr-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="stitle">Revenue by State — This Category</div>
+      <div class="chart-box" style="height:240px"><canvas id="dd-state-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ANALYSIS & RECOMMENDATIONS -->
+  <div class="card mb-4">
+    <div class="stitle">Analysis &amp; Recommended Actions</div>
+    <div id="dd-insights" class="space-y-3"></div>
+  </div>
+
+</div><!-- /tab-deepdive -->
+
 <div id="toast"></div>
 
 <script>
@@ -349,12 +454,23 @@ function toggleCfg() {
 
 // ── API ────────────────────────────────────────────────
 function auth(c) { return 'Basic '+btoa(c.email+':'+c.key); }
+const sleep = ms => new Promise(res => setTimeout(res, ms));
 async function apiGet(c, path, params) {
   const usp = new URLSearchParams();
   Object.entries(params).forEach(([k,v]) => usp.set(k,v));
-  const r = await fetch(`${c.base}${path}?${usp.toString()}`, {headers:{Authorization:auth(c),Accept:'application/json'}});
-  if (!r.ok) throw new Error(r.status+' '+r.statusText+' — '+path);
-  return r.json();
+  const url = `${c.base}${path}?${usp.toString()}`;
+  let lastErr;
+  for (let attempt = 0; attempt < 7; attempt++) {
+    try {
+      const r = await fetch(url, {headers:{Authorization:auth(c),Accept:'application/json'}});
+      if (!r.ok) throw new Error(r.status+' '+r.statusText+' — '+path);
+      return await r.json();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 6) await sleep(Math.min(15000, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastErr;
 }
 async function fetchAll(c, path, filterStr, select, expand) {
   const PAGE = 1000;
@@ -444,15 +560,22 @@ function buildSubjobs(lines) {
     if (!sj) {
       sj = { reference: job.Reference || String(jid), stage: job.Stage, status: job.Status, jobDate: job.JobDate || '',
              state: normalizeState((job.Address||{}).State),
-             stdTotal:0, discTotal:0, costTotal:0, qty:0, catStd:{} };
+             stdTotal:0, discTotal:0, costTotal:0, qty:0, catStd:{}, prodAgg:{} };
       subjobs[jid] = sj;
     }
     const std = l.StandardPriceExTax || 0;
     const disc = (l.DiscountedPriceExTax != null) ? l.DiscountedPriceExTax : std;
     const cost = (l.DiscountedCostExTax || l.StandardCostExTax || 0) + (l.StandardIntallCostExTax || 0) + (l.StandardDeliveryCostExTax || 0);
-    sj.stdTotal += std; sj.discTotal += disc; sj.costTotal += cost; sj.qty += (l.Qty || 0);
-    const cat = categorizeProduct(l.Product);
+    const qty = l.Qty || 0;
+    sj.stdTotal += std; sj.discTotal += disc; sj.costTotal += cost; sj.qty += qty;
+
+    const productName = (l.Product||'').trim() || 'Unspecified';
+    const cat = categorizeProduct(productName);
     sj.catStd[cat] = (sj.catStd[cat] || 0) + std;
+
+    if (!sj.prodAgg[productName]) sj.prodAgg[productName] = {std:0, disc:0, cost:0, qty:0, lines:0};
+    const p = sj.prodAgg[productName];
+    p.std += std; p.disc += disc; p.cost += cost; p.qty += qty; p.lines += 1;
   }
   return subjobs;
 }
@@ -465,6 +588,7 @@ function canonicalizeJobs(subjobs) {
     (groups[b] = groups[b] || []).push(sj);
   });
   const canonical = [];
+  const productRows = [];
   Object.values(groups).forEach(group => {
     group.sort((a,b) => (a.jobDate||'').localeCompare(b.jobDate||''));
     const latest = group[group.length-1];
@@ -482,8 +606,10 @@ function canonicalizeJobs(subjobs) {
     let dominantCat = FALLBACK_CATEGORY, maxStd = -1;
     Object.entries(latest.catStd).forEach(([cat,v]) => { if (v > maxStd) { maxStd = v; dominantCat = cat; } });
 
+    const month = (latest.jobDate||'').slice(0,7);
+
     canonical.push({
-      month: (latest.jobDate||'').slice(0,7),
+      month,
       category: dominantCat,
       state: latest.state,
       stage,
@@ -493,13 +619,20 @@ function canonicalizeJobs(subjobs) {
       qty: latest.qty,
       discBucket: discountBucket(discPct),
     });
+
+    Object.entries(latest.prodAgg).forEach(([productName, p]) => {
+      productRows.push({
+        month, category: categorizeProduct(productName), product: productName, stage,
+        lines: p.lines, qty: p.qty, revenue: p.disc, stdRevenue: p.std, gp: p.disc - p.cost,
+      });
+    });
   });
-  return canonical;
+  return { canonical, productRows };
 }
 
-function aggregateJobs(canonicalJobs) {
-  const monthlyCategory = {}, discountBandCategory = {};
-  const categoriesSeen = new Set(), monthsSeen = new Set(), statesSeen = new Set();
+function aggregateJobs(canonicalJobs, productRows) {
+  const monthlyCategory = {}, discountBandCategory = {}, productPerformance = {};
+  const categoriesSeen = new Set(), monthsSeen = new Set(), statesSeen = new Set(), productsSeen = new Set();
   canonicalJobs.forEach(j => {
     categoriesSeen.add(j.category); monthsSeen.add(j.month); statesSeen.add(j.state);
     const mk = j.month+'|'+j.category+'|'+j.state+'|'+j.stage;
@@ -514,12 +647,23 @@ function aggregateJobs(canonicalJobs) {
       b.jobs++; b.revenue += j.revenue;
     }
   });
+
+  productRows.forEach(p => {
+    productsSeen.add(p.product);
+    const pk = p.month+'|'+p.category+'|'+p.product+'|'+p.stage;
+    if (!productPerformance[pk]) productPerformance[pk] = {month:p.month, category:p.category, product:p.product, stage:p.stage, lines:0, qty:0, revenue:0, stdRevenue:0, gp:0};
+    const agg = productPerformance[pk];
+    agg.lines += p.lines; agg.qty += p.qty; agg.revenue += p.revenue; agg.stdRevenue += p.stdRevenue; agg.gp += p.gp;
+  });
+
   return {
     categories: [...categoriesSeen].sort(),
     months: [...monthsSeen].sort(),
     states: [...statesSeen].sort(),
+    products: [...productsSeen].sort(),
     monthlyCategory: Object.values(monthlyCategory),
     discountBandCategory: Object.values(discountBandCategory),
+    productPerformance: Object.values(productPerformance),
   };
 }
 
@@ -529,7 +673,7 @@ async function loadData() {
   $('spin-wrap').classList.remove('hidden');
   try {
     const boundaries = monthStarts(c.monthsBack);
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 4;
     const chunks = [];
     for (let i=0;i<boundaries.length-1;i++) chunks.push([boundaries[i], boundaries[i+1]]);
 
@@ -543,8 +687,8 @@ async function loadData() {
 
     $('load-status').textContent = `Processing ${allLines.length.toLocaleString()} lines…`;
     const subjobs = buildSubjobs(allLines);
-    const canonicalJobs = canonicalizeJobs(subjobs);
-    const agg = aggregateJobs(canonicalJobs);
+    const { canonical: canonicalJobs, productRows } = canonicalizeJobs(subjobs);
+    const agg = aggregateJobs(canonicalJobs, productRows);
 
     DATA = {
       generatedAt: new Date().toISOString(),
@@ -614,6 +758,15 @@ function renderAll() {
   renderConversion(current, prior, resolvedCurrent, resolvedPrior);
   renderCatPills();
   renderDiscounting('ALL');
+  initDeepDive();
+}
+
+function switchTab(tab) {
+  const isOverview = tab === 'overview';
+  $('tab-overview').classList.toggle('hidden', !isOverview);
+  $('tab-deepdive').classList.toggle('hidden', isOverview);
+  $('tab-btn-overview').classList.toggle('active', isOverview);
+  $('tab-btn-deepdive').classList.toggle('active', !isOverview);
 }
 
 function convRate(rows, months) {
@@ -764,6 +917,216 @@ function renderByState(current, prior, resolvedCurrent, resolvedPrior) {
     plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtM(ctx.parsed.x) } } },
     scales:{ x:{ ticks:{ callback:v=>fmtM(v) }, grid:{color:'var(--grid)'} }, y:{ grid:{display:false} } }
   });
+}
+
+// ── CATEGORY DEEP DIVE ────────────────────────────────
+function initDeepDive() {
+  const { current } = splitPeriods();
+  const currByCat = byCategory(DATA.monthlyCategory, current, 'won');
+  const sorted = CATEGORY_ORDER.filter(c => currByCat[c]).slice().sort((a,b)=>currByCat[b].revenue-currByCat[a].revenue);
+  $('dd-cat-select').innerHTML = sorted.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if (sorted.length) renderDeepDive(sorted[0]);
+}
+
+function ddSumProducts(category, months, stage) {
+  const rows = (DATA.productPerformance||[]).filter(r => r.category===category && r.stage===stage && months.includes(r.month));
+  const byProduct = {};
+  rows.forEach(r => {
+    if (!byProduct[r.product]) byProduct[r.product] = {product:r.product, lines:0, qty:0, revenue:0, stdRevenue:0, gp:0};
+    const p = byProduct[r.product];
+    p.lines+=r.lines; p.qty+=r.qty; p.revenue+=r.revenue; p.stdRevenue+=r.stdRevenue; p.gp+=r.gp;
+  });
+  return byProduct;
+}
+
+function ddByState(category, months, stage) {
+  const rows = DATA.monthlyCategory.filter(r=>r.category===category && r.stage===stage && months.includes(r.month));
+  const out = {};
+  rows.forEach(r => {
+    if (!out[r.state]) out[r.state] = {state:r.state, jobs:0, revenue:0};
+    out[r.state].jobs += r.jobs; out[r.state].revenue += r.revenue;
+  });
+  return Object.values(out).filter(s=>s.revenue>0).sort((a,b)=>b.revenue-a.revenue);
+}
+
+function renderDeepDive(category) {
+  $('dd-cat-select').value = category;
+  const { current, prior } = splitPeriods();
+  const resolvedCurrent = current.slice(0,-2), resolvedPrior = prior.slice(0,-2);
+  const mc = DATA.monthlyCategory;
+
+  const wonCurr = sumRows(mc, r=>r.category===category && r.stage==='won' && current.includes(r.month));
+  const wonPrior = sumRows(mc, r=>r.category===category && r.stage==='won' && prior.includes(r.month));
+  const aovCurr = wonCurr.jobs ? wonCurr.revenue/wonCurr.jobs : null;
+  const aovPrior = wonPrior.jobs ? wonPrior.revenue/wonPrior.jobs : null;
+  $('dd-k-rev').textContent = fmtM(wonCurr.revenue);
+  $('dd-k-rev-delta').innerHTML = deltaHtml(wonCurr.revenue, wonPrior.revenue);
+  $('dd-k-jobs').textContent = fmtN(wonCurr.jobs);
+  $('dd-k-jobs-delta').innerHTML = deltaHtml(wonCurr.jobs, wonPrior.jobs);
+  $('dd-k-aov').textContent = fmtM(aovCurr);
+  $('dd-k-aov-delta').innerHTML = deltaHtml(aovCurr, aovPrior);
+
+  const wonR = sumRows(mc, r=>r.category===category && r.stage==='won' && resolvedCurrent.includes(r.month)).jobs;
+  const lostR = sumRows(mc, r=>r.category===category && r.stage==='lost' && resolvedCurrent.includes(r.month)).jobs;
+  const quoteR = sumRows(mc, r=>r.category===category && r.stage==='quote' && resolvedCurrent.includes(r.month)).jobs;
+  const denomR = wonR+lostR+quoteR;
+  const convCurr = denomR ? wonR/denomR*100 : null;
+  const wonP = sumRows(mc, r=>r.category===category && r.stage==='won' && resolvedPrior.includes(r.month)).jobs;
+  const lostP = sumRows(mc, r=>r.category===category && r.stage==='lost' && resolvedPrior.includes(r.month)).jobs;
+  const quoteP = sumRows(mc, r=>r.category===category && r.stage==='quote' && resolvedPrior.includes(r.month)).jobs;
+  const denomP = wonP+lostP+quoteP;
+  const convPrior = denomP ? wonP/denomP*100 : null;
+  $('dd-k-conv').textContent = fmtPct(convCurr);
+  $('dd-k-conv-delta').innerHTML = deltaHtml(convCurr, convPrior, '', false, true);
+
+  // ── Product popularity ──
+  const currProd = ddSumProducts(category, current, 'won');
+  const priorProd = ddSumProducts(category, prior, 'won');
+  const totalRev = Object.values(currProd).reduce((s,p)=>s+p.revenue,0);
+  const productRows = Object.values(currProd).map(p => {
+    const priorP = priorProd[p.product];
+    const discPct = p.stdRevenue ? (1-p.revenue/p.stdRevenue)*100 : null;
+    const gpPct = p.revenue ? (p.gp/p.revenue)*100 : null;
+    const priorRevenue = priorP ? priorP.revenue : 0;
+    const growthPct = priorRevenue ? (p.revenue-priorRevenue)/priorRevenue*100 : null;
+    return { product:p.product, qty:p.qty, revenue:p.revenue, share: totalRev? p.revenue/totalRev*100:0, discPct, gpPct, priorRevenue, growthPct };
+  }).sort((a,b)=>b.revenue-a.revenue);
+
+  $('dd-product-tbody').innerHTML = productRows.length ? productRows.map(r => `
+    <tr>
+      <td class="txt">${r.product}</td>
+      <td class="num">${fmtN(r.qty)}</td>
+      <td class="num font-semibold">${fmtM(r.revenue)}</td>
+      <td class="num">${r.share.toFixed(1)}%</td>
+      <td class="num">${deltaHtml(r.revenue, r.priorRevenue||null)}</td>
+      <td class="num">${fmtPct(r.discPct)}</td>
+      <td class="num">${fmtPct(r.gpPct)}</td>
+    </tr>`).join('') : '<tr><td colspan="7" class="text-center text-slate-400 py-4 text-xs">No product data for this category</td></tr>';
+
+  const topN = productRows.slice(0,8);
+  const otherRev = productRows.slice(8).reduce((s,r)=>s+r.revenue,0);
+  const chartLabels = topN.map(r=>r.product).concat(otherRev>0?['Other']:[]);
+  const chartData = topN.map(r=>r.revenue).concat(otherRev>0?[otherRev]:[]);
+  mkChart('dd-product-chart', 'bar', {
+    labels: chartLabels,
+    datasets: [{ data: chartData, backgroundColor: CATEGORY_COLORS[category]||'#2a78d6', borderRadius:4, maxBarThickness:22 }]
+  }, {
+    indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtM(ctx.parsed.x) } } },
+    scales:{ x:{ ticks:{ callback:v=>fmtM(v) }, grid:{color:'var(--grid)'} }, y:{ grid:{display:false} } }
+  });
+
+  // ── Quarterly trend for this category ──
+  const rolled = quarterlyRollup(mc, r=>r.category===category);
+  const quarters = [...new Set(rolled.map(r=>r.quarter))].sort();
+  const qRevenue = quarters.map(q => { const row = rolled.find(r=>r.quarter===q && r.stage==='won'); return row ? row.revenue : 0; });
+  mkChart('dd-qtr-chart', 'bar', {
+    labels: quarters,
+    datasets: [{ data: qRevenue, backgroundColor: CATEGORY_COLORS[category]||'#2a78d6', borderRadius:4, maxBarThickness:36 }]
+  }, {
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtM(ctx.parsed.y) } } },
+    scales:{ y:{ ticks:{ callback:v=>fmtM(v) }, grid:{color:'var(--grid)'} }, x:{ grid:{display:false} } }
+  });
+
+  // ── State breakdown for this category ──
+  const stateData = ddByState(category, current, 'won');
+  mkChart('dd-state-chart', 'bar', {
+    labels: stateData.map(s=>s.state),
+    datasets: [{ data: stateData.map(s=>s.revenue), backgroundColor: stateData.map(s=>stateColor(s.state)), borderRadius:4, maxBarThickness:24 }]
+  }, {
+    indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtM(ctx.parsed.x) } } },
+    scales:{ x:{ ticks:{ callback:v=>fmtM(v) }, grid:{color:'var(--grid)'} }, y:{ grid:{display:false} } }
+  });
+
+  renderInsights(category, productRows, {
+    revCurr: wonCurr.revenue, revPrior: wonPrior.revenue,
+    convCurr, convPrior,
+  });
+}
+
+function renderInsights(category, productRows, kpis) {
+  const insights = [];
+  const fmtSigned = (v,d=1) => (v>=0?'+':'')+v.toFixed(d)+'%';
+
+  if (kpis.revPrior) {
+    const chg = (kpis.revCurr-kpis.revPrior)/kpis.revPrior*100;
+    if (chg >= 10) {
+      insights.push({type:'positive', title:`${category} revenue is up ${fmtSigned(chg)} year-on-year`,
+        detail:`Revenue grew from ${fmtM(kpis.revPrior)} to ${fmtM(kpis.revCurr)}.`,
+        action:'Keep current merchandising/marketing focus on this category and make sure supply can keep up with demand.'});
+    } else if (chg <= -10) {
+      insights.push({type:'critical', title:`${category} revenue is down ${fmtSigned(chg)} year-on-year`,
+        detail:`Revenue fell from ${fmtM(kpis.revPrior)} to ${fmtM(kpis.revCurr)}.`,
+        action:'Investigate whether this is a pricing, competition, or demand issue before the next planning cycle.'});
+    }
+  }
+
+  const top3 = productRows.slice(0,3);
+  const top3Share = top3.reduce((s,r)=>s+r.share,0);
+  if (productRows.length > 3 && top3Share >= 70) {
+    insights.push({type:'info', title:`Revenue is concentrated in ${top3.length} products (${top3Share.toFixed(0)}% of category revenue)`,
+      detail:`Top sellers: ${top3.map(r=>r.product).join(', ')}.`,
+      action:"Protect supply and lead times for these lines — they carry most of this category's revenue risk."});
+  }
+
+  const leaders = productRows.filter(r=>r.growthPct!=null && r.growthPct>=20 && r.share>=2).sort((a,b)=>b.growthPct-a.growthPct).slice(0,3);
+  if (leaders.length) {
+    insights.push({type:'positive', title:`Growing fast: ${leaders.map(r=>r.product).join(', ')}`,
+      detail:leaders.map(r=>`${r.product} ${fmtSigned(r.growthPct)}`).join(' · '),
+      action:'Consider featuring these in upcoming promotions, and confirm stock/lead-time headroom.'});
+  }
+
+  const decliners = productRows.filter(r=>r.growthPct!=null && r.growthPct<=-20 && r.share>=2).sort((a,b)=>a.growthPct-b.growthPct).slice(0,3);
+  if (decliners.length) {
+    insights.push({type:'warning', title:`Declining: ${decliners.map(r=>r.product).join(', ')}`,
+      detail:decliners.map(r=>`${r.product} ${fmtSigned(r.growthPct)}`).join(' · '),
+      action:'Check for pricing, quality, or competitive issues — or confirm whether this is an intentional phase-out.'});
+  }
+
+  const totalRevForAvg = productRows.reduce((s,r)=>s+r.revenue,0);
+  const avgDisc = totalRevForAvg ? productRows.reduce((s,r)=>s+(r.discPct||0)*r.revenue,0)/totalRevForAvg : null;
+  const avgGp = totalRevForAvg ? productRows.reduce((s,r)=>s+(r.gpPct||0)*r.revenue,0)/totalRevForAvg : null;
+  const marginRisk = (avgDisc!=null && avgGp!=null)
+    ? productRows.filter(r=>r.share>=1 && r.discPct>avgDisc+5 && r.gpPct<avgGp-5)
+    : [];
+  if (marginRisk.length) {
+    insights.push({type:'critical', title:`Margin risk: ${marginRisk.slice(0,3).map(r=>r.product).join(', ')}`,
+      detail:`These sell at above-average discount (category avg ${avgDisc.toFixed(1)}%) but below-average GP% (category avg ${avgGp.toFixed(1)}%).`,
+      action:'Review discount authorisation limits and underlying cost/pricing for these lines.'});
+  }
+
+  const longTail = productRows.filter(r=>r.share < 1);
+  const longTailShare = longTail.reduce((s,r)=>s+r.share,0);
+  if (longTail.length >= 5) {
+    insights.push({type:'info', title:`${longTail.length} long-tail products together make up only ${longTailShare.toFixed(1)}% of revenue`,
+      detail:longTail.slice(0,6).map(r=>r.product).join(', ')+(longTail.length>6?', …':''),
+      action:'Consider rationalising low-volume SKUs unless they serve a strategic (showroom/range-completeness) purpose.'});
+  }
+
+  if (kpis.convPrior!=null && kpis.convCurr!=null) {
+    const chg = kpis.convCurr-kpis.convPrior;
+    if (chg <= -5) {
+      insights.push({type:'warning', title:`Quote-to-order conversion down ${fmtPP(chg)} for ${category}`,
+        detail:`${fmtPct(kpis.convPrior)} → ${fmtPct(kpis.convCurr)}.`,
+        action:'Review the sales process, lead times, or pricing on quotes in this category.'});
+    } else if (chg >= 5) {
+      insights.push({type:'positive', title:`Quote-to-order conversion up ${fmtPP(chg)} for ${category}`,
+        detail:`${fmtPct(kpis.convPrior)} → ${fmtPct(kpis.convCurr)}.`,
+        action:'Identify what changed (pricing, process, rep training) and see if it can be repeated in other categories.'});
+    }
+  }
+
+  if (!insights.length) {
+    insights.push({type:'info', title:'No notable signals this period', detail:'Revenue, discount and conversion are all tracking close to their prior-period levels.', action:'No action needed — keep monitoring.'});
+  }
+
+  $('dd-insights').innerHTML = insights.map(i => `
+    <div class="insight ${i.type}">
+      <div class="insight-title">${i.title}</div>
+      <div>${i.detail}</div>
+      <div class="insight-action">&rarr; ${i.action}</div>
+    </div>`).join('');
 }
 
 // ── AOV DEEP DIVE ─────────────────────────────────────
