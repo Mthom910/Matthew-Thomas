@@ -1,0 +1,22 @@
+# Credentials — never commit real Insyte API keys
+.env
+
+# Generated data snapshots — contain real revenue/discount/commission figures
+# per named consultant. Each user regenerates their own via the refresh_*.py
+# scripts; these should never live in git history.
+insyte_*.json
+*_raw.csv
+
+# Superseded artifact exports with real data embedded inline (not fetch-based)
+artifact_preview.html
+artifact_body_only.html
+
+# Unrelated project with its own git repo
+expense-claim-builder/
+
+# Local Claude Code tool config (machine-specific, not meant to be shared)
+.claude/
+
+# Python
+__pycache__/
+*.pyc

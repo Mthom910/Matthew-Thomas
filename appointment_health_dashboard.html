@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Appointment Health — Wynstan / Victory</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2333;
+    --paper:#F3F1EA;
+    --panel:#FFFFFF;
+    --navy:#16283D;
+    --gold:#B08D3E;
+    --gold-soft:#E6D9B8;
+    --teal:#3F6E6A;
+    --rose:#B0473F;
+    --rose-soft:#F1DCD9;
+    --sage:#4C6B4E;
+    --sage-soft:#DCE6DA;
+    --amber:#C08A2E;
+    --amber-soft:#F1E1C2;
+    --line:#DEDACC;
+    --muted:#6B6A62;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:36px 28px 80px;}
+
+  /* HEADER */
+  .masthead{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--navy);
+    padding-bottom:18px;margin-bottom:28px;
+    flex-wrap:wrap;gap:16px;
+  }
+  .masthead-title .eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--gold);margin-bottom:6px;
+  }
+  .masthead-title h1{
+    font-family:'Fraunces',serif;font-weight:600;font-size:32px;margin:0;
+    color:var(--navy);letter-spacing:-0.01em;
+  }
+  .masthead-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .brand-toggle{
+    display:flex;border:1px solid var(--navy);border-radius:999px;overflow:hidden;
+  }
+  .brand-toggle button{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
+    padding:9px 20px;border:none;background:var(--panel);color:var(--navy);
+    cursor:pointer;transition:.15s;
+  }
+  .brand-toggle button.active{background:var(--navy);color:#fff;}
+  select{
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+    padding:9px 14px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);cursor:pointer;
+  }
+
+  /* KPI STRIP */
+  .kpi-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;
+  }
+  .kpi{
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    padding:20px 20px 18px;position:relative;overflow:hidden;
+  }
+  .kpi::before{
+    content:'';position:absolute;top:0;left:0;width:4px;height:100%;
+    background:var(--kpi-accent,var(--gold));
+  }
+  .kpi .label{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:10px;
+  }
+  .kpi .value{
+    font-family:'Fraunces',serif;font-weight:600;font-size:34px;color:var(--navy);
+    display:flex;align-items:baseline;gap:8px;
+  }
+  .kpi .value .unit{font-size:16px;color:var(--muted);font-weight:500;}
+  .kpi .delta{font-size:12.5px;margin-top:8px;font-weight:500;}
+  .delta.up{color:var(--sage);}
+  .delta.down{color:var(--rose);}
+  .kpi .target{font-size:11.5px;color:var(--muted);margin-top:2px;}
+
+  /* SECTION HEADER */
+  .section-head{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin:44px 0 16px;border-bottom:1px solid var(--line);padding-bottom:10px;
+  }
+  .section-head h2{
+    font-family:'Fraunces',serif;font-weight:600;font-size:20px;margin:0;color:var(--navy);
+  }
+  .section-head .note{font-size:12.5px;color:var(--muted);}
+
+  /* DIARY STRIP — signature element */
+  .diary-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:24px 24px 20px;
+  }
+  .diary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .diary-header .who{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+  .diary-legend{display:flex;gap:16px;font-size:12px;color:var(--muted);flex-wrap:wrap;}
+  .legend-dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+  .diary-grid{
+    display:grid;grid-template-columns:60px repeat(5,1fr);gap:4px;
+  }
+  .diary-grid .time-label{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);
+    display:flex;align-items:center;justify-content:flex-end;padding-right:6px;
+  }
+  .diary-grid .day-label{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:12px;color:var(--navy);
+    text-align:center;padding-bottom:6px;
+  }
+  .slot{
+    height:26px;border-radius:2px;cursor:default;position:relative;
+  }
+  .slot.filled{background:var(--sage-soft);border:1px solid var(--sage);}
+  .slot.noshow{background:var(--rose-soft);border:1px solid var(--rose);}
+  .slot.cancelled{background:var(--amber-soft);border:1px solid var(--amber);}
+  .slot.open{background:transparent;border:1px dashed var(--line);}
+  .slot:hover::after{
+    content:attr(data-tip);position:absolute;bottom:110%;left:50%;transform:translateX(-50%);
+    background:var(--navy);color:#fff;font-size:11px;padding:4px 8px;border-radius:3px;
+    white-space:nowrap;z-index:5;font-family:'Inter',sans-serif;
+  }
+  .diary-footnote{margin-top:14px;font-size:12px;color:var(--muted);}
+  .diary-footnote strong{color:var(--rose);font-weight:600;}
+
+  /* TABLE */
+  .table-card{background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:500;
+  }
+  tbody td{padding:13px 16px;border-bottom:1px solid var(--line);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAF8F2;}
+  .name-cell{font-weight:600;color:var(--navy);}
+  .region-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);
+  }
+  .bar-cell{display:flex;align-items:center;gap:10px;min-width:140px;}
+  .bar-track{flex:1;height:7px;background:var(--line);border-radius:99px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:99px;background:var(--teal);}
+  .bar-fill.low{background:var(--rose);}
+  .bar-fill.mid{background:var(--amber);}
+  .bar-fill.high{background:var(--sage);}
+  .num{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);}
+  .flag{
+    display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;
+    font-family:'Inter',sans-serif;
+  }
+  .flag.watch{background:var(--rose-soft);color:var(--rose);}
+  .flag.ok{background:var(--sage-soft);color:var(--sage);}
+
+  /* CHART */
+  .chart-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:22px;
+  }
+  .chart-wrap{height:280px;}
+
+  .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start;}
+
+  footer{margin-top:50px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;}
+
+  @media (max-width:860px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .grid-2{grid-template-columns:1fr;}
+    .diary-grid{grid-template-columns:40px repeat(5,1fr);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="masthead-title">
+      <div class="eyebrow">Sales Ops · Appointment Diary</div>
+      <h1>Appointment Health</h1>
+      <div class="masthead-sub">Wait time · fill rate · booking accuracy · diary utilisation — MTD</div>
+      <div class="masthead-sub" id="dataStatus" style="margin-top:2px;"></div>
+    </div>
+    <div class="controls">
+      <div class="brand-toggle" id="brandToggle">
+        <button data-brand="wynstan" class="active">Wynstan</button>
+        <button data-brand="victory">Victory</button>
+      </div>
+      <select id="regionSelect"></select>
+    </div>
+  </div>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="section-head">
+    <h2>This Week's Diary — <span id="diaryConsultantLabel"></span></h2>
+    <div class="note">Every open slot is lost capacity. Hover a slot for detail.</div>
+  </div>
+  <div class="diary-card">
+    <div class="diary-header">
+      <div class="controls">
+        <select id="consultantSelect"></select>
+      </div>
+      <div class="diary-legend">
+        <span><span class="legend-dot" style="background:var(--sage-soft);border:1px solid var(--sage)"></span>Held</span>
+        <span><span class="legend-dot" style="background:var(--rose-soft);border:1px solid var(--rose)"></span>No-show</span>
+        <span><span class="legend-dot" style="background:var(--amber-soft);border:1px solid var(--amber)"></span>Cancelled</span>
+        <span><span class="legend-dot" style="border:1px dashed var(--line)"></span>Open / unfilled</span>
+      </div>
+    </div>
+    <div class="diary-grid" id="diaryGrid"></div>
+    <div class="diary-footnote" id="diaryFootnote"></div>
+  </div>
+
+  <div class="section-head">
+    <h2>Consultant &amp; Region Breakdown</h2>
+    <div class="note">Sorted by fill rate</div>
+  </div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Consultant</th><th>Region</th><th>Fill Rate</th><th>No-Show %</th>
+          <th>Avg Wait (days)</th><th>Slots Offered</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="consultantTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-head">
+    <h2>Fill Rate Trend — Last 8 Weeks</h2>
+    <div class="note">Target: 85%</div>
+  </div>
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-wrap"><canvas id="reasonChart"></canvas></div>
+    </div>
+  </div>
+
+  <footer>
+    Victory data is pulled live from Insyte and refreshed on a schedule by <code>refresh_appointment_data.py</code> (see README). Wynstan still shows sample data pending separate Wynstan API access. Built for Wynstan &amp; Victory sales operations reporting.
+  </footer>
+</div>
+
+<script>
+/* =========================================================
+   SAMPLE_DATA — fallback shown when the live feed is unavailable,
+   and permanent placeholder for Wynstan (no live API access yet).
+   Structure: DATA[brand].regions[region].consultants[]
+   ========================================================= */
+const SAMPLE_DATA = {
+  wynstan: {
+    kpis: { fillRate: 71, fillRateDelta: -4, noShow: 9.2, noShowDelta: 1.1, avgWait: 6.4, avgWaitDelta: -0.3, onTime: 82, onTimeDelta: 2 },
+    regions: {
+      "All Regions": null,
+      "VIC": {
+        consultants: [
+          { name: "Grace Nolan", fill: 88, noShow: 4.1, wait: 4.8, offered: 42 },
+          { name: "Tom Halloran", fill: 79, noShow: 6.0, wait: 5.5, offered: 38 },
+          { name: "Priya Nair", fill: 63, noShow: 11.4, wait: 8.1, offered: 35 },
+          { name: "Jayden Cole", fill: 58, noShow: 14.2, wait: 9.0, offered: 31 },
+        ]
+      },
+      "NSW": {
+        consultants: [
+          { name: "Sam Whitford", fill: 91, noShow: 3.0, wait: 3.9, offered: 44 },
+          { name: "Ella Marsh", fill: 74, noShow: 8.5, wait: 6.2, offered: 33 },
+          { name: "Ravi Desai", fill: 66, noShow: 10.0, wait: 7.4, offered: 29 },
+        ]
+      },
+      "QLD": {
+        consultants: [
+          { name: "Chloe Beattie", fill: 69, noShow: 9.8, wait: 6.9, offered: 30 },
+          { name: "Marcus Wu", fill: 55, noShow: 15.0, wait: 9.8, offered: 27 },
+        ]
+      }
+    },
+    diary: {
+      "Grace Nolan": weekPattern([1,1,1,2,0, 1,1,1,1,0, 1,1,0,1,3]),
+      "Tom Halloran": weekPattern([1,1,3,1,0, 1,0,1,1,1, 1,1,1,0,0]),
+      "Priya Nair": weekPattern([1,0,0,1,3, 1,1,0,0,3, 1,0,3,3,1]),
+      "Jayden Cole": weekPattern([0,3,1,0,3, 1,0,3,0,1, 1,3,0,3,0]),
+      "Sam Whitford": weekPattern([1,1,1,1,1, 1,1,2,1,1, 1,1,1,0,1]),
+      "Ella Marsh": weekPattern([1,1,0,1,3, 1,0,1,1,0, 1,1,3,1,0]),
+      "Ravi Desai": weekPattern([1,3,0,1,0, 3,1,0,1,3, 0,1,1,0,1]),
+      "Chloe Beattie": weekPattern([1,0,1,3,1, 0,1,1,0,3, 1,0,1,1,0]),
+      "Marcus Wu": weekPattern([0,3,0,3,1, 0,3,1,0,3, 1,0,3,0,1]),
+    },
+    trend: [79,77,75,74,73,72,70,71],
+    reasons: { "Understaffed slot": 34, "Late cancellation": 26, "No qualifying lead": 22, "Admin/system delay": 18 }
+  },
+  victory: {
+    kpis: { fillRate: 76, fillRateDelta: 2, noShow: 7.5, noShowDelta: -0.6, avgWait: 5.1, avgWaitDelta: -0.8, onTime: 88, onTimeDelta: 1 },
+    regions: {
+      "All Regions": null,
+      "VIC": {
+        consultants: [
+          { name: "Harriet Voss", fill: 90, noShow: 3.4, wait: 4.0, offered: 40 },
+          { name: "Ben Occhipinti", fill: 82, noShow: 5.2, wait: 4.9, offered: 37 },
+          { name: "Nadia Farhan", fill: 68, noShow: 9.9, wait: 6.8, offered: 33 },
+        ]
+      },
+      "QLD": {
+        consultants: [
+          { name: "Liam Prosser", fill: 80, noShow: 6.1, wait: 5.0, offered: 36 },
+          { name: "Ayesha Khan", fill: 72, noShow: 8.0, wait: 5.9, offered: 31 },
+          { name: "Dean Fowler", fill: 60, noShow: 12.5, wait: 8.4, offered: 28 },
+        ]
+      },
+      "SA": {
+        consultants: [
+          { name: "Ines Calder", fill: 84, noShow: 4.9, wait: 4.4, offered: 34 },
+          { name: "Oscar Lin", fill: 65, noShow: 11.0, wait: 7.7, offered: 26 },
+        ]
+      }
+    },
+    diary: {
+      "Harriet Voss": weekPattern([1,1,1,1,1, 1,1,2,1,1, 1,1,1,1,0]),
+      "Ben Occhipinti": weekPattern([1,1,1,0,1, 1,0,1,1,1, 1,1,0,1,1]),
+      "Nadia Farhan": weekPattern([1,0,1,3,0, 1,1,0,1,3, 1,0,1,0,1]),
+      "Liam Prosser": weekPattern([1,1,0,1,1, 1,1,1,0,1, 1,0,1,1,1]),
+      "Ayesha Khan": weekPattern([1,0,1,1,3, 1,0,1,1,0, 1,1,0,3,1]),
+      "Dean Fowler": weekPattern([0,1,3,0,1, 3,1,0,3,1, 0,1,3,0,1]),
+      "Ines Calder": weekPattern([1,1,1,1,0, 1,1,1,0,1, 1,1,1,1,1]),
+      "Oscar Lin": weekPattern([1,0,3,1,0, 1,3,0,1,1, 0,1,3,0,1]),
+    },
+    trend: [70,71,73,72,74,75,74,76],
+    reasons: { "Understaffed slot": 22, "Late cancellation": 30, "No qualifying lead": 20, "Admin/system delay": 28 }
+  }
+};
+
+// 0=open,1=filled,2=noshow,3=cancelled — 15 slots per consultant (3/day x 5 days: 9am/12pm/3pm)
+function weekPattern(codes){
+  const map = ["open","filled","noshow","cancelled"];
+  return codes.map(c=>map[c]);
+}
+
+/* =========================================================
+   LIVE DATA — fetches insyte_appointment_data.json (written on a
+   schedule by refresh_appointment_data.py). Falls back to SAMPLE_DATA
+   if the feed is missing, unreadable, or errors. Wynstan has no live
+   API access yet, so it always renders from SAMPLE_DATA.
+   ========================================================= */
+let DATA = null;
+let dataMeta = { source: "sample", generatedAt: null, dataQuality: null };
+
+async function loadData(){
+  try{
+    const r = await fetch('./insyte_appointment_data.json', {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const live = await r.json();
+    if(!live.victory) throw new Error('feed missing "victory" data');
+    DATA = { wynstan: SAMPLE_DATA.wynstan, victory: live.victory };
+    dataMeta = { source: "live", generatedAt: live.generatedAt || null, dataQuality: live.dataQuality || null };
+  } catch(e){
+    console.error('Failed to load insyte_appointment_data.json:', e.message);
+    DATA = SAMPLE_DATA;
+    dataMeta = { source: "sample", generatedAt: null, dataQuality: null, error: e.message };
+  }
+}
+
+function renderDataStatus(){
+  const el = document.getElementById('dataStatus');
+  const parts = [];
+  if(dataMeta.source === "live" && dataMeta.generatedAt){
+    const ageMin = Math.round((Date.now() - new Date(dataMeta.generatedAt).getTime())/60000);
+    const stale = ageMin > 60;
+    parts.push(`<span style="color:${stale?'var(--rose)':'var(--sage)'};font-weight:600;">Victory: live feed, updated ${ageMin}m ago${stale?' — stale, check the refresh job':''}</span>`);
+    if(dataMeta.dataQuality){
+      const cov = Math.round(dataMeta.dataQuality.capacityNoteCoverage*100);
+      parts.push(`<span>· roster-capacity coverage ${cov}%</span>`);
+    }
+  } else if(dataMeta.error){
+    parts.push(`<span style="color:var(--rose);font-weight:600;">Victory: live feed unavailable (${dataMeta.error}) — showing sample data</span>`);
+  } else {
+    parts.push(`<span>Victory: sample data</span>`);
+  }
+  parts.push(`<span>· Wynstan: sample data (no live API access yet)</span>`);
+  el.innerHTML = parts.join(' ');
+}
+
+let state = { brand: "wynstan", region: "All Regions", consultant: null };
+
+const days = ["Mon","Tue","Wed","Thu","Fri"];
+const times = ["9:00am","12:00pm","3:00pm"];
+
+function fmtDelta(val, invert=false){
+  if(val === null || val === undefined) return `<span class="delta">—</span>`;
+  const good = invert ? val < 0 : val > 0;
+  const cls = good ? "up" : "down";
+  const sign = val > 0 ? "+" : "";
+  return `<span class="delta ${cls}">${sign}${val}${typeof val==='number'&&Math.abs(val)<20?'':''} vs last MTD</span>`;
+}
+
+function fmtVal(val){
+  return (val === null || val === undefined) ? "N/A" : val;
+}
+
+function renderRegionSelect(){
+  const brandData = DATA[state.brand];
+  const sel = document.getElementById('regionSelect');
+  sel.innerHTML = "";
+  Object.keys(brandData.regions).forEach(r=>{
+    const opt = document.createElement('option');
+    opt.value = r; opt.textContent = r;
+    sel.appendChild(opt);
+  });
+  sel.value = state.region;
+}
+
+function allConsultants(){
+  const brandData = DATA[state.brand];
+  if(state.region === "All Regions"){
+    return Object.values(brandData.regions).filter(Boolean).flatMap(r=>r.consultants);
+  }
+  return brandData.regions[state.region].consultants;
+}
+
+function renderConsultantSelect(){
+  const sel = document.getElementById('consultantSelect');
+  sel.innerHTML = "";
+  const list = allConsultants();
+  list.forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c.name; opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+  if(!list.find(c=>c.name===state.consultant)){
+    state.consultant = list[0]?.name || null;
+  }
+  sel.value = state.consultant;
+  document.getElementById('diaryConsultantLabel').textContent = state.consultant || "";
+}
+
+function renderKPIs(){
+  const k = DATA[state.brand].kpis;
+  const grid = document.getElementById('kpiGrid');
+  grid.innerHTML = `
+    <div class="kpi" style="--kpi-accent:var(--teal)">
+      <div class="label">Fill Rate</div>
+      <div class="value">${fmtVal(k.fillRate)}<span class="unit">${k.fillRate==null?'':'%'}</span></div>
+      ${fmtDelta(k.fillRateDelta)}
+      <div class="target">Target 85%</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--rose)">
+      <div class="label">No-Show Rate</div>
+      <div class="value">${fmtVal(k.noShow)}<span class="unit">${k.noShow==null?'':'%'}</span></div>
+      ${fmtDelta(k.noShowDelta, true)}
+      <div class="target">Target &lt;6%</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--gold)">
+      <div class="label">Avg Wait to Book</div>
+      <div class="value">${fmtVal(k.avgWait)}<span class="unit">${k.avgWait==null?'':'days'}</span></div>
+      ${fmtDelta(k.avgWaitDelta, true)}
+      <div class="target">SLA 5 days</div>
+    </div>
+    <div class="kpi" style="--kpi-accent:var(--sage)">
+      <div class="label">On-Time Rate (day-of)</div>
+      <div class="value">${fmtVal(k.onTime)}<span class="unit">${k.onTime==null?'':'%'}</span></div>
+      ${fmtDelta(k.onTimeDelta)}
+      <div class="target">${k.onTime==null?'Not tracked in Insyte':'Target 90%'}</div>
+    </div>
+  `;
+}
+
+function renderDiary(){
+  const grid = document.getElementById('diaryGrid');
+  grid.innerHTML = "";
+  grid.appendChild(document.createElement('div'));
+  days.forEach(d=>{
+    const el = document.createElement('div');
+    el.className = 'day-label'; el.textContent = d;
+    grid.appendChild(el);
+  });
+  const pattern = DATA[state.brand].diary[state.consultant] || [];
+  let openCount = 0;
+  times.forEach((t, ti)=>{
+    const label = document.createElement('div');
+    label.className = 'time-label'; label.textContent = t;
+    grid.appendChild(label);
+    days.forEach((d, di)=>{
+      const idx = di*3 + ti;
+      const status = pattern[idx] || "open";
+      if(status === "open") openCount++;
+      const cell = document.createElement('div');
+      cell.className = 'slot ' + status;
+      const tipMap = { filled:"Consult held", noshow:"Client no-show", cancelled:"Cancelled by client", open:"Unfilled slot" };
+      cell.setAttribute('data-tip', `${d} ${t} — ${tipMap[status]}`);
+      grid.appendChild(cell);
+    });
+  });
+  const total = pattern.length || 15;
+  document.getElementById('diaryFootnote').innerHTML =
+    `<strong>${openCount} of ${total} slots</strong> unfilled this week for ${state.consultant} — recoverable via waitlist offer or reduced lead time.`;
+}
+
+function renderTable(){
+  const body = document.getElementById('consultantTableBody');
+  const brandData = DATA[state.brand];
+  let rows = [];
+  Object.entries(brandData.regions).forEach(([region, data])=>{
+    if(!data) return;
+    if(state.region !== "All Regions" && state.region !== region) return;
+    data.consultants.forEach(c=> rows.push({...c, region}));
+  });
+  rows.sort((a,b)=> b.fill - a.fill);
+  body.innerHTML = rows.map(c=>{
+    const barClass = c.fill >= 80 ? 'high' : c.fill >= 65 ? 'mid' : 'low';
+    const status = c.fill >= 75 ? '<span class="flag ok">On track</span>' : '<span class="flag watch">Needs attention</span>';
+    return `
+      <tr>
+        <td class="name-cell">${c.name}</td>
+        <td class="region-tag">${c.region}</td>
+        <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill ${barClass}" style="width:${c.fill}%"></div></div><span class="num">${c.fill}%</span></div></td>
+        <td class="num">${c.noShow}%</td>
+        <td class="num">${fmtVal(c.wait)}${c.wait==null?'':'d'}</td>
+        <td class="num">${c.offered}</td>
+        <td>${status}</td>
+      </tr>`;
+  }).join("");
+}
+
+let trendChartInstance, reasonChartInstance;
+function renderCharts(){
+  const brandData = DATA[state.brand];
+  const weeks = Array.from({length:8},(_,i)=>`W-${8-i}`);
+
+  const trendCtx = document.getElementById('trendChart');
+  if(trendChartInstance) trendChartInstance.destroy();
+  trendChartInstance = new Chart(trendCtx, {
+    type:'line',
+    data:{
+      labels: weeks,
+      datasets:[{
+        label:'Fill rate %',
+        data: brandData.trend,
+        borderColor:'#3F6E6A',
+        backgroundColor:'rgba(63,110,106,0.08)',
+        borderWidth:2.5,
+        pointRadius:3,
+        pointBackgroundColor:'#3F6E6A',
+        fill:true,
+        tension:.3
+      },{
+        label:'Target',
+        data: weeks.map(()=>85),
+        borderColor:'#B08D3E',
+        borderDash:[5,4],
+        borderWidth:1.5,
+        pointRadius:0,
+        fill:false
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ font:{ family:"Inter", size:11 }, boxWidth:10 } } },
+      scales:{
+        y:{ min:40, max:100, ticks:{ font:{family:"IBM Plex Mono", size:10} }, grid:{ color:'#EDE9DC' } },
+        x:{ ticks:{ font:{family:"IBM Plex Mono", size:10} }, grid:{ display:false } }
+      }
+    }
+  });
+
+  const reasonCtx = document.getElementById('reasonChart');
+  if(reasonChartInstance) reasonChartInstance.destroy();
+  const reasons = brandData.reasons;
+  reasonChartInstance = new Chart(reasonCtx, {
+    type:'bar',
+    data:{
+      labels: Object.keys(reasons),
+      datasets:[{
+        data: Object.values(reasons),
+        backgroundColor: ['#B0473F','#C08A2E','#3F6E6A','#7A8577'],
+        borderRadius:3,
+        barThickness:22
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false }, title:{ display:true, text:'Unfilled-slot reasons (share %)', font:{family:'Inter', size:12, weight:'600'}, color:'#6B6A62', padding:{bottom:10} } },
+      scales:{
+        x:{ max:40, ticks:{ font:{family:"IBM Plex Mono", size:10} }, grid:{ color:'#EDE9DC' } },
+        y:{ ticks:{ font:{family:"Inter", size:11.5} }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
+function renderAll(){
+  renderRegionSelect();
+  renderConsultantSelect();
+  renderKPIs();
+  renderDiary();
+  renderTable();
+  renderCharts();
+}
+
+document.getElementById('brandToggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.querySelectorAll('#brandToggle button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  state.brand = btn.dataset.brand;
+  state.region = "All Regions";
+  state.consultant = null;
+  renderAll();
+});
+
+document.getElementById('regionSelect').addEventListener('change', (e)=>{
+  state.region = e.target.value;
+  state.consultant = null;
+  renderConsultantSelect();
+  renderDiary();
+  renderTable();
+});
+
+document.getElementById('consultantSelect').addEventListener('change', (e)=>{
+  state.consultant = e.target.value;
+  document.getElementById('diaryConsultantLabel').textContent = state.consultant;
+  renderDiary();
+});
+
+(async function init(){
+  await loadData();
+  renderDataStatus();
+  renderAll();
+})();
+</script>
+</body>
+</html>

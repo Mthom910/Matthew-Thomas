@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Revenue Management Initiative — $5K+ Opportunity Conversion Analysis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#EEF1F6;
+  --card:#FFFFFF;
+  --border:#E3E7EF;
+  --navy:#16224A;
+  --navy-2:#1B2C55;
+  --text:#1F2937;
+  --muted:#6B7280;
+  --muted-2:#94A3B8;
+  --blue:#2F6FEB;
+  --blue-soft:#EAF0FE;
+  --blue-light:#B9CBF3;
+  --purple:#7C4DFF;
+  --purple-soft:#F1ECFF;
+  --purple-light:#D9CCFF;
+  --green:#15A24A;
+  --green-soft:#E9F8EF;
+  --red:#DC2626;
+  --red-soft:#FBEAEA;
+  --orange:#F59E0B;
+  --orange-soft:#FDF1DC;
+  --teal:#0D9488;
+  --teal-soft:#E3F5F3;
+  --gray:#94A3B8;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 24px 90px;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+a{color:inherit;}
+
+/* ---------- HEADER ---------- */
+.tags{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.tag{
+  font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;
+  background:var(--purple-soft);color:var(--purple);
+}
+.tag.blue{background:var(--blue-soft);color:var(--blue);}
+
+.masthead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:22px;}
+.masthead h1{font-size:28px;font-weight:800;margin:0 0 6px;color:var(--navy);letter-spacing:-0.01em;}
+.masthead .sub{font-size:14px;color:var(--muted);}
+.masthead .sub b{color:var(--text);}
+
+.head-actions{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.updated{font-size:12px;color:var(--muted-2);}
+.btn{
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+  padding:10px 18px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card);color:var(--navy);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.btn.primary:hover{background:#255ecf;}
+.btn.small{padding:7px 12px;font-size:12px;}
+.btn:hover{background:#F4F6FA;}
+.btn.primary:hover{background:#255ecf;}
+
+/* ---------- CONFIG PANEL ---------- */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:22px 24px;margin-bottom:20px;box-shadow:0 1px 2px rgba(16,24,40,.04);
+}
+#configPanel{display:none;}
+#configPanel.open{display:block;}
+.cfg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 24px;margin-bottom:18px;}
+.cfg-grid.wide{grid-template-columns:repeat(2,1fr);}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.field input{
+  width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:14px;color:var(--text);background:#fff;
+}
+.field .hint{font-size:11px;color:var(--muted-2);margin-top:4px;}
+.tier-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+.tier-row .field{flex:1;min-width:110px;}
+.date-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.date-row .field{flex:1;min-width:140px;}
+.date-row span{color:var(--muted-2);font-size:13px;padding-top:18px;}
+.cfg-footer{display:flex;justify-content:flex-end;padding-top:6px;border-top:1px solid var(--border);margin-top:4px;}
+.btn.save{background:#0F7A4C;border-color:#0F7A4C;color:#fff;padding:11px 22px;}
+.btn.save:hover{background:#0b6540;}
+
+/* ---------- INSIGHT BANNER ---------- */
+.banner{
+  border-radius:10px;padding:18px 20px;margin-bottom:22px;
+  border-left:4px solid var(--green);background:var(--green-soft);
+}
+.banner.mixed{border-left-color:var(--orange);background:var(--orange-soft);}
+.banner.negative{border-left-color:var(--red);background:var(--red-soft);}
+.banner .btitle{font-weight:700;font-size:14.5px;margin-bottom:6px;color:var(--text);}
+.banner .btext{font-size:13.5px;line-height:1.55;color:#374151;}
+
+/* ---------- GRIDS ---------- */
+.grid{display:grid;gap:18px;margin-bottom:18px;}
+.grid.cols-4{grid-template-columns:repeat(4,1fr);}
+.grid.cols-2{grid-template-columns:1.05fr 1.4fr;}
+.grid.cols-2-even{grid-template-columns:1fr 1fr;}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.grid.pipeline{grid-template-columns:1.6fr 1fr;}
+.grid.aov{grid-template-columns:1.2fr 1fr;}
+.grid.margin{grid-template-columns:0.8fr 1.6fr;}
+.grid.waterfall{grid-template-columns:0.9fr 1.5fr;}
+@media (max-width:1000px){
+  .grid.cols-4{grid-template-columns:repeat(2,1fr);}
+  .grid.cols-2, .grid.cols-2-even, .grid.cols-3, .grid.pipeline, .grid.aov, .grid.margin, .grid.waterfall{grid-template-columns:1fr;}
+  .cfg-grid{grid-template-columns:repeat(2,1fr);}
+}
+
+/* ---------- KPI CARDS ---------- */
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.kpi-card.highlight{border:2px solid var(--purple);background:linear-gradient(180deg,#FAF8FF, #F5F1FF);}
+.kpi-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.kpi-label.hl{color:var(--purple);}
+.kpi-cols{display:flex;gap:14px;}
+.kpi-col{flex:1;}
+.kpi-col .yr{font-size:11px;font-weight:700;color:var(--blue);margin-bottom:3px;}
+.kpi-col.dim .yr{color:var(--muted-2);}
+.kpi-col .val{font-size:24px;font-weight:800;color:var(--text);line-height:1.1;}
+.kpi-col.dim .val{color:var(--muted-2);font-weight:700;}
+.kpi-col .val.purple{color:var(--purple);}
+.kpi-col .val.purple.dim{color:#C7B6F5;}
+.kpi-col .lbl{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.kpi-delta{margin-top:12px;font-size:12.5px;font-weight:700;}
+.kpi-delta.up{color:var(--green);}
+.kpi-delta.down{color:var(--red);}
+.kpi-delta .arrow{display:inline-block;margin-right:2px;}
+
+/* ---------- CARD TITLES ---------- */
+.card-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.card-title .right{float:right;text-transform:none;letter-spacing:0;font-weight:500;}
+.card-sub{font-size:12px;color:var(--muted-2);margin:-10px 0 16px;}
+
+/* ---------- CONVERSION CARD ---------- */
+.conv-big{display:flex;gap:20px;margin-bottom:16px;}
+.conv-big .box{flex:1;background:var(--blue-soft);border-radius:8px;padding:12px 14px;}
+.conv-big .box.dim{background:#F4F5F7;}
+.conv-big .yr{font-size:11px;font-weight:700;color:var(--blue);}
+.conv-big .box.dim .yr{color:var(--muted-2);}
+.conv-big .num{font-size:26px;font-weight:800;margin:2px 0;}
+.conv-big .box.dim .num{color:var(--muted-2);}
+.conv-big .lbl{font-size:11.5px;color:var(--muted);}
+.conv-delta{font-size:12.5px;font-weight:700;color:var(--green);margin-bottom:14px;}
+.mini-rows{font-size:13px;}
+.mini-rows .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);}
+.mini-rows .row:last-child{border-bottom:none;}
+.mini-rows .row .k{color:var(--muted);}
+.mini-rows .row .v{font-weight:700;}
+.mini-rows .row .v .sub{font-weight:500;color:var(--muted-2);font-size:12px;margin-left:4px;}
+.mini-rows.section-head{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);margin:14px 0 4px;}
+.foot-note{font-size:11.5px;color:var(--muted-2);margin-top:12px;line-height:1.5;}
+.trip-summary{display:flex;gap:10px;margin-top:10px;}
+.trip-summary .t{flex:1;text-align:left;}
+.trip-summary .t .lbl{font-size:11px;color:var(--muted-2);}
+.trip-summary .t .v{font-size:16px;font-weight:800;}
+
+/* ---------- TABLES ---------- */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  background:var(--navy);color:#fff;text-align:left;font-weight:600;
+  padding:10px 12px;font-size:12px;
+}
+thead th.num{text-align:right;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--border);}
+tbody td.num{text-align:right;font-variant-numeric:tabular-nums;}
+tbody tr:nth-child(even){background:#FAFBFD;}
+tbody tr.total-row td{font-weight:700;border-top:2px solid var(--navy);background:#F4F6FA;}
+tbody tr.hl-row td{background:var(--purple-soft);}
+.up{color:var(--green);font-weight:700;}
+.down{color:var(--red);font-weight:700;}
+.pos{color:var(--blue);font-weight:700;}
+.tbl-scroll{overflow-x:auto;max-height:420px;overflow-y:auto;}
+.tbl-scroll thead th{position:sticky;top:0;z-index:1;}
+select.plain{
+  font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;padding:7px 10px;
+  border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--navy);cursor:pointer;
+}
+
+/* ---------- STAGE / BAND CARDS ---------- */
+.band-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.band-card .tag2{font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:10px;}
+.band-card.below .tag2{color:#166534;}
+.band-card.above .tag2{color:var(--purple);}
+
+/* ---------- ADOPTION BARS ---------- */
+.adopt-row{margin-bottom:14px;}
+.adopt-row.hl{background:var(--purple-soft);border:1px solid var(--purple-light);border-radius:8px;padding:10px 12px;margin:-2px -2px 14px;}
+.adopt-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;}
+.adopt-top .name{font-weight:700;}
+.adopt-row.hl .name{color:var(--purple);}
+.adopt-top .nums{font-weight:700;color:var(--muted);}
+.bar-track{height:7px;border-radius:99px;background:#EDEFF3;overflow:hidden;}
+.bar-fill{height:100%;border-radius:99px;background:var(--blue);}
+.adopt-row.hl .bar-fill{background:var(--purple);}
+.adopt-pct{font-size:11.5px;color:var(--muted-2);margin-top:5px;}
+
+/* ---------- CHART CONTAINERS ---------- */
+.chart-box{position:relative;}
+.chart-box.h260{height:260px;}
+.chart-box.h300{height:300px;}
+.chart-box.h340{height:340px;}
+.chart-box.h200{height:200px;}
+.legend-note{font-size:11px;color:var(--muted-2);text-align:center;margin-top:8px;}
+
+/* ---------- COMMISSION SECTION ---------- */
+.comm-stats{display:flex;gap:34px;margin-bottom:4px;flex-wrap:wrap;}
+.comm-stats .s .lbl{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);}
+.comm-stats .s .v{font-size:21px;font-weight:800;margin-top:4px;}
+.comm-desc{font-size:12.5px;color:var(--muted-2);margin:-2px 0 18px;}
+
+/* ---------- WATERFALL / FUNNEL ---------- */
+.wf-list .row{padding:14px 0;border-bottom:1px solid var(--border);}
+.wf-list .row:last-child{border-bottom:none;}
+.wf-list .row .lbl{font-size:13px;color:var(--muted);}
+.wf-list .row .v{font-size:20px;font-weight:800;margin-top:2px;}
+.wf-list .row .sub{font-size:11.5px;color:var(--muted-2);margin-top:2px;}
+.wf-inputs{display:flex;gap:10px;align-items:center;}
+.wf-inputs input{width:80px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;}
+.wf-inputs .toggle{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.wf-inputs .toggle button{border:none;background:#fff;padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--navy);}
+.wf-inputs .toggle button.active{background:var(--blue);color:#fff;}
+
+.funnel-row{display:flex;gap:0;flex-wrap:wrap;align-items:stretch;}
+.funnel-box{
+  flex:1;min-width:130px;border-radius:10px;padding:14px 12px;text-align:center;
+  border:1px solid var(--border);
+}
+.funnel-box .lbl{font-size:11px;font-weight:700;text-transform:uppercase;}
+.funnel-box .v{font-size:22px;font-weight:800;margin:6px 0 2px;}
+.funnel-box .sub{font-size:11px;color:var(--muted-2);}
+.funnel-arrow{display:flex;align-items:center;justify-content:center;min-width:56px;font-size:12px;font-weight:700;color:var(--muted);flex-direction:column;padding:0 4px;}
+.funnel-extra{display:flex;gap:10px;margin-left:14px;flex-wrap:wrap;flex:1.6;}
+@media (max-width:1100px){.funnel-row{flex-direction:column;}.funnel-arrow{flex-direction:row;min-width:0;padding:6px 0;}.funnel-extra{margin-left:0;}}
+
+.section-gap{margin-top:30px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tags">
+    <span class="tag">Revenue Management Initiative</span>
+    <span class="tag blue">35–40% Discount Bracket</span>
+  </div>
+
+  <div class="masthead">
+    <div>
+      <h1>$5K+ Opportunity Conversion Analysis</h1>
+      <div class="sub" id="subLine">YTD <b>2026</b> vs YTD <b>2025</b> — same calendar period comparison</div>
+    </div>
+    <div class="head-actions">
+      <span class="updated" id="updatedLabel">Loading…</span>
+      <button class="btn primary" id="refreshBtn">↻ Refresh</button>
+      <button class="btn" id="configBtn">⚙ Config</button>
+    </div>
+  </div>
+
+  <!-- CONFIG PANEL -->
+  <div class="card" id="configPanel">
+    <div class="cfg-grid">
+      <div class="field"><label>API Base URL</label><input id="cfgBaseUrl" value="https://api.myinsyte.com.au/v2" readonly></div>
+      <div class="field"><label>Email</label><input id="cfgEmail" value="matthew.thomas@wynstan.com.au" readonly></div>
+      <div class="field"><label>API Key</label><input id="cfgApiKey" type="password" placeholder="•••••••••••••••••••••• (kept in refresh_initiative_data.py, not here)" readonly></div>
+      <div class="field"><label>Min Job Value ($)</label><input id="cfgMinValue" type="number" step="500" value="5000"></div>
+    </div>
+    <div class="cfg-grid wide">
+      <div class="field">
+        <label>Base Commission Rate (%)</label>
+        <input id="cfgBaseRate" type="number" step="0.5" value="8">
+        <div class="hint">Applied to revenue on all $5K+ won jobs</div>
+      </div>
+      <div class="field">
+        <label>Initiative Premium Tiers — 35–40% bracket (%)</label>
+        <div class="tier-row">
+          <div class="field"><label class="hint" style="margin-bottom:3px;">35.00–36.25%</label><input id="cfgTier0" type="number" step="0.5" value="7"></div>
+          <div class="field"><label class="hint" style="margin-bottom:3px;">36.25–37.50%</label><input id="cfgTier1" type="number" step="0.5" value="6"></div>
+          <div class="field"><label class="hint" style="margin-bottom:3px;">37.50–38.75%</label><input id="cfgTier2" type="number" step="0.5" value="5"></div>
+          <div class="field"><label class="hint" style="margin-bottom:3px;">38.75–40.00%</label><input id="cfgTier3" type="number" step="0.5" value="4"></div>
+        </div>
+        <div class="hint">Premium on top of base rate — highest at the low end of the bracket, tapering down, to reward adoption without over-paying at the top</div>
+      </div>
+    </div>
+    <div class="cfg-grid wide">
+      <div class="field">
+        <label>YTD This Year</label>
+        <div class="date-row">
+          <div class="field"><input id="cfgThisFrom" type="date"></div>
+          <span>to</span>
+          <div class="field"><input id="cfgThisTo" type="date"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>YTD Last Year</label>
+        <div class="date-row">
+          <div class="field"><input id="cfgLastFrom" type="date"></div>
+          <span>to</span>
+          <div class="field"><input id="cfgLastTo" type="date"></div>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-footer">
+      <button class="btn save" id="saveLoadBtn">Save &amp; Load</button>
+    </div>
+  </div>
+
+  <!-- INSIGHT BANNER -->
+  <div class="banner" id="insightBanner">
+    <div class="btitle" id="insightTitle">Loading data…</div>
+    <div class="btext" id="insightText"></div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="grid cols-4" id="kpiRow"></div>
+
+  <!-- APPOINTMENT CONVERSION -->
+  <div class="grid cols-2">
+    <div class="card" id="apptConvCard"></div>
+    <div class="card">
+      <div class="card-title">Monthly Conversion Rate — Appointments → Won $5K+ Jobs</div>
+      <div class="chart-box h300"><canvas id="chartMonthlyConv"></canvas></div>
+    </div>
+  </div>
+
+  <!-- QUOTE PIPELINE -->
+  <div class="grid pipeline">
+    <div class="card">
+      <div class="card-title">Quote Pipeline — All Jobs YTD (incl. quotes, confirmed &amp; lost)</div>
+      <table>
+        <thead><tr><th>Stage</th><th class="num">2026 YTD</th><th class="num">2025 YTD</th><th class="num">Change YoY</th></tr></thead>
+        <tbody id="pipelineBody"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Quote → Order Conversion</div>
+      <div class="conv-big">
+        <div class="box"><div class="yr">2026 YTD</div><div class="num" id="qoThis">–</div><div class="lbl">of all jobs confirmed</div></div>
+        <div class="box dim"><div class="yr">2025 YTD</div><div class="num" id="qoLast">–</div><div class="lbl">of all jobs confirmed</div></div>
+      </div>
+      <div class="conv-delta" id="qoDelta"></div>
+      <div class="foot-note">Counts unique orders (base job ref, excl. service jobs). Stage assigned from the job's original quote date.</div>
+    </div>
+  </div>
+
+  <!-- DISCOUNT BAND -->
+  <div class="card">
+    <div class="card-title">Confirmed $5K+ Orders by Discount Band — Quote → Order Conversion</div>
+    <div class="grid cols-2-even" style="margin-bottom:14px;">
+      <div class="band-card below">
+        <div class="tag2">Below 35% Discount</div>
+        <div class="conv-big"><div class="box"><div class="yr">2026 YTD</div><div class="num" id="bandBelowThis">–</div><div class="lbl">confirmed $5K+ orders</div></div><div class="box dim"><div class="yr">2025 YTD</div><div class="num" id="bandBelowLast">–</div><div class="lbl">confirmed $5K+ orders</div></div></div>
+        <div class="conv-delta" id="bandBelowDelta"></div>
+      </div>
+      <div class="band-card above">
+        <div class="tag2">35% Discount &amp; Above</div>
+        <div class="conv-big"><div class="box" style="background:var(--purple-soft);"><div class="yr" style="color:var(--purple);">2026 YTD</div><div class="num" id="bandAboveThis">–</div><div class="lbl">confirmed $5K+ orders</div></div><div class="box dim"><div class="yr">2025 YTD</div><div class="num" id="bandAboveLast">–</div><div class="lbl">confirmed $5K+ orders</div></div></div>
+        <div class="conv-delta" id="bandAboveDelta"></div>
+      </div>
+    </div>
+    <div class="grid cols-2-even">
+      <div class="band-card">
+        <div class="card-title" style="margin-bottom:10px;">Quote → Order Conversion — Below 35% Discount</div>
+        <div class="conv-big"><div class="box"><div class="yr">2026 YTD</div><div class="num" id="bandBelowRateThis">–</div><div class="lbl">conversion rate</div></div><div class="box dim"><div class="yr">2025 YTD</div><div class="num" id="bandBelowRateLast">–</div><div class="lbl">conversion rate</div></div></div>
+        <div class="conv-delta" id="bandBelowRateDelta"></div>
+        <div class="foot-note" id="bandBelowRateNote"></div>
+      </div>
+      <div class="band-card">
+        <div class="card-title" style="margin-bottom:10px;">Quote → Order Conversion — 35% Discount &amp; Above</div>
+        <div class="conv-big"><div class="box" style="background:var(--purple-soft);"><div class="yr" style="color:var(--purple);">2026 YTD</div><div class="num" id="bandAboveRateThis">–</div><div class="lbl">conversion rate</div></div><div class="box dim"><div class="yr">2025 YTD</div><div class="num" id="bandAboveRateLast">–</div><div class="lbl">conversion rate</div></div></div>
+        <div class="conv-delta" id="bandAboveRateDelta"></div>
+        <div class="foot-note" id="bandAboveRateNote"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AOV -->
+  <div class="card">
+    <div class="card-title">Average Order Value — 2026 vs 2025 YTD</div>
+    <div class="grid aov">
+      <table>
+        <thead><tr><th>Segment</th><th class="num">2026 Jobs</th><th class="num">2026 Total Revenue</th><th class="num">2026 AOV</th><th class="num">2025 Jobs</th><th class="num">2025 AOV</th><th class="num">AOV Change</th></tr></thead>
+        <tbody id="aovBody"></tbody>
+      </table>
+      <div class="chart-box h260"><canvas id="chartAOV"></canvas></div>
+    </div>
+  </div>
+
+  <!-- DISCOUNT DISTRIBUTION -->
+  <div class="grid cols-2">
+    <div class="card">
+      <div class="card-title">Discount Bucket Distribution — $5K+ Won Jobs</div>
+      <div class="chart-box h300"><canvas id="chartDiscDist"></canvas></div>
+      <div class="foot-note">Only includes jobs that have received a confirmed deposit (won). Open quotes and lost jobs are tracked separately in the pipeline above.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Initiative Adoption by Bucket</div>
+      <div id="adoptionBody"></div>
+    </div>
+  </div>
+
+  <!-- MONTHLY WON + REVENUE BY BUCKET -->
+  <div class="grid cols-2-even">
+    <div class="card">
+      <div class="card-title">Monthly Won Jobs — $5K+ (2026 vs 2025)</div>
+      <div class="chart-box h300"><canvas id="chartMonthlyWon"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Revenue Won by Discount Bucket ($5K+ Jobs)</div>
+      <div class="chart-box h300"><canvas id="chartRevByBucket"></canvas></div>
+    </div>
+  </div>
+
+  <!-- OPPORTUNITY PIPELINE + AVG VALUE BUCKET -->
+  <div class="grid cols-2-even">
+    <div class="card">
+      <div class="card-title">Opportunity Pipeline — $5K+ (from Opportunities Endpoint)</div>
+      <div class="chart-box h300"><canvas id="chartOppPipeline"></canvas></div>
+      <div class="foot-note" id="oppNote">Based on Expected Revenue on opportunity records ≥ Min Job Value.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Avg Job Value by Value Band</div>
+      <div class="chart-box h300"><canvas id="chartAvgValueBand"></canvas></div>
+      <div class="foot-note">All won jobs (any discount), bucketed by order value — for scale/context alongside the $5K+ initiative analysis.</div>
+    </div>
+  </div>
+
+  <!-- REP PERFORMANCE -->
+  <div class="card">
+    <div class="card-title">
+      Rep Performance — $5K+ Jobs
+      <span class="right">
+        <select class="plain" id="repYear"><option value="this">2026 YTD</option><option value="last">2025 YTD</option></select>
+        <select class="plain" id="repSort">
+          <option value="revenue">Sort: Revenue</option>
+          <option value="jobs">Sort: Jobs Won</option>
+          <option value="discount">Sort: Avg Discount</option>
+          <option value="initiative">Sort: % Using Initiative</option>
+        </select>
+      </span>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Rep</th><th class="num">Jobs Won $5K+</th><th class="num">Revenue Won</th><th class="num">Avg Job Value</th><th class="num">Avg Discount</th><th class="num">In 35–40% Bracket</th><th class="num">% Using Initiative</th></tr></thead>
+        <tbody id="repBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MARGIN IMPACT -->
+  <div class="card">
+    <div class="card-title">Margin Impact Analysis — Cost of Discount Initiative</div>
+    <div class="grid margin">
+      <div class="chart-box h300"><canvas id="chartMarginDonut"></canvas></div>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Discount Bucket</th><th class="num">2026 Jobs</th><th class="num">2026 Revenue</th><th class="num">Rev vs 2025 $</th><th class="num">2026 GP $</th><th class="num">GP $ vs 2025</th><th class="num">2026 GP %</th><th class="num">2025 GP %</th><th class="num">GP % Change</th></tr></thead>
+          <tbody id="marginBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="foot-note">GP = Discounted Price Ex GST − Cost − Install − Delivery. All figures exclude GST.</div>
+  </div>
+
+  <!-- COMMISSION EARNINGS -->
+  <div class="card">
+    <div class="card-title">Consultant Commission Earnings — $5K+ Jobs</div>
+    <div class="comm-desc">Base rate applied to all $5K+ jobs · Tiered initiative premium applied to 35–40% bracket jobs · Rates configurable above. 2025 figures apply the same rules retroactively for a like-for-like comparison (the initiative itself only exists in 2026).</div>
+    <div class="comm-stats">
+      <div class="s"><div class="lbl">Total Comm 2026</div><div class="v" id="commTotalThis">–</div></div>
+      <div class="s"><div class="lbl">Total Comm 2025</div><div class="v" id="commTotalLast" style="color:var(--muted-2);">–</div></div>
+      <div class="s"><div class="lbl">YoY Change</div><div class="v" id="commYoY">–</div></div>
+      <div class="s"><div class="lbl">Comm as % of Rev 2026</div><div class="v" id="commPctRev" style="color:var(--purple);">–</div></div>
+    </div>
+    <div class="grid cols-2-even" style="margin-top:10px;">
+      <div>
+        <div class="card-title">Monthly Commission — 2026 vs 2025 (Base vs Initiative Split)</div>
+        <div class="chart-box h260"><canvas id="chartMonthlyComm"></canvas></div>
+      </div>
+      <div>
+        <div class="card-title">Commission by Discount Bucket</div>
+        <div class="chart-box h260"><canvas id="chartCommByBucket"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONSULTANT EARNINGS BREAKDOWN -->
+  <div class="card">
+    <div class="card-title">
+      Consultant Earnings Breakdown
+      <span class="right"><select class="plain" id="commSort">
+        <option value="total26">Sort: 2026 Earnings</option>
+        <option value="revenue">Sort: 2026 Revenue</option>
+        <option value="yoy">Sort: YoY $ Change</option>
+        <option value="rate">Sort: Eff Rate</option>
+      </select></span>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Consultant</th><th class="num">2026 Jobs</th><th class="num">2026 Revenue</th><th class="num">2026 Base Comm</th><th class="num">2026 Initiative Comm</th><th class="num">2026 Total Comm</th><th class="num">2025 Total Comm</th><th class="num">YoY $ Change</th><th class="num">Eff Rate 2026</th></tr></thead>
+        <tbody id="commBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ORDER ECONOMICS WATERFALL -->
+  <div class="card">
+    <div class="card-title">
+      Order Economics Waterfall — $5K+ Orders
+      <span class="right">
+        <span class="wf-inputs">
+          Lead Cost ($) <input id="wfLeadCost" type="number" value="135">
+          Lead → Appt Rate (%) <input id="wfApptRate" type="number" value="83">
+          <span class="toggle"><button id="wfPerOrder" class="active">Per Order</button><button id="wfTotalPeriod">Total Period</button></span>
+        </span>
+      </span>
+    </div>
+    <div class="card-sub">Revenue → Cost of Goods → Gross Profit → Commission → Lead Acquisition → Net Contribution per won $5K+ order</div>
+    <div class="grid waterfall">
+      <div class="wf-list" id="waterfallList"></div>
+      <div class="chart-box h340"><canvas id="chartWaterfall"></canvas></div>
+    </div>
+  </div>
+
+  <!-- LEAD FUNNEL -->
+  <div class="card">
+    <div class="card-title">Lead Funnel — Acquisition to Won Order</div>
+    <div class="funnel-row" id="funnelRow"></div>
+    <div class="foot-note" id="funnelFootnote" style="margin-top:16px;"></div>
+  </div>
+
+  <div class="foot-note" style="text-align:center;margin-top:10px;" id="dataFooter"></div>
+
+</div>
+
+<script>
+(function(){
+
+const COLORS = {
+  blue:'#2F6FEB', blueLight:'#B9CBF3', purple:'#7C4DFF', purpleLight:'#D9CCFF',
+  green:'#15A24A', greenLight:'#BFE6CB', orange:'#F59E0B', orangeLight:'#FBD9A5',
+  red:'#DC2626', teal:'#0D9488', navy:'#16224A', gray:'#B7BFCC'
+};
+const BUCKETS = ["0-10%","10-20%","20-30%","30-35%","35-40%","40-50%","50%+"];
+const VALUE_BANDS = [
+  {label:'<$1K', lo:0, hi:1000}, {label:'$1K–$2K', lo:1000, hi:2000},
+  {label:'$2K–$3K', lo:2000, hi:3000}, {label:'$3K–$5K', lo:3000, hi:5000},
+  {label:'$5K–$10K', lo:5000, hi:10000}, {label:'$10K+', lo:10000, hi:Infinity},
+];
+
+let RAW = null;
+let CFG = null;
+let charts = {};
+let repYearMode = 'this', repSortMode = 'revenue', commSortMode = 'total26';
+let wfMode = 'perOrder';
+
+// ---------------- formatting helpers ----------------
+const fmt0 = n => Math.round(n).toLocaleString('en-AU');
+const fmtMoney = n => {
+  if (n === null || n === undefined || isNaN(n)) return '–';
+  const a = Math.abs(n);
+  if (a >= 1e6) return (n<0?'-':'') + '$' + (a/1e6).toFixed(1) + 'M';
+  if (a >= 1e3) return (n<0?'-':'') + '$' + (a/1e3).toFixed(a>=100000?0:1) + 'K';
+  return (n<0?'-':'') + '$' + fmt0(a);
+};
+const fmtMoneyFull = n => (n<0?'-':'') + '$' + fmt0(Math.abs(n));
+const fmtPct = (n, d=1) => (n===null||n===undefined||isNaN(n)) ? '–' : n.toFixed(d) + '%';
+const monthLabel = ym => {
+  const [y,m] = ym.split('-');
+  const names=['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'];
+  return names[parseInt(m,10)-1] + ' ' + y.slice(2);
+};
+function monthsInRange(from, to){
+  const out=[]; let [y,m]=from.split('-').map(Number);
+  const [ey,em]=to.split('-').map(Number);
+  while (y<ey || (y===ey && m<=em)){
+    out.push(y+'-'+String(m).padStart(2,'0'));
+    m++; if(m>12){m=1;y++;}
+  }
+  return out;
+}
+function lastYearOf(ym){ const [y,m]=ym.split('-'); return (parseInt(y,10)-1)+'-'+m; }
+function deltaSpan(cur, prev, isPct=false, suffix='', invert=false){
+  if (prev===0 || prev===null || prev===undefined || isNaN(prev)) return '';
+  const diff = cur-prev;
+  const good = invert ? diff<0 : diff>=0;
+  const arrow = diff>=0 ? '▲' : '▼';
+  const cls = good ? 'up' : 'down';
+  const diffStr = isPct ? Math.abs(diff).toFixed(1)+'pp' : (typeof suffix==='function' ? suffix(diff) : fmtMoney(diff)+suffix);
+  const pctChange = prev!==0 ? (100*diff/Math.abs(prev)).toFixed(1) : '0.0';
+  return `<span class="kpi-delta ${cls}"><span class="arrow">${arrow}</span>${diffStr}${isPct?'':' ('+Math.abs(pctChange)+'% YoY)'}</span>`;
+}
+
+// ---------------- config defaults ----------------
+function defaultConfig(genDateISO){
+  const d = new Date(genDateISO);
+  const y = d.getUTCFullYear();
+  const pad = n => String(n).padStart(2,'0');
+  const toStr = d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());
+  const lastToStr = (y-1)+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());
+  return {
+    minJobValue: 5000,
+    baseRate: 8,
+    tierRates: [7,6,5,4],
+    leadCost: 135,
+    apptRate: 83,
+    thisYear: {from: y+'-01-01', to: toStr},
+    lastYear: {from: (y-1)+'-01-01', to: lastToStr},
+  };
+}
+
+// ---------------- core filters ----------------
+function inRange(date, from, to){ return date && date>=from && date<=to; }
+function wonJobs(range, minValue){
+  return RAW.jobs.filter(j=> j.stage==='won' && j.confirmedDate && inRange(j.confirmedDate, range.from, range.to) && (minValue==null || j.revenue>=minValue));
+}
+function pipelineJobs(range){
+  return RAW.jobs.filter(j=> inRange(j.firstDate, range.from, range.to));
+}
+function apptsIn(range){
+  return RAW.appointments.filter(a=> inRange(a.date, range.from, range.to));
+}
+function tierRateForDisc(discPct, cfg){
+  if (discPct < 35) return 0;
+  const width = 1.25;
+  const idx = Math.min(3, Math.max(0, Math.floor((discPct-35)/width)));
+  return cfg.tierRates[idx];
+}
+function commission(job, cfg){
+  const base = job.revenue * cfg.baseRate/100;
+  let premium = 0;
+  if (job.discBucket === '35-40%') premium = job.revenue * tierRateForDisc(job.discPct, cfg)/100;
+  return {base, premium, total: base+premium};
+}
+function sum(arr, fn){ return arr.reduce((a,x)=>a+fn(x),0); }
+function avg(arr, fn){ return arr.length ? sum(arr,fn)/arr.length : 0; }
+
+// ================================================================
+// MAIN COMPUTE
+// ================================================================
+function computeAll(cfg){
+  const M = {};
+  const thisR = cfg.thisYear, lastR = cfg.lastYear;
+  const minV = cfg.minJobValue;
+
+  const won5kThis = wonJobs(thisR, minV), won5kLast = wonJobs(lastR, minV);
+  const wonAllThis = wonJobs(thisR, null), wonAllLast = wonJobs(lastR, null);
+  const apptsThis = apptsIn(thisR), apptsLast = apptsIn(lastR);
+
+  // ---- KPI row ----
+  M.kpi = {
+    jobsThis: won5kThis.length, jobsLast: won5kLast.length,
+    revThis: sum(won5kThis,j=>j.revenue), revLast: sum(won5kLast,j=>j.revenue),
+    discThis: avg(won5kThis,j=>j.discPct), discLast: avg(won5kLast,j=>j.discPct),
+    bracketThis: won5kThis.filter(j=>j.discBucket==='35-40%').length,
+    bracketLast: won5kLast.filter(j=>j.discBucket==='35-40%').length,
+  };
+  M.kpi.bracketPctThis = M.kpi.jobsThis ? 100*M.kpi.bracketThis/M.kpi.jobsThis : 0;
+  M.kpi.bracketPctLast = M.kpi.jobsLast ? 100*M.kpi.bracketLast/M.kpi.jobsLast : 0;
+
+  // ---- Appointment conversion ----
+  const wonBelowThis = wonAllThis.length - won5kThis.length;
+  const wonBelowLast = wonAllLast.length - won5kLast.length;
+  M.apptConv = {
+    apptsThis: apptsThis.length, apptsLast: apptsLast.length,
+    rateThis: apptsThis.length ? 100*won5kThis.length/apptsThis.length : 0,
+    rateLast: apptsLast.length ? 100*won5kLast.length/apptsLast.length : 0,
+    wonAllThis: wonAllThis.length, wonAllLast: wonAllLast.length,
+    wonAllPctThis: apptsThis.length ? 100*wonAllThis.length/apptsThis.length : 0,
+    wonAllPctLast: apptsLast.length ? 100*wonAllLast.length/apptsLast.length : 0,
+    wonBelowThis, wonBelowLast,
+    wonBelowPctThis: apptsThis.length ? 100*wonBelowThis/apptsThis.length : 0,
+    wonBelowPctLast: apptsLast.length ? 100*wonBelowLast/apptsLast.length : 0,
+  };
+
+  // monthly conversion chart (aligned by this-year's months)
+  const months = monthsInRange(thisR.from.slice(0,7), thisR.to.slice(0,7));
+  M.monthlyConv = months.map(ym=>{
+    const lyYm = lastYearOf(ym);
+    const mThis = a=>a.date.slice(0,7)===ym, mLast = a=>a.date.slice(0,7)===lyYm;
+    const apThis = apptsThis.filter(mThis).length, apLast = apptsLast.filter(mLast).length;
+    const wAllThis = wonAllThis.filter(j=>j.confirmedDate.slice(0,7)===ym).length;
+    const wAllLast = wonAllLast.filter(j=>j.confirmedDate.slice(0,7)===lyYm).length;
+    const w5kThis = won5kThis.filter(j=>j.confirmedDate.slice(0,7)===ym).length;
+    const wBelowThis = wAllThis - w5kThis;
+    return {
+      label: monthLabel(ym), appts26: apThis, appts25: apLast,
+      allWon26: apThis ? 100*wAllThis/apThis : null,
+      won5k26: apThis ? 100*w5kThis/apThis : null,
+      wonBelow26: apThis ? 100*wBelowThis/apThis : null,
+      allWon25: apLast ? 100*wAllLast/apLast : null,
+    };
+  });
+
+  // ---- Quote pipeline ----
+  const pipeThis = pipelineJobs(thisR), pipeLast = pipelineJobs(lastR);
+  function pipeCounts(arr){
+    const open = arr.filter(j=>j.stage==='quote').length;
+    const confirmed = arr.filter(j=>j.stage==='won').length;
+    const lost = arr.filter(j=>j.stage==='lost').length;
+    return {all: open+confirmed+lost, open, confirmed, lost};
+  }
+  M.pipeline = {this: pipeCounts(pipeThis), last: pipeCounts(pipeLast)};
+  M.pipeline.rateThis = M.pipeline.this.all ? 100*M.pipeline.this.confirmed/M.pipeline.this.all : 0;
+  M.pipeline.rateLast = M.pipeline.last.all ? 100*M.pipeline.last.confirmed/M.pipeline.last.all : 0;
+
+  // ---- Discount band conversion ----
+  function bandStats(wonAll, won5k){
+    const below = wonAll.filter(j=>j.discPct<35), above = wonAll.filter(j=>j.discPct>=35);
+    const below5k = won5k.filter(j=>j.discPct<35).length, above5k = won5k.filter(j=>j.discPct>=35).length;
+    return {
+      belowTotal: below.length, aboveTotal: above.length,
+      below5k, above5k,
+      belowRate: below.length ? 100*below5k/below.length : 0,
+      aboveRate: above.length ? 100*above5k/above.length : 0,
+    };
+  }
+  M.band = {this: bandStats(wonAllThis, won5kThis), last: bandStats(wonAllLast, won5kLast)};
+
+  // ---- AOV table ----
+  function seg(arr){ const rev = sum(arr,j=>j.revenue); return {jobs: arr.length, revenue: rev, aov: arr.length? rev/arr.length:0}; }
+  M.aov = {
+    allThis: seg(wonAllThis), allLast: seg(wonAllLast),
+    fiveKThis: seg(won5kThis), fiveKLast: seg(won5kLast),
+    belowThis: seg(wonAllThis.filter(j=>j.revenue<minV)), belowLast: seg(wonAllLast.filter(j=>j.revenue<minV)),
+  };
+
+  // ---- Discount bucket distribution + adoption ----
+  M.discDist = BUCKETS.map(b=>({
+    bucket: b,
+    countThis: won5kThis.filter(j=>j.discBucket===b).length,
+    countLast: won5kLast.filter(j=>j.discBucket===b).length,
+  }));
+  M.discDist.forEach(d=> d.pctOfThis = won5kThis.length ? 100*d.countThis/won5kThis.length : 0);
+
+  // ---- Monthly won + revenue by bucket ----
+  M.monthlyWon = months.map(ym=>{
+    const lyYm = lastYearOf(ym);
+    const all = won5kThis.filter(j=>j.confirmedDate.slice(0,7)===ym).length;
+    const bracket = won5kThis.filter(j=>j.confirmedDate.slice(0,7)===ym && j.discBucket==='35-40%').length;
+    const lastAll = won5kLast.filter(j=>j.confirmedDate.slice(0,7)===lyYm).length;
+    return {label: monthLabel(ym), all, bracket, lastAll};
+  });
+  M.revByBucket = BUCKETS.map(b=>({
+    bucket: b,
+    revThis: sum(won5kThis.filter(j=>j.discBucket===b), j=>j.revenue),
+    revLast: sum(won5kLast.filter(j=>j.discBucket===b), j=>j.revenue),
+  }));
+
+  // ---- Opportunity pipeline (likely empty — see data quality note) ----
+  const oppsThis = RAW.opportunities.filter(o=> o.expectedRevenue>=minV && inRange(o.leadDate, thisR.from, thisR.to));
+  const oppsLast = RAW.opportunities.filter(o=> o.expectedRevenue>=minV && inRange(o.leadDate, lastR.from, lastR.to));
+  function oppBucket(o){
+    if ((o.status||'').includes('won')) return 'Won';
+    if ((o.status||'').includes('lost')) return 'Lost';
+    return 'Open';
+  }
+  M.oppPipeline = ['Open','Won','Lost'].map(stage=>({
+    stage,
+    countThis: oppsThis.filter(o=>oppBucket(o)===stage).length,
+    countLast: oppsLast.filter(o=>oppBucket(o)===stage).length,
+  }));
+  M.oppEmpty = (oppsThis.length + oppsLast.length) === 0;
+
+  // ---- Avg job value by value band ----
+  M.valueBands = VALUE_BANDS.map(band=>{
+    const inBandThis = wonAllThis.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
+    const inBandLast = wonAllLast.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
+    return {
+      label: band.label,
+      avgThis: inBandThis.length ? sum(inBandThis,j=>j.revenue)/inBandThis.length : 0,
+      avgLast: inBandLast.length ? sum(inBandLast,j=>j.revenue)/inBandLast.length : 0,
+      countThis: inBandThis.length, countLast: inBandLast.length,
+    };
+  });
+
+  // ---- Rep performance ----
+  const repMap = {};
+  won5kThis.forEach(j=>{
+    const r = repMap[j.rep] || (repMap[j.rep]={jobsThis:0,revThis:0,discSumThis:0,bracketThis:0,jobsLast:0,revLast:0,discSumLast:0,bracketLast:0});
+    r.jobsThis++; r.revThis+=j.revenue; r.discSumThis+=j.discPct; if(j.discBucket==='35-40%') r.bracketThis++;
+  });
+  won5kLast.forEach(j=>{
+    const r = repMap[j.rep] || (repMap[j.rep]={jobsThis:0,revThis:0,discSumThis:0,bracketThis:0,jobsLast:0,revLast:0,discSumLast:0,bracketLast:0});
+    r.jobsLast++; r.revLast+=j.revenue; r.discSumLast+=j.discPct; if(j.discBucket==='35-40%') r.bracketLast++;
+  });
+  M.reps = Object.entries(repMap).map(([name,r])=>({
+    name,
+    jobsThis:r.jobsThis, revThis:r.revThis, avgThis: r.jobsThis?r.revThis/r.jobsThis:0, discThis: r.jobsThis?r.discSumThis/r.jobsThis:0, bracketThis:r.bracketThis,
+    pctInitThis: r.jobsThis? 100*r.bracketThis/r.jobsThis:0,
+    jobsLast:r.jobsLast, revLast:r.revLast, avgLast: r.jobsLast?r.revLast/r.jobsLast:0, discLast: r.jobsLast?r.discSumLast/r.jobsLast:0, bracketLast:r.bracketLast,
+    pctInitLast: r.jobsLast? 100*r.bracketLast/r.jobsLast:0,
+  }));
+
+  // ---- Margin impact ----
+  function marginRow(bucket){
+    const arrThis = won5kThis.filter(j=>j.discBucket===bucket), arrLast = won5kLast.filter(j=>j.discBucket===bucket);
+    const revThis = sum(arrThis,j=>j.revenue), revLast = sum(arrLast,j=>j.revenue);
+    const gpThis = sum(arrThis,j=>j.gp), gpLast = sum(arrLast,j=>j.gp);
+    return {
+      bucket, jobsThis: arrThis.length, revThis, revLast, revVsLast: revThis-revLast,
+      gpThis, gpLast, gpVsLast: gpThis-gpLast,
+      gpPctThis: revThis? 100*gpThis/revThis:0, gpPctLast: revLast? 100*gpLast/revLast:0,
+    };
+  }
+  M.margin = BUCKETS.map(marginRow);
+  M.marginTotal = {
+    jobsThis: won5kThis.length,
+    revThis: sum(won5kThis,j=>j.revenue), revLast: sum(won5kLast,j=>j.revenue),
+    gpThis: sum(won5kThis,j=>j.gp), gpLast: sum(won5kLast,j=>j.gp),
+  };
+  M.marginTotal.revVsLast = M.marginTotal.revThis - M.marginTotal.revLast;
+  M.marginTotal.gpVsLast = M.marginTotal.gpThis - M.marginTotal.gpLast;
+  M.marginTotal.gpPctThis = M.marginTotal.revThis ? 100*M.marginTotal.gpThis/M.marginTotal.revThis : 0;
+  M.marginTotal.gpPctLast = M.marginTotal.revLast ? 100*M.marginTotal.gpLast/M.marginTotal.revLast : 0;
+
+  // ---- Commission ----
+  const commThis = won5kThis.map(j=>({job:j, c:commission(j,cfg)}));
+  const commLast = won5kLast.map(j=>({job:j, c:commission(j,cfg)})); // retroactive same rules
+  M.commTotalThis = sum(commThis,x=>x.c.total);
+  M.commTotalLast = sum(commLast,x=>x.c.total);
+  M.commPctRevThis = M.kpi.revThis ? 100*M.commTotalThis/M.kpi.revThis : 0;
+
+  M.monthlyComm = months.map(ym=>{
+    const lyYm = lastYearOf(ym);
+    const inMonth = commThis.filter(x=>x.job.confirmedDate.slice(0,7)===ym);
+    const inMonthLast = commLast.filter(x=>x.job.confirmedDate.slice(0,7)===lyYm);
+    return {
+      label: monthLabel(ym),
+      base: sum(inMonth,x=>x.c.base), premium: sum(inMonth,x=>x.c.premium),
+      totalLast: sum(inMonthLast,x=>x.c.total),
+    };
+  });
+  M.commByBucket = BUCKETS.map(b=>({
+    bucket: b,
+    commThis: sum(commThis.filter(x=>x.job.discBucket===b), x=>x.c.total),
+    commLast: sum(commLast.filter(x=>x.job.discBucket===b), x=>x.c.total),
+  }));
+
+  const commRepMapThis = {}, commRepMapLast = {};
+  commThis.forEach(x=>{
+    const r = commRepMapThis[x.job.rep] || (commRepMapThis[x.job.rep]={jobs:0,rev:0,base:0,premium:0});
+    r.jobs++; r.rev+=x.job.revenue; r.base+=x.c.base; r.premium+=x.c.premium;
+  });
+  commLast.forEach(x=>{
+    const r = commRepMapLast[x.job.rep] || (commRepMapLast[x.job.rep]={total:0});
+    r.total = (r.total||0) + x.c.total;
+  });
+  M.commReps = Object.entries(commRepMapThis).map(([name,r])=>{
+    const totalThis = r.base+r.premium;
+    const totalLast = (commRepMapLast[name]||{total:0}).total;
+    return {
+      name, jobs:r.jobs, revenue:r.rev, base:r.base, premium:r.premium, totalThis,
+      totalLast, yoy: totalThis-totalLast, effRate: r.rev? 100*totalThis/r.rev:0,
+    };
+  });
+
+  // ---- Waterfall + funnel ----
+  const avgOrderValue = won5kThis.length ? M.kpi.revThis/won5kThis.length : 0;
+  const avgGP = won5kThis.length ? sum(won5kThis,j=>j.gp)/won5kThis.length : 0;
+  const avgCommission = won5kThis.length ? M.commTotalThis/won5kThis.length : 0;
+  const apptToOrderRate = apptsThis.length ? won5kThis.length/apptsThis.length : 0;
+  const leadsPerOrder = (cfg.apptRate>0 && apptToOrderRate>0) ? 1/((cfg.apptRate/100)*apptToOrderRate) : 0;
+  const leadCostPerOrder = leadsPerOrder * cfg.leadCost;
+  const netContribution = avgGP - avgCommission - leadCostPerOrder;
+  M.waterfall = {
+    avgOrderValue, cogs: avgOrderValue-avgGP, gp: avgGP, commission: avgCommission,
+    leadCostPerOrder, netContribution, orders: won5kThis.length, leadsPerOrder, apptToOrderRate,
+  };
+
+  const totalLeads = (cfg.apptRate>0) ? apptsThis.length/(cfg.apptRate/100) : 0;
+  const totalLeadCost = totalLeads * cfg.leadCost;
+  const totalGP = sum(won5kThis,j=>j.gp);
+  const totalCommission = M.commTotalThis;
+  M.funnel = {
+    leads: totalLeads, appts: apptsThis.length, apptRate: cfg.apptRate,
+    orders: won5kThis.length, orderRate: apptsThis.length? 100*won5kThis.length/apptsThis.length:0,
+    leadCost: cfg.leadCost, totalLeadCost,
+    totalRevenue: M.kpi.revThis, totalGP, gpMargin: M.kpi.revThis? 100*totalGP/M.kpi.revThis:0,
+    totalCommission, commPctRev: M.kpi.revThis? 100*totalCommission/M.kpi.revThis:0,
+    netContribution: totalGP-totalCommission-totalLeadCost,
+  };
+  M.funnel.netPctRev = M.kpi.revThis? 100*M.funnel.netContribution/M.kpi.revThis : 0;
+
+  return M;
+}
+
+// ================================================================
+// RENDER
+// ================================================================
+function destroyChart(id){ if (charts[id]){ charts[id].destroy(); delete charts[id]; } }
+function mkChart(id, config){ destroyChart(id); const ctx=document.getElementById(id).getContext('2d'); charts[id]=new Chart(ctx,config); }
+
+function renderInsight(M){
+  const el = document.getElementById('insightBanner');
+  const title = document.getElementById('insightTitle');
+  const text = document.getElementById('insightText');
+  const bracketGrowth = M.kpi.bracketLast ? 100*(M.kpi.bracketThis-M.kpi.bracketLast)/M.kpi.bracketLast : (M.kpi.bracketThis>0?100:0);
+  const revGrowth = M.kpi.revLast ? 100*(M.kpi.revThis-M.kpi.revLast)/M.kpi.revLast : 0;
+  const gpChange = M.marginTotal.gpPctThis - M.marginTotal.gpPctLast;
+  const bracketRow = M.margin.find(r=>r.bucket==='35-40%');
+  const bracketGpChange = bracketRow.gpPctThis - bracketRow.gpPctLast;
+
+  let cls = 'positive', label = 'Initiative Showing Positive Signal', icon='✓';
+  if (bracketGrowth < 5 || revGrowth < 0) { cls='mixed'; label='Initiative Showing Mixed Signal'; icon='~'; }
+  if (bracketGrowth < 0 && revGrowth < 0) { cls='negative'; label='Initiative Not Yet Paying Off'; icon='!'; }
+  if (bracketGpChange < -3) { cls = cls==='positive' ? 'mixed' : cls; }
+
+  el.className = 'banner' + (cls!=='positive' ? ' '+cls : '');
+  title.textContent = (icon==='✓'?'✓ ':icon==='!'?'! ':'') + label;
+  text.innerHTML =
+    `Usage of the 35–40% commission bracket has ${bracketGrowth>=0?'grown':'fallen'} by ${Math.abs(bracketGrowth).toFixed(1)}% YoY ` +
+    `(${fmt0(M.kpi.bracketLast)}→${fmt0(M.kpi.bracketThis)} jobs), and total revenue on $5K+ jobs is ${revGrowth>=0?'up':'down'} ${Math.abs(revGrowth).toFixed(1)}% YoY. ` +
+    `Margin on the 35–40% bracket itself has ${bracketGpChange>=0?'improved':'moved'} ${Math.abs(bracketGpChange).toFixed(1)}pp GP (${bracketRow.gpPctLast.toFixed(1)}% → ${bracketRow.gpPctThis.toFixed(1)}%), and commission cost is running at ${fmtPct(M.commPctRevThis)} of $5K+ revenue. ` +
+    (cls==='positive'
+      ? `The data suggests the enhanced commission structure is driving both adoption and conversion outcomes. Continue monitoring GP% to ensure margin impact remains acceptable.`
+      : cls==='mixed'
+        ? `Adoption or revenue growth is modest so far, and the margin trade-off deserves a closer look before expanding the incentive further.`
+        : `Bracket usage and/or $5K+ revenue have declined YoY — re-examine whether the current tier rates are actually moving consultant behaviour.`);
+}
+
+function renderKPIs(M){
+  const el = document.getElementById('kpiRow');
+  el.innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Jobs Over $5K — Won</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">2026 YTD</div><div class="val">${fmt0(M.kpi.jobsThis)}</div><div class="lbl">jobs won</div></div>
+        <div class="kpi-col dim"><div class="yr">2025 YTD</div><div class="val">${fmt0(M.kpi.jobsLast)}</div><div class="lbl">jobs won</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.jobsThis>=M.kpi.jobsLast?'up':'down'}"><span class="arrow">${M.kpi.jobsThis>=M.kpi.jobsLast?'▲':'▼'}</span>${Math.abs(M.kpi.jobsThis-M.kpi.jobsLast)} (${M.kpi.jobsLast?Math.abs(100*(M.kpi.jobsThis-M.kpi.jobsLast)/M.kpi.jobsLast).toFixed(1):'0.0'}% YoY)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Revenue Won ($5K+)</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">2026 YTD</div><div class="val">${fmtMoney(M.kpi.revThis)}</div><div class="lbl">total revenue</div></div>
+        <div class="kpi-col dim"><div class="yr">2025 YTD</div><div class="val">${fmtMoney(M.kpi.revLast)}</div><div class="lbl">total revenue</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.revThis>=M.kpi.revLast?'up':'down'}"><span class="arrow">${M.kpi.revThis>=M.kpi.revLast?'▲':'▼'}</span>${fmtMoney(Math.abs(M.kpi.revThis-M.kpi.revLast))} (${M.kpi.revLast?Math.abs(100*(M.kpi.revThis-M.kpi.revLast)/M.kpi.revLast).toFixed(1):'0.0'}% YoY)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Discount — Won Jobs $5K+</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">2026 YTD</div><div class="val">${fmtPct(M.kpi.discThis)}</div><div class="lbl">avg discount</div></div>
+        <div class="kpi-col dim"><div class="yr">2025 YTD</div><div class="val">${fmtPct(M.kpi.discLast)}</div><div class="lbl">avg discount</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.discThis>=M.kpi.discLast?'down':'up'}"><span class="arrow">${M.kpi.discThis>=M.kpi.discLast?'▲':'▼'}</span>${Math.abs(M.kpi.discThis-M.kpi.discLast).toFixed(1)}pp YoY</div>
+    </div>
+    <div class="kpi-card highlight">
+      <div class="kpi-label hl">Initiative Bracket (35–40%)</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">2026 YTD</div><div class="val purple">${fmt0(M.kpi.bracketThis)} <span style="font-size:14px;">(${fmtPct(M.kpi.bracketPctThis)})</span></div><div class="lbl">jobs in bracket</div></div>
+        <div class="kpi-col dim"><div class="yr">2025 YTD</div><div class="val purple dim">${fmt0(M.kpi.bracketLast)} <span style="font-size:14px;">(${fmtPct(M.kpi.bracketPctLast)})</span></div><div class="lbl">jobs in bracket</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.bracketThis>=M.kpi.bracketLast?'up':'down'}"><span class="arrow">${M.kpi.bracketThis>=M.kpi.bracketLast?'▲':'▼'}</span>${Math.abs(M.kpi.bracketThis-M.kpi.bracketLast)} jobs in bracket (${M.kpi.bracketLast?Math.abs(100*(M.kpi.bracketThis-M.kpi.bracketLast)/M.kpi.bracketLast).toFixed(1):'0.0'}% YoY)</div>
+    </div>
+  `;
+}
+
+function renderApptConv(M){
+  const c = M.apptConv;
+  document.getElementById('apptConvCard').innerHTML = `
+    <div class="card-title">Appointment → Won Job Conversion ($5K+)</div>
+    <div class="conv-big">
+      <div class="box"><div class="yr">2026 YTD</div><div class="num">${fmtPct(c.rateThis)}</div><div class="lbl">conversion rate</div></div>
+      <div class="box dim"><div class="yr">2025 YTD</div><div class="num">${fmtPct(c.rateLast)}</div><div class="lbl">conversion rate</div></div>
+    </div>
+    <div class="conv-delta">${c.rateThis>=c.rateLast?'▲':'▼'} ${Math.abs(c.rateThis-c.rateLast).toFixed(1)}pp YoY</div>
+    <div class="mini-rows section-head">Appointments</div>
+    <div class="mini-rows"><div class="row"><div class="k">Total appointments</div><div class="v">${fmt0(c.apptsThis)} <span class="sub">| ${fmt0(c.apptsLast)}</span></div></div></div>
+    <div class="mini-rows section-head">Conversion Rates</div>
+    <div class="mini-rows">
+      <div class="row"><div class="k">% Won (all values)</div><div class="v">${fmtPct(c.wonAllPctThis)} <span class="sub">| ${fmtPct(c.wonAllPctLast)}</span></div></div>
+      <div class="row"><div class="k">% Won ≥ $5K</div><div class="v">${fmtPct(c.rateThis)} <span class="sub">| ${fmtPct(c.rateLast)}</span></div></div>
+      <div class="row"><div class="k">% Won &lt; $5K</div><div class="v">${fmtPct(c.wonBelowPctThis)} <span class="sub">| ${fmtPct(c.wonBelowPctLast)}</span></div></div>
+    </div>
+    <div class="trip-summary">
+      <div class="t"><div class="lbl">Won (all) '26</div><div class="v">${fmt0(c.wonAllThis)}</div></div>
+      <div class="t"><div class="lbl">Won ≥$5K '26</div><div class="v">${fmt0(M.kpi.jobsThis)}</div></div>
+      <div class="t"><div class="lbl">Won &lt;$5K '26</div><div class="v">${fmt0(c.wonBelowThis)}</div></div>
+    </div>
+    <div class="foot-note">Appointments = Sales Appointments only (ActivityType = "Sales Appointment", excl. cancelled). Won = confirmed $5K+ jobs (first confirmed deposit payment received — order intake, not install/dispatch date).</div>
+  `;
+}
+
+function renderMonthlyConv(M){
+  mkChart('chartMonthlyConv', {
+    data:{ labels: M.monthlyConv.map(m=>m.label), datasets:[
+      {type:'bar', label:'2026 Appts', data:M.monthlyConv.map(m=>m.appts26), backgroundColor:COLORS.blueLight, yAxisID:'y1', order:3},
+      {type:'bar', label:'2025 Appts', data:M.monthlyConv.map(m=>m.appts25), backgroundColor:'#E5E8EE', yAxisID:'y1', order:3},
+      {type:'line', label:'2026 All Won %', data:M.monthlyConv.map(m=>m.allWon26), borderColor:COLORS.green, backgroundColor:COLORS.green, yAxisID:'y', tension:.3, order:1},
+      {type:'line', label:'2026 ≥$5K %', data:M.monthlyConv.map(m=>m.won5k26), borderColor:COLORS.blue, backgroundColor:COLORS.blue, yAxisID:'y', tension:.3, order:1},
+      {type:'line', label:'2026 <$5K %', data:M.monthlyConv.map(m=>m.wonBelow26), borderColor:COLORS.orange, backgroundColor:COLORS.orange, yAxisID:'y', borderDash:[4,3], tension:.3, order:1},
+      {type:'line', label:'2025 All Won %', data:M.monthlyConv.map(m=>m.allWon25), borderColor:COLORS.green, backgroundColor:COLORS.green, yAxisID:'y', borderDash:[2,2], borderWidth:1.5, pointRadius:2, tension:.3, order:2},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      scales:{
+        y:{position:'left', title:{display:true,text:'Conversion Rate (%)'}, ticks:{callback:v=>v+'%'}},
+        y1:{position:'right', title:{display:true,text:'Appointments'}, grid:{drawOnChartArea:false}},
+      },
+      plugins:{legend:{position:'bottom', labels:{boxWidth:12,font:{size:10}}}}
+    }
+  });
+}
+
+function pipeRow(name, cur, prev){
+  const change = cur-prev;
+  const pct = prev ? 100*change/prev : 0;
+  const cls = change>=0?'up':'down';
+  return `<tr><td>${name}</td><td class="num">${fmt0(cur)}</td><td class="num" style="color:var(--muted-2);">${fmt0(prev)}</td><td class="num ${cls}">${change>=0?'+':''}${fmt0(change)} (${change>=0?'+':''}${pct.toFixed(1)}%)</td></tr>`;
+}
+function renderPipeline(M){
+  const p = M.pipeline;
+  document.getElementById('pipelineBody').innerHTML =
+    pipeRow('All Unique Quotes & Orders', p.this.all, p.last.all) +
+    pipeRow('Open Quotes', p.this.open, p.last.open) +
+    pipeRow('Confirmed Orders', p.this.confirmed, p.last.confirmed) +
+    pipeRow('Lost Jobs', p.this.lost, p.last.lost);
+  document.getElementById('qoThis').textContent = fmtPct(p.rateThis);
+  document.getElementById('qoLast').textContent = fmtPct(p.rateLast);
+  document.getElementById('qoDelta').innerHTML = `${p.rateThis>=p.rateLast?'▲':'▼'} ${Math.abs(p.rateThis-p.rateLast).toFixed(1)}pp YoY`;
+}
+
+function renderBand(M){
+  const b = M.band;
+  document.getElementById('bandBelowThis').textContent = fmt0(b.this.below5k);
+  document.getElementById('bandBelowLast').textContent = fmt0(b.last.below5k);
+  const belowDiff = b.this.below5k - b.last.below5k;
+  document.getElementById('bandBelowDelta').innerHTML = `<span class="${belowDiff>=0?'up':'down'}">${belowDiff>=0?'▲':'▼'} ${Math.abs(belowDiff)} jobs (${b.last.below5k?(100*belowDiff/b.last.below5k).toFixed(1):'0.0'}% YoY)</span>`;
+
+  document.getElementById('bandAboveThis').textContent = fmt0(b.this.above5k);
+  document.getElementById('bandAboveLast').textContent = fmt0(b.last.above5k);
+  const aboveDiff = b.this.above5k - b.last.above5k;
+  document.getElementById('bandAboveDelta').innerHTML = `<span class="${aboveDiff>=0?'up':'down'}">${aboveDiff>=0?'▲':'▼'} ${Math.abs(aboveDiff)} jobs (${b.last.above5k?(100*aboveDiff/b.last.above5k).toFixed(1):'0.0'}% YoY)</span>`;
+
+  document.getElementById('bandBelowRateThis').textContent = fmtPct(b.this.belowRate);
+  document.getElementById('bandBelowRateLast').textContent = fmtPct(b.last.belowRate);
+  const belowRateDiff = b.this.belowRate - b.last.belowRate;
+  document.getElementById('bandBelowRateDelta').innerHTML = `<span class="${belowRateDiff>=0?'up':'down'}">${belowRateDiff>=0?'▲':'▼'} ${Math.abs(belowRateDiff).toFixed(1)}pp YoY</span>`;
+  document.getElementById('bandBelowRateNote').textContent = `2026: ${fmt0(b.this.below5k)} $5K+ orders from ${fmt0(b.this.belowTotal)} confirmed jobs in band. 2025: ${fmt0(b.last.below5k)} from ${fmt0(b.last.belowTotal)}. Of all confirmed jobs discounted under 35%, the % that were $5K+ orders.`;
+
+  document.getElementById('bandAboveRateThis').textContent = fmtPct(b.this.aboveRate);
+  document.getElementById('bandAboveRateLast').textContent = fmtPct(b.last.aboveRate);
+  const aboveRateDiff = b.this.aboveRate - b.last.aboveRate;
+  document.getElementById('bandAboveRateDelta').innerHTML = `<span class="${aboveRateDiff>=0?'up':'down'}">${aboveRateDiff>=0?'▲':'▼'} ${Math.abs(aboveRateDiff).toFixed(1)}pp YoY</span>`;
+  document.getElementById('bandAboveRateNote').textContent = `2026: ${fmt0(b.this.above5k)} $5K+ orders from ${fmt0(b.this.aboveTotal)} confirmed jobs in band. 2025: ${fmt0(b.last.above5k)} from ${fmt0(b.last.aboveTotal)}. Of all confirmed jobs discounted 35% or more, the % that were $5K+ orders.`;
+}
+
+function aovRow(name, a, b){
+  const change = a.aov - b.aov;
+  const cls = change>=0?'up':'down';
+  return `<tr><td>${name}</td><td class="num">${fmt0(a.jobs)}</td><td class="num pos">${fmtMoney(a.revenue)}</td><td class="num pos">${fmtMoney(a.aov)}</td><td class="num" style="color:var(--muted-2);">${fmt0(b.jobs)}</td><td class="num" style="color:var(--muted-2);">${fmtMoney(b.aov)}</td><td class="num ${cls}">${change>=0?'▲':'▼'} ${fmtMoney(Math.abs(change))} (${b.aov?Math.abs(100*change/b.aov).toFixed(1):'0.0'}%)</td></tr>`;
+}
+function renderAOV(M){
+  document.getElementById('aovBody').innerHTML =
+    aovRow('All Jobs', M.aov.allThis, M.aov.allLast) +
+    aovRow('Jobs ≥ $5K', M.aov.fiveKThis, M.aov.fiveKLast) +
+    aovRow('Jobs < $5K', M.aov.belowThis, M.aov.belowLast);
+  mkChart('chartAOV', {
+    type:'bar',
+    data:{ labels:['All Jobs','≥ $5K','< $5K'], datasets:[
+      {label:'2026 AOV', data:[M.aov.allThis.aov,M.aov.fiveKThis.aov,M.aov.belowThis.aov], backgroundColor:[COLORS.blue,COLORS.green,COLORS.orange]},
+      {label:'2025 AOV', data:[M.aov.allLast.aov,M.aov.fiveKLast.aov,M.aov.belowLast.aov], backgroundColor:[COLORS.blueLight,COLORS.greenLight,COLORS.orangeLight]},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>fmtMoney(v)}}}, plugins:{legend:{position:'bottom'}}}
+  });
+}
+
+function renderDiscDist(M){
+  const hlIdx = BUCKETS.indexOf('35-40%');
+  mkChart('chartDiscDist', {
+    type:'bar',
+    data:{ labels: BUCKETS, datasets:[
+      {label:'2026 YTD', data:M.discDist.map(d=>d.countThis), backgroundColor:M.discDist.map((d,i)=>i===hlIdx?COLORS.purple:COLORS.blue)},
+      {label:'2025 YTD', data:M.discDist.map(d=>d.countLast), backgroundColor:M.discDist.map((d,i)=>i===hlIdx?COLORS.purpleLight:COLORS.blueLight)},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{title:{display:true,text:'Jobs Won'}}}}
+  });
+
+  const el = document.getElementById('adoptionBody');
+  el.innerHTML = M.discDist.map(d=>{
+    const isHl = d.bucket==='35-40%';
+    const maxCount = Math.max(...M.discDist.map(x=>Math.max(x.countThis,x.countLast)),1);
+    return `<div class="adopt-row ${isHl?'hl':''}">
+      <div class="adopt-top"><span class="name">${d.bucket}${isHl?' ★':''}</span><span class="nums">${fmt0(d.countThis)} vs ${fmt0(d.countLast)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${100*d.countThis/maxCount}%;"></div></div>
+      <div class="adopt-pct">${fmtPct(d.pctOfThis)} of 2026 won jobs</div>
+    </div>`;
+  }).join('');
+}
+
+function renderMonthlyWon(M){
+  mkChart('chartMonthlyWon', {
+    data:{ labels: M.monthlyWon.map(m=>m.label), datasets:[
+      {type:'bar', label:'2026 All $5K+ Won', data:M.monthlyWon.map(m=>m.all), backgroundColor:COLORS.blue},
+      {type:'bar', label:'2026 Init Bracket', data:M.monthlyWon.map(m=>m.bracket), backgroundColor:COLORS.purple},
+      {type:'line', label:'2025 All $5K+ Won', data:M.monthlyWon.map(m=>m.lastAll), borderColor:COLORS.gray, backgroundColor:COLORS.gray, borderDash:[4,3], tension:.35},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{title:{display:true,text:'Jobs Won'}}}}
+  });
+}
+function renderRevByBucket(M){
+  const hlIdx = BUCKETS.indexOf('35-40%');
+  mkChart('chartRevByBucket', {
+    type:'bar',
+    data:{ labels:BUCKETS, datasets:[
+      {label:'2026 Rev', data:M.revByBucket.map(d=>d.revThis), backgroundColor:M.revByBucket.map((d,i)=>i===hlIdx?COLORS.purple:COLORS.teal)},
+      {label:'2025 Rev', data:M.revByBucket.map(d=>d.revLast), backgroundColor:M.revByBucket.map((d,i)=>i===hlIdx?COLORS.purpleLight:COLORS.greenLight)},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{ticks:{callback:v=>fmtMoney(v)}}}}
+  });
+}
+
+function renderOppPipeline(M){
+  mkChart('chartOppPipeline', {
+    type:'bar',
+    data:{ labels:M.oppPipeline.map(o=>o.stage), datasets:[
+      {label:'2026 YTD', data:M.oppPipeline.map(o=>o.countThis), backgroundColor:COLORS.teal},
+      {label:'2025 YTD', data:M.oppPipeline.map(o=>o.countLast), backgroundColor:'#9FD6D0'},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}
+  });
+  document.getElementById('oppNote').textContent = M.oppEmpty
+    ? 'Empty: Insyte\'s Opportunities.ExpectedRevenue field is populated on only a handful of records tenant-wide — it isn\'t consistently used for this business, so this endpoint can\'t reliably drive a $5K+ pipeline view. The Quote Pipeline table above (from Jobs) is the reliable source for pipeline volume.'
+    : 'Based on Expected Revenue on opportunity records ≥ Min Job Value.';
+}
+function renderValueBands(M){
+  mkChart('chartAvgValueBand', {
+    type:'bar',
+    data:{ labels:M.valueBands.map(b=>b.label), datasets:[
+      {label:'2026 Avg Value', data:M.valueBands.map(b=>b.avgThis), backgroundColor:COLORS.blue},
+      {label:'2025 Avg Value', data:M.valueBands.map(b=>b.avgLast), backgroundColor:COLORS.blueLight},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'},
+      tooltip:{callbacks:{afterLabel:(ctx)=>{
+        const b = M.valueBands[ctx.dataIndex];
+        const n = ctx.datasetIndex===0 ? b.countThis : b.countLast;
+        return `(${fmt0(n)} jobs)`;
+      }}}
+    }, scales:{y:{ticks:{callback:v=>fmtMoney(v)}}}}
+  });
+}
+
+function renderReps(M){
+  let arr = M.reps.slice();
+  const yr = repYearMode;
+  arr = arr.filter(r=> yr==='this' ? r.jobsThis>0 : r.jobsLast>0);
+  const key = r => yr==='this' ? {jobs:r.jobsThis,rev:r.revThis,avg:r.avgThis,disc:r.discThis,bracket:r.bracketThis,pct:r.pctInitThis} : {jobs:r.jobsLast,rev:r.revLast,avg:r.avgLast,disc:r.discLast,bracket:r.bracketLast,pct:r.pctInitLast};
+  const sortFn = {
+    revenue: (a,b)=>key(b).rev-key(a).rev, jobs:(a,b)=>key(b).jobs-key(a).jobs,
+    discount:(a,b)=>key(b).disc-key(a).disc, initiative:(a,b)=>key(b).pct-key(a).pct,
+  }[repSortMode];
+  arr.sort(sortFn);
+  document.getElementById('repBody').innerHTML = arr.map(r=>{
+    const k = key(r);
+    return `<tr><td>${r.name}</td><td class="num">${fmt0(k.jobs)}</td><td class="num pos">${fmtMoney(k.rev)}</td><td class="num">${fmtMoney(k.avg)}</td><td class="num ${k.disc>=35?'':''}" style="${k.disc>=35?'color:var(--purple);font-weight:700;':''}">${fmtPct(k.disc)}</td><td class="num">${fmt0(k.bracket)}</td><td class="num" style="${k.pct>=30?'color:var(--purple);font-weight:700;':''}">${fmtPct(k.pct)}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted-2);">No reps with $5K+ wins in this period</td></tr>';
+}
+
+function renderMargin(M){
+  const hl = '35-40%';
+  document.getElementById('marginBody').innerHTML = M.margin.map(r=>`
+    <tr class="${r.bucket===hl?'hl-row':''}">
+      <td>${r.bucket}${r.bucket===hl?' ★':''}</td>
+      <td class="num">${fmt0(r.jobsThis)}</td>
+      <td class="num">${fmtMoney(r.revThis)}</td>
+      <td class="num ${r.revVsLast>=0?'up':'down'}">${r.revVsLast>=0?'+':'-'}${fmtMoney(Math.abs(r.revVsLast))}</td>
+      <td class="num">${fmtMoney(r.gpThis)}</td>
+      <td class="num ${r.gpVsLast>=0?'up':'down'}">${r.gpVsLast>=0?'+':'-'}${fmtMoney(Math.abs(r.gpVsLast))}</td>
+      <td class="num">${fmtPct(r.gpPctThis)}</td>
+      <td class="num" style="color:var(--muted-2);">${fmtPct(r.gpPctLast)}</td>
+      <td class="num ${r.gpPctThis>=r.gpPctLast?'up':'down'}">${r.gpPctThis>=r.gpPctLast?'+':''}${(r.gpPctThis-r.gpPctLast).toFixed(1)}pp</td>
+    </tr>`).join('') + `
+    <tr class="total-row"><td>Total</td><td class="num">${fmt0(M.marginTotal.jobsThis)}</td><td class="num">${fmtMoney(M.marginTotal.revThis)}</td>
+      <td class="num ${M.marginTotal.revVsLast>=0?'up':'down'}">${M.marginTotal.revVsLast>=0?'+':'-'}${fmtMoney(Math.abs(M.marginTotal.revVsLast))}</td>
+      <td class="num">${fmtMoney(M.marginTotal.gpThis)}</td>
+      <td class="num ${M.marginTotal.gpVsLast>=0?'up':'down'}">${M.marginTotal.gpVsLast>=0?'+':'-'}${fmtMoney(Math.abs(M.marginTotal.gpVsLast))}</td>
+      <td class="num">${fmtPct(M.marginTotal.gpPctThis)}</td><td class="num">${fmtPct(M.marginTotal.gpPctLast)}</td>
+      <td class="num ${M.marginTotal.gpPctThis>=M.marginTotal.gpPctLast?'up':'down'}">${(M.marginTotal.gpPctThis-M.marginTotal.gpPctLast).toFixed(1)}pp</td></tr>`;
+
+  const hlIdx = BUCKETS.indexOf(hl);
+  mkChart('chartMarginDonut', {
+    type:'doughnut',
+    data:{ labels:BUCKETS, datasets:[{ data:M.margin.map(r=>r.revThis), backgroundColor:BUCKETS.map((b,i)=> i===hlIdx?COLORS.purple:[COLORS.blue,COLORS.teal,COLORS.green,COLORS.orange,COLORS.purple,COLORS.red,COLORS.navy][i]) }]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}
+  });
+}
+
+function renderCommission(M){
+  document.getElementById('commTotalThis').textContent = fmtMoney(M.commTotalThis);
+  document.getElementById('commTotalLast').textContent = fmtMoney(M.commTotalLast);
+  const yoy = M.commTotalThis - M.commTotalLast;
+  document.getElementById('commYoY').innerHTML = `<span class="${yoy>=0?'up':'down'}">${yoy>=0?'▲':'▼'} ${fmtMoney(Math.abs(yoy))}</span>`;
+  document.getElementById('commPctRev').textContent = fmtPct(M.commPctRevThis);
+
+  mkChart('chartMonthlyComm', {
+    data:{ labels:M.monthlyComm.map(m=>m.label), datasets:[
+      {type:'bar', label:'Base Comm', data:M.monthlyComm.map(m=>m.base), backgroundColor:COLORS.blue, stack:'s'},
+      {type:'bar', label:'Initiative Premium', data:M.monthlyComm.map(m=>m.premium), backgroundColor:COLORS.purple, stack:'s'},
+      {type:'line', label:'2025 Total Comm', data:M.monthlyComm.map(m=>m.totalLast), borderColor:COLORS.gray, backgroundColor:COLORS.gray, borderDash:[4,3], tension:.35},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}, scales:{x:{stacked:true},y:{stacked:true, ticks:{callback:v=>fmtMoney(v)}}}}
+  });
+
+  const hlIdx = BUCKETS.indexOf('35-40%');
+  mkChart('chartCommByBucket', {
+    type:'bar',
+    data:{ labels:BUCKETS, datasets:[
+      {label:'2026', data:M.commByBucket.map(d=>d.commThis), backgroundColor:M.commByBucket.map((d,i)=>i===hlIdx?COLORS.purple:COLORS.blue)},
+      {label:'2025', data:M.commByBucket.map(d=>d.commLast), backgroundColor:M.commByBucket.map((d,i)=>i===hlIdx?COLORS.purpleLight:COLORS.blueLight)},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{ticks:{callback:v=>fmtMoney(v)}}}}
+  });
+}
+
+function renderCommReps(M){
+  let arr = M.commReps.slice();
+  const sortFn = {
+    total26:(a,b)=>b.totalThis-a.totalThis, revenue:(a,b)=>b.revenue-a.revenue,
+    yoy:(a,b)=>b.yoy-a.yoy, rate:(a,b)=>b.effRate-a.effRate,
+  }[commSortMode];
+  arr.sort(sortFn);
+  document.getElementById('commBody').innerHTML = arr.map(r=>`
+    <tr><td>${r.name}</td><td class="num">${fmt0(r.jobs)}</td><td class="num pos">${fmtMoney(r.revenue)}</td>
+    <td class="num">${fmtMoney(r.base)}</td><td class="num" style="color:var(--purple);font-weight:700;">${fmtMoney(r.premium)}</td>
+    <td class="num" style="font-weight:700;">${fmtMoney(r.totalThis)}</td><td class="num" style="color:var(--muted-2);">${r.totalLast?fmtMoney(r.totalLast):'—'}</td>
+    <td class="num ${r.yoy>=0?'up':'down'}">${r.yoy>=0?'+':'-'}${fmtMoney(Math.abs(r.yoy))}</td>
+    <td class="num">${fmtPct(r.effRate)}</td></tr>`).join('');
+}
+
+function renderWaterfall(M){
+  const w = M.waterfall;
+  const mult = wfMode==='total' ? w.orders : 1;
+  const vals = {
+    rev: w.avgOrderValue*mult, cogs: w.cogs*mult, gp: w.gp*mult,
+    commission: w.commission*mult, lead: w.leadCostPerOrder*mult, net: w.netContribution*mult,
+  };
+  document.getElementById('waterfallList').innerHTML = `
+    <div class="row"><div class="lbl">${wfMode==='total'?'Total Revenue':'Avg Order Value'}</div><div class="v">${fmtMoney(vals.rev)}</div><div class="sub">${fmt0(w.orders)} $5K+ orders</div></div>
+    <div class="row"><div class="lbl">Gross Profit</div><div class="v" style="color:var(--green);">${fmtPct(w.avgOrderValue?100*w.gp/w.avgOrderValue:0)}</div><div class="sub">${fmtMoney(vals.gp)} GP</div></div>
+    <div class="row"><div class="lbl">Commission Cost</div><div class="v" style="color:var(--purple);">${fmtMoney(vals.commission)}</div><div class="sub">${fmtPct(w.avgOrderValue?100*w.commission/w.avgOrderValue:0)} of revenue</div></div>
+    <div class="row"><div class="lbl">Lead Cost / Order</div><div class="v" style="color:var(--orange);">${fmtMoney(vals.lead)}</div><div class="sub">${w.leadsPerOrder.toFixed(1)} leads × ${fmtMoneyFull(CFG.leadCost)}</div></div>
+    <div class="row"><div class="lbl">Net Contribution</div><div class="v" style="color:var(--teal);">${fmtMoney(vals.net)}</div><div class="sub">${fmtPct(w.avgOrderValue?100*w.netContribution/w.avgOrderValue:0)} of revenue</div></div>
+  `;
+  mkChart('chartWaterfall', {
+    type:'bar',
+    data:{ labels:['Revenue','Cost of Goods','Gross Profit','Commission','Lead Acquisition','Net Contribution'],
+      datasets:[{
+        data:[
+          [0, vals.rev],
+          [vals.gp, vals.rev],
+          [0, vals.gp],
+          [vals.gp-vals.commission, vals.gp],
+          [vals.gp-vals.commission-vals.lead, vals.gp-vals.commission],
+          [0, vals.net],
+        ],
+        backgroundColor:[COLORS.blue, COLORS.red, COLORS.green, COLORS.purple, COLORS.orange, COLORS.teal],
+        borderRadius:3,
+      }]
+    },
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:(ctx)=>{ const d=ctx.raw; return fmtMoney(Math.abs(d[1]-d[0])); }}}
+    }, scales:{y:{ticks:{callback:v=>fmtMoney(v)}}}}
+  });
+}
+
+function renderFunnel(M){
+  const f = M.funnel;
+  document.getElementById('funnelRow').innerHTML = `
+    <div class="funnel-box" style="background:var(--orange-soft);border-color:var(--orange-light,${'#FBD9A5'});">
+      <div class="lbl" style="color:var(--orange);">Leads</div><div class="v">${fmt0(f.leads)}</div><div class="sub">${fmtMoneyFull(f.leadCost)} / lead</div>
+    </div>
+    <div class="funnel-arrow">${f.apptRate}%<br>→ Appt</div>
+    <div class="funnel-box" style="background:var(--blue-soft);">
+      <div class="lbl" style="color:var(--blue);">Appointments</div><div class="v">${fmt0(f.appts)}</div><div class="sub">${f.apptRate}% of leads</div>
+    </div>
+    <div class="funnel-arrow">${f.orderRate.toFixed(1)}%<br>→ $5K+</div>
+    <div class="funnel-box" style="background:var(--green-soft);">
+      <div class="lbl" style="color:var(--green);">$5K+ Orders</div><div class="v">${fmt0(f.orders)}</div><div class="sub">${fmtPct(f.orderRate)} of appts</div>
+    </div>
+    <div class="funnel-extra">
+      <div class="funnel-box" style="background:#FBEAEA;"><div class="lbl" style="color:var(--red);">Total Lead Cost</div><div class="v">${fmtMoney(f.totalLeadCost)}</div><div class="sub">${fmtMoney(f.orders?f.totalLeadCost/f.orders:0)} / order</div></div>
+      <div class="funnel-box" style="background:#FDF6E3;"><div class="lbl" style="color:#B8860B;">Total Revenue</div><div class="v">${fmtMoney(f.totalRevenue)}</div><div class="sub">${fmtMoney(f.orders?f.totalRevenue/f.orders:0)} / order</div></div>
+      <div class="funnel-box" style="background:var(--green-soft);"><div class="lbl" style="color:var(--green);">Total GP</div><div class="v">${fmtMoney(f.totalGP)}</div><div class="sub">${fmtPct(f.gpMargin)} margin</div></div>
+      <div class="funnel-box" style="background:var(--purple-soft);"><div class="lbl" style="color:var(--purple);">Total Commission</div><div class="v">${fmtMoney(f.totalCommission)}</div><div class="sub">${fmtPct(f.commPctRev)} of rev</div></div>
+      <div class="funnel-box" style="background:var(--teal-soft);"><div class="lbl" style="color:var(--teal);">Net Contribution</div><div class="v">${fmtMoney(f.netContribution)}</div><div class="sub">${fmtPct(f.netPctRev)} of rev</div></div>
+    </div>
+  `;
+  document.getElementById('funnelFootnote').textContent =
+    `How lead cost is allocated: each $5K+ order requires ${(f.appts? (1/((f.apptRate/100)*(f.orders/f.appts))).toFixed(1) : '0')} leads `+
+    `(= 1 ÷ (${f.apptRate}% lead→appt × ${f.orderRate.toFixed(1)}% appt→order)). At ${fmtMoneyFull(f.leadCost)}/lead that is `+
+    `${fmtMoney(f.orders? f.totalLeadCost/f.orders:0)} in acquisition cost per won order. Net contribution = GP − Commission − Lead Cost.`;
+}
+
+function renderAll(M){
+  renderInsight(M);
+  renderKPIs(M);
+  renderApptConv(M);
+  renderMonthlyConv(M);
+  renderPipeline(M);
+  renderBand(M);
+  renderAOV(M);
+  renderDiscDist(M);
+  renderMonthlyWon(M);
+  renderRevByBucket(M);
+  renderOppPipeline(M);
+  renderValueBands(M);
+  renderReps(M);
+  renderMargin(M);
+  renderCommission(M);
+  renderCommReps(M);
+  renderWaterfall(M);
+  renderFunnel(M);
+}
+
+function recomputeAndRender(){
+  const M = computeAll(CFG);
+  renderAll(M);
+  document.getElementById('subLine').innerHTML =
+    `YTD <b>${CFG.thisYear.from.slice(0,4)}</b> (${CFG.thisYear.from} → ${CFG.thisYear.to}) vs YTD <b>${CFG.lastYear.from.slice(0,4)}</b> (${CFG.lastYear.from} → ${CFG.lastYear.to})`;
+}
+
+// ---------------- config panel wiring ----------------
+function fillConfigForm(){
+  document.getElementById('cfgMinValue').value = CFG.minJobValue;
+  document.getElementById('cfgBaseRate').value = CFG.baseRate;
+  document.getElementById('cfgTier0').value = CFG.tierRates[0];
+  document.getElementById('cfgTier1').value = CFG.tierRates[1];
+  document.getElementById('cfgTier2').value = CFG.tierRates[2];
+  document.getElementById('cfgTier3').value = CFG.tierRates[3];
+  document.getElementById('cfgThisFrom').value = CFG.thisYear.from;
+  document.getElementById('cfgThisTo').value = CFG.thisYear.to;
+  document.getElementById('cfgLastFrom').value = CFG.lastYear.from;
+  document.getElementById('cfgLastTo').value = CFG.lastYear.to;
+}
+function readConfigForm(){
+  CFG.minJobValue = parseFloat(document.getElementById('cfgMinValue').value) || 0;
+  CFG.baseRate = parseFloat(document.getElementById('cfgBaseRate').value) || 0;
+  CFG.tierRates = [0,1,2,3].map(i=>parseFloat(document.getElementById('cfgTier'+i).value) || 0);
+  CFG.thisYear = {from: document.getElementById('cfgThisFrom').value, to: document.getElementById('cfgThisTo').value};
+  CFG.lastYear = {from: document.getElementById('cfgLastFrom').value, to: document.getElementById('cfgLastTo').value};
+}
+
+document.getElementById('configBtn').addEventListener('click', ()=>{
+  document.getElementById('configPanel').classList.toggle('open');
+});
+document.getElementById('saveLoadBtn').addEventListener('click', ()=>{
+  readConfigForm();
+  recomputeAndRender();
+});
+document.getElementById('repYear').addEventListener('change', e=>{ repYearMode = e.target.value; renderReps(computeAll(CFG)); });
+document.getElementById('repSort').addEventListener('change', e=>{ repSortMode = e.target.value; renderReps(computeAll(CFG)); });
+document.getElementById('commSort').addEventListener('change', e=>{ commSortMode = e.target.value; renderCommReps(computeAll(CFG)); });
+document.getElementById('wfLeadCost').addEventListener('change', e=>{ CFG.leadCost = parseFloat(e.target.value)||0; recomputeAndRender(); });
+document.getElementById('wfApptRate').addEventListener('change', e=>{ CFG.apptRate = parseFloat(e.target.value)||0; recomputeAndRender(); });
+document.getElementById('wfPerOrder').addEventListener('click', ()=>{ wfMode='perOrder'; document.getElementById('wfPerOrder').classList.add('active'); document.getElementById('wfTotalPeriod').classList.remove('active'); renderWaterfall(computeAll(CFG)); });
+document.getElementById('wfTotalPeriod').addEventListener('click', ()=>{ wfMode='total'; document.getElementById('wfTotalPeriod').classList.add('active'); document.getElementById('wfPerOrder').classList.remove('active'); renderWaterfall(computeAll(CFG)); });
+
+function setUpdatedLabel(){
+  const now = new Date();
+  document.getElementById('updatedLabel').textContent = 'Updated ' + now.toLocaleTimeString('en-AU', {hour:'numeric',minute:'2-digit',second:'2-digit'});
+}
+
+async function loadData(bust){
+  const url = 'insyte_initiative_data.json' + (bust ? ('?t='+Date.now()) : '');
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('fetch failed: '+res.status);
+  return res.json();
+}
+
+document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+  try{
+    RAW = await loadData(true);
+    recomputeAndRender();
+    setUpdatedLabel();
+  }catch(e){
+    document.getElementById('insightTitle').textContent = 'Refresh failed';
+    document.getElementById('insightText').textContent = 'Could not reload insyte_initiative_data.json — ' + e.message;
+  }
+});
+
+(async function init(){
+  try{
+    RAW = await loadData(false);
+    CFG = defaultConfig(RAW.generatedAt);
+    fillConfigForm();
+    const dq = RAW.dataQuality || {};
+    document.getElementById('dataFooter').innerHTML =
+      `Data window: ${RAW.dateRange.from} to ${RAW.dateRange.to} · Generated ${new Date(RAW.generatedAt).toLocaleString('en-AU')} · ${RAW.jobs.length.toLocaleString()} jobs, ${RAW.appointments.length.toLocaleString()} appointments`
+      + (dq.orderIntakeNote ? `<br>${dq.orderIntakeNote}` + (dq.insyteOrderStageWithoutPayment ? ` (${dq.insyteOrderStageWithoutPayment.toLocaleString()} jobs Insyte marks as "order" stage have no matching confirmed payment in this data window, so they aren't counted as won here.)` : '') : '');
+    recomputeAndRender();
+    setUpdatedLabel();
+  }catch(e){
+    document.getElementById('insightTitle').textContent = 'Could not load data';
+    document.getElementById('insightText').textContent =
+      'insyte_initiative_data.json failed to load (' + e.message + '). Run refresh_initiative_data.py, and make sure this page is served over http:// (not opened as a file://), e.g. `python -m http.server`.';
+  }
+})();
+
+})();
+</script>
+</body>
+</html>
