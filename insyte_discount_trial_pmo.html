@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Discount Trial — Order Economics &amp; Conversion Analysis</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#EEF1F6; --card:#FFFFFF; --border:#E3E7EF;
+  --navy:#16224A; --text:#1F2937; --muted:#6B7280; --muted-2:#94A3B8;
+  --blue:#2F6FEB; --blue-soft:#EAF0FE; --blue-light:#B9CBF3;
+  --purple:#7C4DFF; --purple-soft:#F1ECFF; --purple-light:#D9CCFF;
+  --green:#15A24A; --green-soft:#E9F8EF; --red:#DC2626; --red-soft:#FBEAEA;
+  --orange:#F59E0B; --orange-soft:#FDF1DC; --teal:#0D9488; --teal-soft:#E3F5F3;
+  --gray:#B7BFCC;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 24px 90px;}
+
+.tags{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.tag{font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:var(--purple-soft);color:var(--purple);}
+.tag.blue{background:var(--blue-soft);color:var(--blue);}
+
+.masthead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:22px;}
+.masthead h1{font-size:28px;font-weight:800;margin:0 0 6px;color:var(--navy);letter-spacing:-0.01em;}
+.masthead .sub{font-size:14px;color:var(--muted);}
+.masthead .sub b{color:var(--text);}
+.head-actions{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.updated{font-size:12px;color:var(--muted-2);}
+.btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px 18px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.btn:hover{background:#F4F6FA;}
+.btn.primary:hover{background:#255ecf;}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:20px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+#configPanel{display:none;}
+#configPanel.open{display:block;}
+.cfg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 24px;margin-bottom:18px;}
+.cfg-grid.wide{grid-template-columns:repeat(2,1fr);}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.field input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text);background:#fff;}
+.field .hint{font-size:11px;color:var(--muted-2);margin-top:4px;}
+.tier-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+.tier-row .field{flex:1;min-width:110px;}
+.date-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.date-row .field{flex:1;min-width:140px;}
+.date-row span{color:var(--muted-2);font-size:13px;padding-top:18px;}
+.cfg-footer{display:flex;justify-content:flex-end;padding-top:6px;border-top:1px solid var(--border);margin-top:4px;}
+.btn.save{background:#0F7A4C;border-color:#0F7A4C;color:#fff;padding:11px 22px;}
+.btn.save:hover{background:#0b6540;}
+
+.banner{border-radius:10px;padding:18px 20px;margin-bottom:22px;border-left:4px solid var(--green);background:var(--green-soft);}
+.banner.mixed{border-left-color:var(--orange);background:var(--orange-soft);}
+.banner.negative{border-left-color:var(--red);background:var(--red-soft);}
+.banner .btitle{font-weight:700;font-size:14.5px;margin-bottom:6px;color:var(--text);}
+.banner .btext{font-size:13.5px;line-height:1.55;color:#374151;}
+
+.grid{display:grid;gap:18px;margin-bottom:18px;}
+.grid.cols-4{grid-template-columns:repeat(4,1fr);}
+.grid.cols-2-even{grid-template-columns:1fr 1fr;}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+@media (max-width:1000px){
+  .grid.cols-4{grid-template-columns:repeat(2,1fr);}
+  .grid.cols-2-even, .grid.cols-3{grid-template-columns:1fr;}
+  .cfg-grid{grid-template-columns:repeat(2,1fr);}
+}
+
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.kpi-card.highlight{border:2px solid var(--purple);background:linear-gradient(180deg,#FAF8FF, #F5F1FF);}
+.kpi-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.kpi-label.hl{color:var(--purple);}
+.kpi-cols{display:flex;gap:14px;}
+.kpi-col{flex:1;}
+.kpi-col .yr{font-size:11px;font-weight:700;color:var(--blue);margin-bottom:3px;}
+.kpi-col.dim .yr{color:var(--muted-2);}
+.kpi-col .val{font-size:24px;font-weight:800;color:var(--text);line-height:1.1;}
+.kpi-col.dim .val{color:var(--muted-2);font-weight:700;}
+.kpi-col .val.purple{color:var(--purple);}
+.kpi-col .lbl{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.kpi-delta{margin-top:12px;font-size:12.5px;font-weight:700;}
+.kpi-delta.up{color:var(--green);}
+.kpi-delta.down{color:var(--red);}
+
+.card-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.card-title .right{float:right;text-transform:none;letter-spacing:0;font-weight:500;}
+.card-sub{font-size:12px;color:var(--muted-2);margin:-10px 0 16px;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{background:var(--navy);color:#fff;text-align:left;font-weight:600;padding:10px 12px;font-size:12px;}
+thead th.num{text-align:right;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--border);}
+tbody td.num{text-align:right;font-variant-numeric:tabular-nums;}
+tbody tr:nth-child(even){background:#FAFBFD;}
+tbody tr.total-row td{font-weight:700;border-top:2px solid var(--navy);background:#F4F6FA;}
+tbody tr.hl-row td{background:var(--purple-soft);}
+tbody tr.section-row td{background:#F0F2F6;font-weight:700;color:var(--navy);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-top:14px;}
+.up{color:var(--green);font-weight:700;}
+.down{color:var(--red);font-weight:700;}
+.tbl-scroll{overflow-x:auto;}
+
+.seg-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.seg-card .tag2{font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:10px;color:var(--muted);}
+.seg-card.hl{border:2px solid var(--purple);background:linear-gradient(180deg,#FAF8FF,#F5F1FF);}
+.seg-card.hl .tag2{color:var(--purple);}
+.seg-card .conv{font-size:26px;font-weight:800;}
+.seg-card .convlast{font-size:14px;color:var(--muted-2);margin-top:2px;}
+.seg-card .convdelta{margin-top:8px;font-size:12.5px;font-weight:700;}
+
+.chart-box{position:relative;}
+.chart-box.h260{height:260px;}
+.chart-box.h300{height:300px;}
+.chart-box.h340{height:340px;}
+
+.foot-note{font-size:11.5px;color:var(--muted-2);margin-top:12px;line-height:1.5;}
+.pilot-card ul{margin:6px 0 0;padding-left:18px;}
+.pilot-card li{margin-bottom:4px;font-size:13px;color:#374151;}
+.pilot-card h4{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:14px 0 4px;}
+.pilot-card h4:first-child{margin-top:0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tags">
+    <span class="tag">Discount Trial</span>
+    <span class="tag blue">PMO Analysis — $3K+ Segment</span>
+  </div>
+
+  <div class="masthead">
+    <div>
+      <h1>Discount Trial — Order Economics &amp; Conversion Analysis</h1>
+      <div class="sub" id="subLine">YTD <b>2026</b> vs YTD <b>2025</b> — same calendar period comparison</div>
+    </div>
+    <div class="head-actions">
+      <span class="updated" id="updatedLabel">Loading…</span>
+      <button class="btn primary" id="refreshBtn">↻ Refresh</button>
+      <button class="btn" id="configBtn">⚙ Config</button>
+    </div>
+  </div>
+
+  <!-- CONFIG PANEL -->
+  <div class="card" id="configPanel">
+    <div class="cfg-grid">
+      <div class="field"><label>Min Order Value ($)</label><input id="cfgMinValue" type="number" step="500" value="3000"><div class="hint">Segment threshold — matches the pilot's $3K analysis</div></div>
+      <div class="field"><label>High-Discount Threshold (%)</label><input id="cfgHighThreshold" type="number" step="0.5" value="37.5"><div class="hint">Used for adoption / AOV-sensitivity tracking (Slides 2 &amp; 5)</div></div>
+      <div class="field"><label>Base Commission Rate (%)</label><input id="cfgBaseRate" type="number" step="0.5" value="8"><div class="hint">Applies when discount ≤ 35%</div></div>
+      <div class="field"><label>Lead Cost ($)</label><input id="cfgLeadCost" type="number" step="5" value="135"></div>
+    </div>
+    <div class="cfg-grid wide">
+      <div class="field">
+        <label>Tiered Commission — replaces base rate above 35% discount (%)</label>
+        <div class="tier-row">
+          <div class="field"><label class="hint" style="margin-bottom:3px;">35.00–36.25%</label><input id="cfgTier0" type="number" step="0.5" value="7"></div>
+          <div class="field"><label class="hint" style="margin-bottom:3px;">36.25–37.50%</label><input id="cfgTier1" type="number" step="0.5" value="6"></div>
+          <div class="field"><label class="hint" style="margin-bottom:3px;">37.50–38.75%</label><input id="cfgTier2" type="number" step="0.5" value="5"></div>
+          <div class="field"><label class="hint" style="margin-bottom:3px;">38.75–40.00%</label><input id="cfgTier3" type="number" step="0.5" value="4"></div>
+        </div>
+        <div class="hint">Per the pilot design: commission on jobs discounted &gt;35% ticks DOWN from 7% to 4% as discount rises toward 40% — replacing the base rate, not adding to it. Above 40%, the 4% floor continues to apply.</div>
+      </div>
+      <div class="field">
+        <label>Lead → Appointment Rate (%)</label>
+        <input id="cfgApptRate" type="number" step="1" value="83">
+        <div class="hint">Used to derive Ad Spend / Order from appointment volume and each segment's own conversion rate</div>
+      </div>
+    </div>
+    <div class="cfg-grid wide">
+      <div class="field">
+        <label>YTD This Year</label>
+        <div class="date-row"><div class="field"><input id="cfgThisFrom" type="date"></div><span>to</span><div class="field"><input id="cfgThisTo" type="date"></div></div>
+      </div>
+      <div class="field">
+        <label>YTD Last Year</label>
+        <div class="date-row"><div class="field"><input id="cfgLastFrom" type="date"></div><span>to</span><div class="field"><input id="cfgLastTo" type="date"></div></div>
+      </div>
+    </div>
+    <div class="cfg-footer"><button class="btn save" id="saveLoadBtn">Save &amp; Load</button></div>
+  </div>
+
+  <!-- INSIGHT BANNER -->
+  <div class="banner" id="insightBanner">
+    <div class="btitle" id="insightTitle">Loading data…</div>
+    <div class="btext" id="insightText"></div>
+  </div>
+
+  <!-- PILOT OVERVIEW -->
+  <div class="card pilot-card">
+    <div class="card-title">Pilot Overview</div>
+    <div class="grid cols-3">
+      <div><h4>Participants</h4><ul><li>9 sales reps from trial kick-off</li><li>All sales reps from full rollout</li></ul></div>
+      <div><h4>Model</h4><ul><li>Up to 40% discount on jobs over $3K</li><li>Tiered commission on jobs discounted &gt;35%, starting at 7% and tapering to 4%</li></ul></div>
+      <div><h4>Objective</h4><ul><li>Test whether a more flexible discount structure on higher-value jobs increases conversion, AOV, and order economics</li><li>Reallocate resourcing from smaller-AOV orders into larger-AOV orders</li></ul></div>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="grid cols-4" id="kpiRow"></div>
+
+  <!-- ADOPTION -->
+  <div class="grid cols-2-even">
+    <div class="card">
+      <div class="card-title">Quotes ≥ Min Order Value — Monthly</div>
+      <div class="chart-box h260"><canvas id="chartAdoptionCount"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">% of Those Quotes With Discount Above High-Discount Threshold</div>
+      <div class="chart-box h260"><canvas id="chartAdoptionRate"></canvas></div>
+    </div>
+  </div>
+  <div class="foot-note" style="margin-top:-8px;margin-bottom:18px;">"Quotes given" = jobs entering the pipeline (by first-quoted date) valued at or above the Min Order Value, regardless of eventual outcome. Adoption % = share of those quotes carrying a discount above the High-Discount Threshold.</div>
+
+  <!-- CONVERSION BY SEGMENT -->
+  <div class="card">
+    <div class="card-title">Conversion by Segment (Won ÷ (Won + Lost))</div>
+    <div class="grid cols-4" id="segConvRow" style="margin-bottom:0;"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Discount × Conversion Elasticity — Orders ≥ Min Order Value</div>
+    <div class="chart-box h300"><canvas id="chartElasticity"></canvas></div>
+    <div class="foot-note">Each point is a discount band (0–10%, 10–20%, … 50%+); conversion = won ÷ (won + lost) within that band, among quotes at or above the Min Order Value.</div>
+  </div>
+
+  <!-- ORDER ECONOMICS TABLE -->
+  <div class="card">
+    <div class="card-title">Order Economics by Segment</div>
+    <div class="card-sub">Below Min Value / Above Min Value &amp; ≤35% discount / Above Min Value &amp; &gt;35% discount — this is the core question the pilot is testing.</div>
+    <div class="grid cols-2-even">
+      <div>
+        <div class="card-title" style="margin-bottom:8px;">This Year YTD</div>
+        <div class="tbl-scroll"><table><thead><tr><th>Metric</th><th class="num">Below Min Value</th><th class="num">Above, ≤35%</th><th class="num">Above, &gt;35%</th><th class="num">Total</th></tr></thead><tbody id="econBodyThis"></tbody></table></div>
+      </div>
+      <div>
+        <div class="card-title" style="margin-bottom:8px;">Last Year YTD</div>
+        <div class="tbl-scroll"><table><thead><tr><th>Metric</th><th class="num">Below Min Value</th><th class="num">Above, ≤35%</th><th class="num">Above, &gt;35%</th><th class="num">Total</th></tr></thead><tbody id="econBodyLast"></tbody></table></div>
+      </div>
+    </div>
+    <div class="foot-note">Margin Contribution = AOV (discounted price) − Ad Spend/Order − COGS/Order − Sales Commission/Order − Installation/Order. Ad Spend/Order is derived from Lead Cost ÷ (Lead→Appointment Rate × segment conversion rate), consistent with the pilot's ~$135/lead assumption. All figures ex-GST.</div>
+  </div>
+
+  <!-- MARGIN CONTRIBUTION YOY -->
+  <div class="card">
+    <div class="card-title">Margin Contribution — YoY, by Segment</div>
+    <div class="chart-box h300"><canvas id="chartMarginYoY"></canvas></div>
+  </div>
+
+  <!-- AOV THRESHOLD SENSITIVITY -->
+  <div class="card">
+    <div class="card-title">AOV Threshold Sensitivity — % of Orders Above High-Discount Threshold, by Value Band</div>
+    <div class="chart-box h300"><canvas id="chartThresholdSensitivity"></canvas></div>
+    <div class="foot-note">For each $1,000-wide order-value band, the % of won orders in that band discounted above the High-Discount Threshold. Informs where the Min Order Value cutoff should sit to maximize NPV.</div>
+  </div>
+
+  <div class="foot-note" style="text-align:center;margin-top:10px;" id="dataFooter"></div>
+
+</div>
+
+<script>
+(function(){
+
+const COLORS = {
+  blue:'#2F6FEB', blueLight:'#B9CBF3', purple:'#7C4DFF', purpleLight:'#D9CCFF',
+  green:'#15A24A', greenLight:'#BFE6CB', orange:'#F59E0B', orangeLight:'#FBD9A5',
+  red:'#DC2626', teal:'#0D9488', navy:'#16224A', gray:'#B7BFCC'
+};
+const BUCKETS = ["0-10%","10-20%","20-30%","30-35%","35-40%","40-50%","50%+"];
+const BUCKET_MID = {"0-10%":5,"10-20%":15,"20-30%":25,"30-35%":32.5,"35-40%":37.5,"40-50%":45,"50%+":55};
+const VALUE_BANDS = [
+  {label:'<$1K', lo:0, hi:1000}, {label:'$1K–$2K', lo:1000, hi:2000},
+  {label:'$2K–$3K', lo:2000, hi:3000}, {label:'$3K–$4K', lo:3000, hi:4000},
+  {label:'$4K–$5K', lo:4000, hi:5000}, {label:'$5K–$6K', lo:5000, hi:6000},
+  {label:'$6K–$7K', lo:6000, hi:7000}, {label:'$7K–$8K', lo:7000, hi:8000},
+  {label:'$8K+', lo:8000, hi:Infinity},
+];
+
+let RAW = null;
+let CFG = null;
+let charts = {};
+
+const fmt0 = n => Math.round(n).toLocaleString('en-AU');
+const fmtMoney = n => {
+  if (n === null || n === undefined || isNaN(n)) return '–';
+  const a = Math.abs(n);
+  if (a >= 1e6) return (n<0?'-':'') + '$' + (a/1e6).toFixed(1) + 'M';
+  if (a >= 1e3) return (n<0?'-':'') + '$' + (a/1e3).toFixed(a>=100000?0:1) + 'K';
+  return (n<0?'-':'') + '$' + fmt0(a);
+};
+const fmtPct = (n, d=1) => (n===null||n===undefined||isNaN(n)) ? '–' : n.toFixed(d) + '%';
+const monthLabel = ym => {
+  const [y,m] = ym.split('-');
+  const names=['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'];
+  return names[parseInt(m,10)-1] + ' ' + y.slice(2);
+};
+function monthsInRange(from, to){
+  const out=[]; let [y,m]=from.split('-').map(Number);
+  const [ey,em]=to.split('-').map(Number);
+  while (y<ey || (y===ey && m<=em)){ out.push(y+'-'+String(m).padStart(2,'0')); m++; if(m>12){m=1;y++;} }
+  return out;
+}
+function lastYearOf(ym){ const [y,m]=ym.split('-'); return (parseInt(y,10)-1)+'-'+m; }
+function sum(arr, fn){ return arr.reduce((a,x)=>a+fn(x),0); }
+function avg(arr, fn){ return arr.length ? sum(arr,fn)/arr.length : 0; }
+function inRange(date, from, to){ return date && date>=from && date<=to; }
+
+function defaultConfig(genDateISO){
+  const d = new Date(genDateISO);
+  const y = d.getUTCFullYear();
+  const pad = n => String(n).padStart(2,'0');
+  const toStr = d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());
+  const lastToStr = (y-1)+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());
+  return {
+    minValue: 3000, highThreshold: 37.5, baseRate: 8, tierRates: [7,6,5,4],
+    leadCost: 135, apptRate: 83,
+    thisYear: {from: y+'-01-01', to: toStr},
+    lastYear: {from: (y-1)+'-01-01', to: lastToStr},
+  };
+}
+
+// ---------------- segment + commission model ----------------
+function segmentOf(job, cfg){
+  if (job.revenue < cfg.minValue) return 'below';
+  return job.discPct > 35 ? 'aboveHigh' : 'aboveLow';
+}
+function tierRateForDisc(discPct, cfg){
+  const width = 1.25;
+  const idx = Math.min(3, Math.max(0, Math.floor((discPct-35)/width)));
+  return cfg.tierRates[idx];
+}
+function commissionRate(job, cfg){
+  return job.discPct > 35 ? tierRateForDisc(Math.min(job.discPct,40), cfg) : cfg.baseRate;
+}
+function commissionOf(job, cfg){ return job.revenue * commissionRate(job, cfg) / 100; }
+
+function wonJobs(range, cfg){
+  return RAW.jobs.filter(j=> j.stage==='won' && j.confirmedDate && inRange(j.confirmedDate, range.from, range.to));
+}
+function pipelineJobs(range){
+  return RAW.jobs.filter(j=> inRange(j.firstDate, range.from, range.to));
+}
+function apptsIn(range){
+  return RAW.appointments.filter(a=> inRange(a.date, range.from, range.to));
+}
+
+// ================================================================
+// MAIN COMPUTE
+// ================================================================
+function computeAll(cfg){
+  const M = {};
+  const thisR = cfg.thisYear, lastR = cfg.lastYear;
+
+  const wonThis = wonJobs(thisR, cfg), wonLast = wonJobs(lastR, cfg);
+  const pipeThis = pipelineJobs(thisR), pipeLast = pipelineJobs(lastR);
+
+  // ---- KPIs ----
+  const gteThis = wonThis.filter(j=>j.revenue>=cfg.minValue), gteLast = wonLast.filter(j=>j.revenue>=cfg.minValue);
+  const highThis = gteThis.filter(j=>j.discPct>cfg.highThreshold), highLast = gteLast.filter(j=>j.discPct>cfg.highThreshold);
+  const totalRevThis = sum(wonThis,j=>j.revenue), totalRevLast = sum(wonLast,j=>j.revenue);
+  const gpThis = sum(wonThis,j=>j.gp), gpLast = sum(wonLast,j=>j.gp);
+  M.kpi = {
+    ordersThis: gteThis.length, ordersLast: gteLast.length,
+    revThis: totalRevThis, revLast: totalRevLast,
+    highPctThis: gteThis.length? 100*highThis.length/gteThis.length:0,
+    highPctLast: gteLast.length? 100*highLast.length/gteLast.length:0,
+    gpPctThis: totalRevThis? 100*gpThis/totalRevThis:0, gpPctLast: totalRevLast? 100*gpLast/totalRevLast:0,
+  };
+
+  // ---- Adoption monthly ----
+  const months = monthsInRange(thisR.from.slice(0,7), thisR.to.slice(0,7));
+  M.adoption = months.map(ym=>{
+    const lyYm = lastYearOf(ym);
+    const qThis = pipeThis.filter(j=>j.firstDate.slice(0,7)===ym && j.revenue>=cfg.minValue);
+    const qLast = pipeLast.filter(j=>j.firstDate.slice(0,7)===lyYm && j.revenue>=cfg.minValue);
+    const hThis = qThis.filter(j=>j.discPct>cfg.highThreshold).length;
+    const hLast = qLast.filter(j=>j.discPct>cfg.highThreshold).length;
+    return {
+      label: monthLabel(ym), countThis: qThis.length, countLast: qLast.length,
+      pctThis: qThis.length? 100*hThis/qThis.length:0, pctLast: qLast.length? 100*hLast/qLast.length:0,
+    };
+  });
+
+  // ---- Conversion by segment (won / (won+lost)), among pipeline jobs entering in range ----
+  function convFor(jobs, filterFn){
+    const inSeg = jobs.filter(filterFn);
+    const won = inSeg.filter(j=>j.stage==='won').length;
+    const lost = inSeg.filter(j=>j.stage==='lost').length;
+    return (won+lost) ? 100*won/(won+lost) : 0;
+  }
+  const segFns = {
+    total: j=>true,
+    below: j=>j.revenue<cfg.minValue,
+    aboveLow: j=>j.revenue>=cfg.minValue && j.discPct<=35,
+    aboveHigh: j=>j.revenue>=cfg.minValue && j.discPct>35,
+  };
+  M.segConv = {};
+  for (const [key, fn] of Object.entries(segFns)){
+    M.segConv[key] = {this: convFor(pipeThis, fn), last: convFor(pipeLast, fn)};
+  }
+
+  // ---- Elasticity: conversion by discount bucket, orders >= minValue ----
+  M.elasticity = BUCKETS.map(b=>({
+    bucket: b, mid: BUCKET_MID[b],
+    convThis: convFor(pipeThis, j=>j.revenue>=cfg.minValue && j.discBucket===b),
+    convLast: convFor(pipeLast, j=>j.revenue>=cfg.minValue && j.discBucket===b),
+  }));
+
+  // ---- Order economics table ----
+  function apptToOrderRate(range, wonSet){
+    const a = apptsIn(range).length;
+    return a ? wonSet.length/a : 0;
+  }
+  function econRow(wonSet, range){
+    const n = wonSet.length;
+    const rev = sum(wonSet,j=>j.revenue);
+    const cogs = sum(wonSet,j=>j.cogs);
+    const install = sum(wonSet,j=>j.installCost);
+    const comm = sum(wonSet, j=>commissionOf(j,cfg));
+    const orderRate = apptToOrderRate(range, wonSet);
+    const leadsPerOrder = (cfg.apptRate>0 && orderRate>0) ? 1/((cfg.apptRate/100)*orderRate) : 0;
+    const adSpend = leadsPerOrder * cfg.leadCost * n;
+    const margin = rev - adSpend - cogs - comm - install;
+    return {
+      n, rev, aov: n?rev/n:0,
+      adSpend, adSpendPerOrder: n?adSpend/n:0, adSpendPct: rev? 100*adSpend/rev:0,
+      cogs, cogsPerOrder: n?cogs/n:0, cogsPct: rev? 100*cogs/rev:0,
+      comm, commPerOrder: n?comm/n:0, commPct: rev? 100*comm/rev:0,
+      install, installPerOrder: n?install/n:0, installPct: rev? 100*install/rev:0,
+      margin, marginPerOrder: n?margin/n:0, marginPct: rev? 100*margin/rev:0,
+    };
+  }
+  function econTable(wonSet, range){
+    const below = wonSet.filter(j=>j.revenue<cfg.minValue);
+    const aboveLow = wonSet.filter(j=>j.revenue>=cfg.minValue && j.discPct<=35);
+    const aboveHigh = wonSet.filter(j=>j.revenue>=cfg.minValue && j.discPct>35);
+    const total = wonSet;
+    const rows = {below: econRow(below,range), aboveLow: econRow(aboveLow,range), aboveHigh: econRow(aboveHigh,range), total: econRow(total,range)};
+    const totalN = total.length || 1;
+    rows.below.share = 100*below.length/totalN; rows.aboveLow.share = 100*aboveLow.length/totalN; rows.aboveHigh.share = 100*aboveHigh.length/totalN; rows.total.share = 100;
+    rows.below.avgDisc = avg(below,j=>j.discPct); rows.aboveLow.avgDisc = avg(aboveLow,j=>j.discPct);
+    rows.aboveHigh.avgDisc = avg(aboveHigh,j=>j.discPct); rows.total.avgDisc = avg(total,j=>j.discPct);
+    return rows;
+  }
+  M.econThis = econTable(wonThis, thisR);
+  M.econLast = econTable(wonLast, lastR);
+
+  // ---- Threshold sensitivity by value band ----
+  M.valueBands = VALUE_BANDS.map(band=>{
+    const inBandThis = wonThis.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
+    const inBandLast = wonLast.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
+    const hiThis = inBandThis.filter(j=>j.discPct>cfg.highThreshold).length;
+    const hiLast = inBandLast.filter(j=>j.discPct>cfg.highThreshold).length;
+    return {
+      label: band.label,
+      pctThis: inBandThis.length? 100*hiThis/inBandThis.length:0,
+      pctLast: inBandLast.length? 100*hiLast/inBandLast.length:0,
+      nThis: inBandThis.length, nLast: inBandLast.length,
+    };
+  });
+
+  return M;
+}
+
+// ================================================================
+// RENDER
+// ================================================================
+function destroyChart(id){ if (charts[id]){ charts[id].destroy(); delete charts[id]; } }
+function mkChart(id, config){ destroyChart(id); const ctx=document.getElementById(id).getContext('2d'); charts[id]=new Chart(ctx,config); }
+
+function renderInsight(M){
+  const el = document.getElementById('insightBanner');
+  const title = document.getElementById('insightTitle');
+  const text = document.getElementById('insightText');
+  const adoptGrowth = M.kpi.highPctThis - M.kpi.highPctLast;
+  const convGap = M.segConv.aboveHigh.this - M.segConv.aboveLow.this;
+  const marginDelta = M.econThis.aboveHigh.marginPerOrder - M.econLast.aboveHigh.marginPerOrder;
+  const marginPctDelta = M.econThis.aboveHigh.marginPct - M.econLast.aboveHigh.marginPct;
+
+  let cls = 'positive', label = 'Discount Trial Showing Positive Signal';
+  if (adoptGrowth < 2 || convGap < 0) { cls='mixed'; label='Discount Trial Showing Mixed Signal'; }
+  if (adoptGrowth < -2 && convGap < 0) { cls='negative'; label='Discount Trial Not Yet Paying Off'; }
+
+  el.className = 'banner' + (cls!=='positive' ? ' '+cls : '');
+  title.textContent = (cls==='positive'?'✓ ':cls==='negative'?'! ':'~ ') + label;
+  text.innerHTML =
+    `High-discount adoption (orders above the ${CFG.highThreshold}% threshold, among $${fmt0(CFG.minValue)}+ orders) is at ${fmtPct(M.kpi.highPctThis)} this YTD vs ${fmtPct(M.kpi.highPctLast)} last year (${adoptGrowth>=0?'+':''}${adoptGrowth.toFixed(1)}pp). ` +
+    `Conversion on the &gt;35%-discount segment is ${fmtPct(M.segConv.aboveHigh.this)} vs ${fmtPct(M.segConv.aboveLow.this)} for the ≤35% segment — a ${convGap>=0?'+':''}${convGap.toFixed(1)}pp gap this YTD. ` +
+    `Margin contribution per order on the &gt;35% segment is ${fmtMoney(M.econThis.aboveHigh.marginPerOrder)} (${fmtPct(M.econThis.aboveHigh.marginPct)} of revenue) vs ${fmtMoney(M.econLast.aboveHigh.marginPerOrder)} (${fmtPct(M.econLast.aboveHigh.marginPct)}) last year — a ${marginDelta>=0?'+':''}${fmtMoney(Math.abs(marginDelta))} / ${marginPctDelta>=0?'+':''}${marginPctDelta.toFixed(1)}pp change. ` +
+    (cls==='positive'
+      ? `Both adoption and the conversion/margin elasticity the pilot was designed to test are holding up — the open question from the pilot remains whether commission "protection" above 35% would push adoption further without eroding this margin picture.`
+      : cls==='mixed'
+        ? `Adoption or the conversion gap has narrowed — worth checking whether commission tiering (which currently reduces, not boosts, rep earnings above 35%) is still discouraging reps from using the top of the bracket.`
+        : `Adoption and conversion have both moved the wrong way YoY — re-examine whether the current tiered-commission structure needs the "protection" fix flagged in the original pilot findings.`);
+}
+
+function renderKPIs(M){
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Orders ≥ Min Value — Won</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">This YTD</div><div class="val">${fmt0(M.kpi.ordersThis)}</div><div class="lbl">orders won</div></div>
+        <div class="kpi-col dim"><div class="yr">Last YTD</div><div class="val">${fmt0(M.kpi.ordersLast)}</div><div class="lbl">orders won</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.ordersThis>=M.kpi.ordersLast?'up':'down'}">${M.kpi.ordersThis>=M.kpi.ordersLast?'▲':'▼'} ${Math.abs(M.kpi.ordersThis-M.kpi.ordersLast)} (${M.kpi.ordersLast?Math.abs(100*(M.kpi.ordersThis-M.kpi.ordersLast)/M.kpi.ordersLast).toFixed(1):'0.0'}% YoY)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Revenue Won (All Orders)</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">This YTD</div><div class="val">${fmtMoney(M.kpi.revThis)}</div><div class="lbl">total revenue</div></div>
+        <div class="kpi-col dim"><div class="yr">Last YTD</div><div class="val">${fmtMoney(M.kpi.revLast)}</div><div class="lbl">total revenue</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.revThis>=M.kpi.revLast?'up':'down'}">${M.kpi.revThis>=M.kpi.revLast?'▲':'▼'} ${fmtMoney(Math.abs(M.kpi.revThis-M.kpi.revLast))} (${M.kpi.revLast?Math.abs(100*(M.kpi.revThis-M.kpi.revLast)/M.kpi.revLast).toFixed(1):'0.0'}% YoY)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Overall Gross Profit %</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">This YTD</div><div class="val">${fmtPct(M.kpi.gpPctThis)}</div><div class="lbl">GP margin</div></div>
+        <div class="kpi-col dim"><div class="yr">Last YTD</div><div class="val">${fmtPct(M.kpi.gpPctLast)}</div><div class="lbl">GP margin</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.gpPctThis>=M.kpi.gpPctLast?'up':'down'}">${M.kpi.gpPctThis>=M.kpi.gpPctLast?'▲':'▼'} ${Math.abs(M.kpi.gpPctThis-M.kpi.gpPctLast).toFixed(1)}pp YoY</div>
+    </div>
+    <div class="kpi-card highlight">
+      <div class="kpi-label hl">Above High-Discount Threshold</div>
+      <div class="kpi-cols">
+        <div class="kpi-col"><div class="yr">This YTD</div><div class="val purple">${fmtPct(M.kpi.highPctThis)}</div><div class="lbl">of $${fmt0(CFG.minValue)}+ orders</div></div>
+        <div class="kpi-col dim"><div class="yr">Last YTD</div><div class="val purple">${fmtPct(M.kpi.highPctLast)}</div><div class="lbl">of $${fmt0(CFG.minValue)}+ orders</div></div>
+      </div>
+      <div class="kpi-delta ${M.kpi.highPctThis>=M.kpi.highPctLast?'up':'down'}">${M.kpi.highPctThis>=M.kpi.highPctLast?'▲':'▼'} ${Math.abs(M.kpi.highPctThis-M.kpi.highPctLast).toFixed(1)}pp YoY</div>
+    </div>
+  `;
+}
+
+function renderAdoption(M){
+  mkChart('chartAdoptionCount', {
+    type:'bar',
+    data:{ labels:M.adoption.map(m=>m.label), datasets:[
+      {label:'This Year', data:M.adoption.map(m=>m.countThis), backgroundColor:COLORS.blue},
+      {label:'Last Year', data:M.adoption.map(m=>m.countLast), backgroundColor:COLORS.blueLight},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{title:{display:true,text:'Quotes'}}}}
+  });
+  mkChart('chartAdoptionRate', {
+    type:'line',
+    data:{ labels:M.adoption.map(m=>m.label), datasets:[
+      {label:'This Year', data:M.adoption.map(m=>m.pctThis), borderColor:COLORS.purple, backgroundColor:COLORS.purple, tension:.3},
+      {label:'Last Year', data:M.adoption.map(m=>m.pctLast), borderColor:COLORS.gray, backgroundColor:COLORS.gray, borderDash:[4,3], tension:.3},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{ticks:{callback:v=>v+'%'}}}}
+  });
+}
+
+function renderSegConv(M){
+  const segs = [
+    {key:'total', label:'Total Conversion', hl:false},
+    {key:'below', label:`Below $${fmt0(CFG.minValue)}`, hl:false},
+    {key:'aboveLow', label:`Above, ≤35% Discount`, hl:false},
+    {key:'aboveHigh', label:`Above, >35% Discount`, hl:true},
+  ];
+  document.getElementById('segConvRow').innerHTML = segs.map(s=>{
+    const c = M.segConv[s.key];
+    const delta = c.this - c.last;
+    return `<div class="seg-card ${s.hl?'hl':''}">
+      <div class="tag2">${s.label}</div>
+      <div class="conv">${fmtPct(c.this)}</div>
+      <div class="convlast">${fmtPct(c.last)} last year</div>
+      <div class="convdelta ${delta>=0?'up':'down'}">${delta>=0?'▲':'▼'} ${Math.abs(delta).toFixed(1)}pp YoY</div>
+    </div>`;
+  }).join('');
+}
+
+function renderElasticity(M){
+  mkChart('chartElasticity', {
+    type:'line',
+    data:{ labels:M.elasticity.map(e=>e.bucket), datasets:[
+      {label:'This Year', data:M.elasticity.map(e=>e.convThis), borderColor:COLORS.blue, backgroundColor:COLORS.blue, tension:.3, pointRadius:5},
+      {label:'Last Year', data:M.elasticity.map(e=>e.convLast), borderColor:COLORS.gray, backgroundColor:COLORS.gray, borderDash:[4,3], tension:.3, pointRadius:5},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}},
+      scales:{ x:{title:{display:true,text:'Discount Band'}}, y:{title:{display:true,text:'Conversion %'}, ticks:{callback:v=>v+'%'}} }}
+  });
+}
+
+function econRowsHtml(rows){
+  function row(label, key, isMoney, isPct2){
+    const b=rows.below[key], al=rows.aboveLow[key], ah=rows.aboveHigh[key], t=rows.total[key];
+    const f = isMoney ? fmtMoney : (v)=>fmtPct(v);
+    return `<tr><td>${label}</td><td class="num">${f(b)}</td><td class="num">${f(al)}</td><td class="num" style="color:var(--purple);font-weight:700;">${f(ah)}</td><td class="num">${f(t)}</td></tr>`;
+  }
+  return `
+    <tr class="section-row"><td colspan="5">Volume &amp; Pricing</td></tr>
+    ${row('% of Won Orders','share',false)}
+    ${row('Avg Discount %','avgDisc',false)}
+    ${row('AOV (Discounted Price)','aov',true)}
+    <tr class="section-row"><td colspan="5">Cost per Order</td></tr>
+    ${row('Ad Spend / Order','adSpendPerOrder',true)}
+    ${row('Ad Spend %','adSpendPct',false)}
+    ${row('COGS / Order','cogsPerOrder',true)}
+    ${row('COGS %','cogsPct',false)}
+    ${row('Sales Commission / Order','commPerOrder',true)}
+    ${row('Commission %','commPct',false)}
+    ${row('Installation / Order','installPerOrder',true)}
+    ${row('Installation %','installPct',false)}
+    <tr class="section-row"><td colspan="5">Result</td></tr>
+    <tr class="total-row"><td>Margin Contribution / Order</td><td class="num">${fmtMoney(rows.below.marginPerOrder)}</td><td class="num">${fmtMoney(rows.aboveLow.marginPerOrder)}</td><td class="num" style="color:var(--purple);">${fmtMoney(rows.aboveHigh.marginPerOrder)}</td><td class="num">${fmtMoney(rows.total.marginPerOrder)}</td></tr>
+    <tr class="total-row"><td>Margin Contribution %</td><td class="num">${fmtPct(rows.below.marginPct)}</td><td class="num">${fmtPct(rows.aboveLow.marginPct)}</td><td class="num" style="color:var(--purple);">${fmtPct(rows.aboveHigh.marginPct)}</td><td class="num">${fmtPct(rows.total.marginPct)}</td></tr>
+  `;
+}
+function renderEconTables(M){
+  document.getElementById('econBodyThis').innerHTML = econRowsHtml(M.econThis);
+  document.getElementById('econBodyLast').innerHTML = econRowsHtml(M.econLast);
+
+  mkChart('chartMarginYoY', {
+    type:'bar',
+    data:{ labels:['Below Min Value','Above, ≤35%','Above, >35%','Total'], datasets:[
+      {label:'This Year', data:[M.econThis.below.marginPerOrder,M.econThis.aboveLow.marginPerOrder,M.econThis.aboveHigh.marginPerOrder,M.econThis.total.marginPerOrder], backgroundColor:[COLORS.blue,COLORS.teal,COLORS.purple,COLORS.navy]},
+      {label:'Last Year', data:[M.econLast.below.marginPerOrder,M.econLast.aboveLow.marginPerOrder,M.econLast.aboveHigh.marginPerOrder,M.econLast.total.marginPerOrder], backgroundColor:[COLORS.blueLight,'#9FD6D0',COLORS.purpleLight,'#B7BFCC']},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{title:{display:true,text:'Margin Contribution / Order ($)'},ticks:{callback:v=>fmtMoney(v)}}}}
+  });
+}
+
+function renderThresholdSensitivity(M){
+  mkChart('chartThresholdSensitivity', {
+    type:'bar',
+    data:{ labels:M.valueBands.map(b=>b.label), datasets:[
+      {label:'This Year', data:M.valueBands.map(b=>b.pctThis), backgroundColor:COLORS.purple},
+      {label:'Last Year', data:M.valueBands.map(b=>b.pctLast), backgroundColor:COLORS.purpleLight},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'},
+      tooltip:{callbacks:{afterLabel:(ctx)=>{ const b=M.valueBands[ctx.dataIndex]; const n=ctx.datasetIndex===0?b.nThis:b.nLast; return `(${fmt0(n)} orders)`; }}}
+    }, scales:{y:{ticks:{callback:v=>v+'%'}}}}
+  });
+}
+
+function renderAll(M){
+  renderInsight(M);
+  renderKPIs(M);
+  renderAdoption(M);
+  renderSegConv(M);
+  renderElasticity(M);
+  renderEconTables(M);
+  renderThresholdSensitivity(M);
+}
+
+function recomputeAndRender(){
+  const M = computeAll(CFG);
+  renderAll(M);
+  document.getElementById('subLine').innerHTML =
+    `YTD <b>${CFG.thisYear.from.slice(0,4)}</b> (${CFG.thisYear.from} → ${CFG.thisYear.to}) vs YTD <b>${CFG.lastYear.from.slice(0,4)}</b> (${CFG.lastYear.from} → ${CFG.lastYear.to})`;
+}
+
+// ---------------- config panel wiring ----------------
+function fillConfigForm(){
+  document.getElementById('cfgMinValue').value = CFG.minValue;
+  document.getElementById('cfgHighThreshold').value = CFG.highThreshold;
+  document.getElementById('cfgBaseRate').value = CFG.baseRate;
+  document.getElementById('cfgTier0').value = CFG.tierRates[0];
+  document.getElementById('cfgTier1').value = CFG.tierRates[1];
+  document.getElementById('cfgTier2').value = CFG.tierRates[2];
+  document.getElementById('cfgTier3').value = CFG.tierRates[3];
+  document.getElementById('cfgLeadCost').value = CFG.leadCost;
+  document.getElementById('cfgApptRate').value = CFG.apptRate;
+  document.getElementById('cfgThisFrom').value = CFG.thisYear.from;
+  document.getElementById('cfgThisTo').value = CFG.thisYear.to;
+  document.getElementById('cfgLastFrom').value = CFG.lastYear.from;
+  document.getElementById('cfgLastTo').value = CFG.lastYear.to;
+}
+function readConfigForm(){
+  CFG.minValue = parseFloat(document.getElementById('cfgMinValue').value) || 0;
+  CFG.highThreshold = parseFloat(document.getElementById('cfgHighThreshold').value) || 0;
+  CFG.baseRate = parseFloat(document.getElementById('cfgBaseRate').value) || 0;
+  CFG.tierRates = [0,1,2,3].map(i=>parseFloat(document.getElementById('cfgTier'+i).value) || 0);
+  CFG.leadCost = parseFloat(document.getElementById('cfgLeadCost').value) || 0;
+  CFG.apptRate = parseFloat(document.getElementById('cfgApptRate').value) || 0;
+  CFG.thisYear = {from: document.getElementById('cfgThisFrom').value, to: document.getElementById('cfgThisTo').value};
+  CFG.lastYear = {from: document.getElementById('cfgLastFrom').value, to: document.getElementById('cfgLastTo').value};
+}
+
+document.getElementById('configBtn').addEventListener('click', ()=>{ document.getElementById('configPanel').classList.toggle('open'); });
+document.getElementById('saveLoadBtn').addEventListener('click', ()=>{ readConfigForm(); recomputeAndRender(); });
+
+function setUpdatedLabel(){
+  const now = new Date();
+  document.getElementById('updatedLabel').textContent = 'Updated ' + now.toLocaleTimeString('en-AU', {hour:'numeric',minute:'2-digit',second:'2-digit'});
+}
+async function loadData(bust){
+  const url = 'insyte_initiative_data.json' + (bust ? ('?t='+Date.now()) : '');
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('fetch failed: '+res.status);
+  return res.json();
+}
+document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+  try{ RAW = await loadData(true); recomputeAndRender(); setUpdatedLabel(); }
+  catch(e){ document.getElementById('insightTitle').textContent = 'Refresh failed'; document.getElementById('insightText').textContent = 'Could not reload insyte_initiative_data.json — ' + e.message; }
+});
+
+(async function init(){
+  try{
+    RAW = await loadData(false);
+    CFG = defaultConfig(RAW.generatedAt);
+    fillConfigForm();
+    document.getElementById('dataFooter').textContent =
+      `Data window: ${RAW.dateRange.from} to ${RAW.dateRange.to} · Generated ${new Date(RAW.generatedAt).toLocaleString('en-AU')} · ${RAW.jobs.length.toLocaleString()} jobs, ${RAW.appointments.length.toLocaleString()} appointments · shared data source with insyte_revenue_initiative.html`;
+    recomputeAndRender();
+    setUpdatedLabel();
+  }catch(e){
+    document.getElementById('insightTitle').textContent = 'Could not load data';
+    document.getElementById('insightText').textContent =
+      'insyte_initiative_data.json failed to load (' + e.message + '). Run refresh_initiative_data.py, and make sure this page is served over http:// (not opened as a file://), e.g. `python -m http.server`.';
+  }
+})();
+
+})();
+</script>
+</body>
+</html>

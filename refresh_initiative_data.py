@@ -295,21 +295,23 @@ def build_subjobs(lines):
                 "state": normalize_state((job.get("Address") or {}).get("State")),
                 "stdTotal": 0.0,
                 "discTotal": 0.0,
-                "costTotal": 0.0,
+                "cogsTotal": 0.0,
+                "installTotal": 0.0,
+                "deliveryTotal": 0.0,
             }
             subjobs[jid] = sj
 
         std = l.get("StandardPriceExTax") or 0.0
         disc = l.get("DiscountedPriceExTax")
         disc = disc if disc is not None else std
-        cost = (
-            (l.get("DiscountedCostExTax") or l.get("StandardCostExTax") or 0.0)
-            + (l.get("StandardIntallCostExTax") or 0.0)
-            + (l.get("StandardDeliveryCostExTax") or 0.0)
-        )
+        cogs = l.get("DiscountedCostExTax") or l.get("StandardCostExTax") or 0.0
+        install = l.get("StandardIntallCostExTax") or 0.0
+        delivery = l.get("StandardDeliveryCostExTax") or 0.0
         sj["stdTotal"] += std
         sj["discTotal"] += disc
-        sj["costTotal"] += cost
+        sj["cogsTotal"] += cogs
+        sj["installTotal"] += install
+        sj["deliveryTotal"] += delivery
 
     return subjobs
 
@@ -357,7 +359,10 @@ def canonicalize(subjobs, deposit_map):
 
         std_total = latest["stdTotal"]
         disc_total = latest["discTotal"]
-        cost_total = latest["costTotal"]
+        cogs_total = latest["cogsTotal"]
+        install_total = latest["installTotal"]
+        delivery_total = latest["deliveryTotal"]
+        cost_total = cogs_total + install_total + delivery_total
         disc_pct = round((1 - disc_total / std_total) * 100, 1) if std_total > 0 else 0.0
         disc_pct = max(0.0, min(100.0, disc_pct))
         gp = disc_total - cost_total
@@ -374,6 +379,9 @@ def canonicalize(subjobs, deposit_map):
             "revenue": round(disc_total, 2),
             "stdRevenue": round(std_total, 2),
             "cost": round(cost_total, 2),
+            "cogs": round(cogs_total, 2),
+            "installCost": round(install_total, 2),
+            "deliveryCost": round(delivery_total, 2),
             "gp": round(gp, 2),
             "gpPct": gp_pct,
             "discPct": disc_pct,

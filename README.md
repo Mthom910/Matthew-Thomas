@@ -169,6 +169,14 @@ Then open `http://localhost:8843/insyte_revenue_initiative.html`.
   is a simplification of "give consultants a bigger commission the more of
   the 35–40% band they use" — adjust the four tier-rate fields in Config if
   the real policy differs.
+  **Correction found later:** the actual internal PMO deck for this pilot
+  (see `insyte_discount_trial_pmo.html` below) shows the tiered rate
+  *replaces* the base commission rate above 35% discount rather than adding
+  to it — i.e. going deeper into the discount bracket costs a rep
+  commission, it doesn't earn them more. This file's model was built from a
+  verbal description before that deck was available and has **not** been
+  corrected to match — treat its commission figures as illustrative only.
+  `insyte_discount_trial_pmo.html` uses the corrected, deck-verified model.
 - **2025 commission figures are retroactive**: the initiative only exists in
   2026, so 2025 "commission" numbers apply the *current* base+tier rules to
   2025's actual jobs purely for a like-for-like comparison, not real 2025
@@ -191,3 +199,70 @@ Then open `http://localhost:8843/insyte_revenue_initiative.html`.
   near-raw canonical records (aggregation happens in the browser, not here)
 - `insyte_initiative_data.json` — generated output (regenerated each run)
 - `insyte_revenue_initiative.html` — the dashboard
+
+---
+
+# Discount Trial PMO Dashboard
+
+`insyte_discount_trial_pmo.html` replicates the analysis in the business's
+own internal PMO deck (`Revenue Management/August PMO/Summarise findings.pptx`)
+for a rolling YTD-this-year-vs-YTD-last-year comparison, rather than the
+original deck's fixed Sept/Oct trial-month snapshots. It reuses the same
+`insyte_initiative_data.json` produced by `refresh_initiative_data.py` — no
+separate data pipeline — so both dashboards always see the same underlying
+jobs/appointments and the same deposit-based "confirmed order" definition.
+
+## What's different from `insyte_revenue_initiative.html`
+
+- **$3,000 segment threshold**, not $5,000 — matches the deck's actual
+  analysis ("Below $3K / Above $3K & ≤35% discount / Above $3K & >35%
+  discount"), configurable in Config as "Min Order Value".
+- **Corrected commission model**: commission is the *base rate* (8%) for
+  jobs discounted ≤35%, and *switches to* a tiered rate (7% down to 4% as
+  discount rises from 35%→40%, four 1.25-point sub-bands) for jobs
+  discounted above 35% — the tiered rate **replaces** the base rate rather
+  than adding to it. This matches the real Oct-2025 order-economics table in
+  the deck (Sales Commission % = 8.0% for the ≤35% segment vs 4.0% for the
+  >35% segment) and explains the deck's own findings — reps were reluctant
+  to push to 40% discount because it *cost* them commission, and "protecting"
+  DC commission above 35% was flagged as a next step.
+- **A second, separate "High-Discount Threshold" (default 37.5%)** for the
+  adoption-tracking and AOV-threshold-sensitivity sections, matching the
+  deck's own inconsistent use of >35% for the segment cutoff but >37.5% for
+  "meaningful adoption" tracking (Slides 2 & 5 of the source deck).
+- **Order Economics table** reproduces the deck's Slide 4 table structure
+  exactly (row-for-row: % of Won Orders, Avg Discount %, AOV, Ad Spend/COGS/
+  Commission/Installation per order and as %, Margin Contribution $ and %),
+  computed for both YTD windows side by side instead of one trial month.
+
+## Key assumptions
+
+- **"Quotes given"** = jobs entering the pipeline (bucketed by *first*
+  quoted date, like the Quote Pipeline table in the other dashboard) valued
+  at or above the Min Order Value — regardless of eventual stage.
+- **Conversion** = won ÷ (won + lost), excluding still-open quotes from the
+  denominator. This differs from `insyte_revenue_initiative.html`'s "Quote →
+  Order Conversion" (which divides by *all* pipeline entries including open
+  quotes) — the PMO deck's own conversion figures read as a closed-deal win
+  rate, so this dashboard matches that.
+- **Ad Spend / Order** is derived, not measured (Insyte has no ad-spend
+  entity): `Lead Cost ÷ (Lead→Appointment Rate × segment conversion rate)`,
+  per order. This is sensitive to segment size — a segment with very few
+  orders relative to the shared appointment pool can produce a noisy,
+  inflated-looking Ad Spend/Order (seen in early runs for the "Above $3K,
+  >35%" segment in periods where it had a small handful of orders). Treat
+  Ad Spend figures for thin segments as indicative, not precise.
+- **Margin Contribution** = AOV − Ad Spend/Order − COGS/Order − Commission/
+  Order − Installation/Order, matching the deck's own decomposition exactly.
+- **2025 figures still use 2025's own commission-eligible jobs** (unlike the
+  other dashboard's retroactive-rules comparison) — commission tiering
+  already existed as a rule in this model for both years since it's derived
+  purely from each job's own discount %, not a policy flag.
+
+## Files
+
+- Reuses `refresh_initiative_data.py` / `insyte_initiative_data.json` from
+  the Revenue Management Initiative dashboard above (job records now also
+  carry `cogs`, `installCost`, and `deliveryCost` as separate fields, added
+  specifically to support this dashboard's cost breakdown table)
+- `insyte_discount_trial_pmo.html` — the dashboard
