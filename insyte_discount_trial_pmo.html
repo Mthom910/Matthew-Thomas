@@ -133,7 +133,7 @@ tbody tr.section-row td{background:#F0F2F6;font-weight:700;color:var(--navy);fon
   <div class="masthead">
     <div>
       <h1>Discount Trial — Order Economics &amp; Conversion Analysis</h1>
-      <div class="sub" id="subLine">YTD <b>2026</b> vs YTD <b>2025</b> — same calendar period comparison</div>
+      <div class="sub" id="subLine">Jan–Jun <b>2026</b> vs Jan–Jun <b>2025</b> — same calendar period comparison</div>
     </div>
     <div class="head-actions">
       <span class="updated" id="updatedLabel">Loading…</span>
@@ -237,7 +237,7 @@ tbody tr.section-row td{background:#F0F2F6;font-weight:700;color:var(--navy);fon
         <thead><tr><th>Order Size</th><th class="num">Quotes</th><th class="num">Orders</th><th class="num">Conv%</th><th class="num">% Disc</th></tr></thead>
         <tbody id="orderSizeBody"></tbody>
       </table></div>
-      <div class="foot-note">Order Size = job value (discounted). Quotes = all won + lost jobs of that value in the period (still-open quotes excluded, matching the scatter). % Disc = average discount % across those quotes.</div>
+      <div class="foot-note" id="orderSizeFootnote">Order Size = job value (discounted). Conv% = did the sales appointment convert to an order of this size — won orders in this band ÷ total DC sales appointments in the period (not won ÷ quotes, which reads as an inflated close rate once a quote already exists). Quotes = won + lost jobs of that value (still-open excluded). % Disc = average discount % across those quotes.</div>
     </div>
   </div>
 
@@ -352,16 +352,11 @@ function avg(arr, fn){ return arr.length ? sum(arr,fn)/arr.length : 0; }
 function inRange(date, from, to){ return date && date>=from && date<=to; }
 
 function defaultConfig(genDateISO){
-  const d = new Date(genDateISO);
-  const y = d.getUTCFullYear();
-  const pad = n => String(n).padStart(2,'0');
-  const toStr = d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());
-  const lastToStr = (y-1)+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());
   return {
     minValue: 5000, secondaryMinValue: 3000, highThreshold: 37.5, baseRate: 8, tierRates: [7,6,5,4],
     leadCost: 135, apptRate: 83,
-    thisYear: {from: y+'-01-01', to: toStr},
-    lastYear: {from: (y-1)+'-01-01', to: lastToStr},
+    thisYear: {from: '2026-01-01', to: '2026-06-30'},
+    lastYear: {from: '2025-01-01', to: '2025-06-30'},
   };
 }
 
@@ -526,12 +521,18 @@ function computeAll(cfg){
     avgDiscWon: avg(dcResolvedThis.filter(j=>j.stage==='won'), j=>j.discPct),
     avgDiscLost: avg(dcResolvedThis.filter(j=>j.stage==='lost'), j=>j.discPct),
   };
+  // Conversion here = did the sales appointment convert to an order — denominator is
+  // total DC appointments in the period, not quotes in the band (won/(won+lost) among
+  // quotes alone reads as an unrealistically high "close rate" once a quote exists;
+  // most appointments never make it to a quote at all, which this reflects).
+  const dcApptsThis = apptsIn(thisR).filter(a=>isDC(a.rep)).length;
+  M.dcApptsThis = dcApptsThis;
   M.orderSize = ORDER_SIZE_BANDS.map(band=>{
     const inBand = dcResolvedThis.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
     const won = inBand.filter(j=>j.stage==='won').length;
     return {
       label: band.label, quotes: inBand.length, orders: won,
-      convPct: inBand.length? 100*won/inBand.length:0,
+      convPct: dcApptsThis? 100*won/dcApptsThis:0,
       avgDisc: avg(inBand, j=>j.discPct),
     };
   });
@@ -653,8 +654,10 @@ function renderSegConv(M){
 }
 
 function renderScatter(M){
+  const clipped = M.scatter.won.filter(p=>p.x>20000).length + M.scatter.lost.filter(p=>p.x>20000).length;
   document.getElementById('scatterAvgNote').textContent =
-    `Successful (won) avg discount: ${fmtPct(M.scatter.avgDiscWon)} · Not successful (lost) avg discount: ${fmtPct(M.scatter.avgDiscLost)} · ${M.scatter.won.length + M.scatter.lost.length} resolved DC quotes this YTD.`;
+    `Successful (won) avg discount: ${fmtPct(M.scatter.avgDiscWon)} · Not successful (lost) avg discount: ${fmtPct(M.scatter.avgDiscLost)} · ${M.scatter.won.length + M.scatter.lost.length} resolved DC quotes this period` +
+    (clipped ? ` (${fmt0(clipped)} above $20K not shown, chart is zoomed to $0–$20K for detail)` : '') + `.`;
   mkChart('chartScatter', {
     type:'scatter',
     data:{ datasets:[
@@ -663,7 +666,7 @@ function renderScatter(M){
     ]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}},
       scales:{
-        x:{title:{display:true,text:'Net Sales ($)'}, ticks:{callback:v=>fmtMoney(v)}},
+        x:{title:{display:true,text:'Net Sales ($)'}, min:0, max:20000, ticks:{callback:v=>fmtMoney(v)}},
         y:{title:{display:true,text:'Discount %'}, ticks:{callback:v=>v+'%'}},
       }}
   });
@@ -671,8 +674,8 @@ function renderScatter(M){
 
 function renderOrderSizeTable(M){
   document.getElementById('orderSizeBody').innerHTML = M.orderSize.map(r=>`
-    <tr><td>${r.label}</td><td class="num">${fmt0(r.quotes)}</td><td class="num">${fmt0(r.orders)}</td><td class="num">${fmtPct(r.convPct,0)}</td><td class="num">${fmtPct(r.avgDisc,1)}</td></tr>
-  `).join('');
+    <tr><td>${r.label}</td><td class="num">${fmt0(r.quotes)}</td><td class="num">${fmt0(r.orders)}</td><td class="num">${fmtPct(r.convPct,1)}</td><td class="num">${fmtPct(r.avgDisc,1)}</td></tr>
+  `).join('') + `<tr class="total-row"><td colspan="5">${fmt0(M.dcApptsThis)} total DC sales appointments this period</td></tr>`;
 }
 
 function renderElasticity(M){
@@ -768,7 +771,7 @@ function recomputeAndRender(){
   const M = computeAll(CFG);
   renderAll(M);
   document.getElementById('subLine').innerHTML =
-    `YTD <b>${CFG.thisYear.from.slice(0,4)}</b> (${CFG.thisYear.from} → ${CFG.thisYear.to}) vs YTD <b>${CFG.lastYear.from.slice(0,4)}</b> (${CFG.lastYear.from} → ${CFG.lastYear.to})`;
+    `<b>${CFG.thisYear.from}</b> → <b>${CFG.thisYear.to}</b> vs <b>${CFG.lastYear.from}</b> → <b>${CFG.lastYear.to}</b>`;
 }
 
 // ---------------- config panel wiring ----------------
