@@ -224,6 +224,23 @@ tbody tr.section-row td{background:#F0F2F6;font-weight:700;color:var(--navy);fon
     <div class="foot-note">A job only counts toward "won" once it has an actual confirmed deposit — see the Revenue Management Initiative dashboard's methodology notes. Each base job reference is counted exactly once.</div>
   </div>
 
+  <!-- NET SALES x DISCOUNT SCATTER + ORDER SIZE TABLE -->
+  <div class="grid" style="grid-template-columns:1.3fr 1fr;">
+    <div class="card">
+      <div class="card-title">Net Sales × Discount% — Successful vs Not Successful <span class="right" id="scatterDcNote">(Just DC)</span></div>
+      <div class="chart-box h340"><canvas id="chartScatter"></canvas></div>
+      <div class="foot-note" id="scatterAvgNote"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Conversion &amp; Discount by Order Size</div>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>Order Size</th><th class="num">Quotes</th><th class="num">Orders</th><th class="num">Conv%</th><th class="num">% Disc</th></tr></thead>
+        <tbody id="orderSizeBody"></tbody>
+      </table></div>
+      <div class="foot-note">Order Size = job value (discounted). Quotes = all won + lost jobs of that value in the period (still-open quotes excluded, matching the scatter). % Disc = average discount % across those quotes.</div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-title">Discount × Conversion Elasticity — Orders ≥ Primary Bracket</div>
     <div class="chart-box h300"><canvas id="chartElasticity"></canvas></div>
@@ -297,6 +314,13 @@ const VALUE_BANDS = [
   {label:'$6K–$7K', lo:6000, hi:7000}, {label:'$7K–$8K', lo:7000, hi:8000},
   {label:'$8K+', lo:8000, hi:Infinity},
 ];
+const ORDER_SIZE_BANDS = [
+  {label:'Under 1,000', lo:0, hi:1000}, {label:'1,000 - 2,000', lo:1000, hi:2000},
+  {label:'2,000 - 3,000', lo:2000, hi:3000}, {label:'3,000 - 5,000', lo:3000, hi:5000},
+  {label:'5,000 - 7,000', lo:5000, hi:7000}, {label:'7,000 - 9,000', lo:7000, hi:9000},
+  {label:'Over 9,000', lo:9000, hi:Infinity},
+];
+function isDC(rep){ return !!rep && rep.includes('DC'); }
 
 let RAW = null;
 let CFG = null;
@@ -494,6 +518,24 @@ function computeAll(cfg){
     };
   });
 
+  // ---- Net Sales x Discount% scatter + Order Size table (Just DC, resolved quotes only) ----
+  const dcResolvedThis = pipeThis.filter(j=> isDC(j.rep) && (j.stage==='won' || j.stage==='lost'));
+  M.scatter = {
+    won: dcResolvedThis.filter(j=>j.stage==='won').map(j=>({x:j.revenue, y:j.discPct})),
+    lost: dcResolvedThis.filter(j=>j.stage==='lost').map(j=>({x:j.revenue, y:j.discPct})),
+    avgDiscWon: avg(dcResolvedThis.filter(j=>j.stage==='won'), j=>j.discPct),
+    avgDiscLost: avg(dcResolvedThis.filter(j=>j.stage==='lost'), j=>j.discPct),
+  };
+  M.orderSize = ORDER_SIZE_BANDS.map(band=>{
+    const inBand = dcResolvedThis.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
+    const won = inBand.filter(j=>j.stage==='won').length;
+    return {
+      label: band.label, quotes: inBand.length, orders: won,
+      convPct: inBand.length? 100*won/inBand.length:0,
+      avgDisc: avg(inBand, j=>j.discPct),
+    };
+  });
+
   return M;
 }
 
@@ -610,6 +652,29 @@ function renderSegConv(M){
   renderSegConvRow('segConvRowSecondary', M.segConvSecondary, CFG.secondaryMinValue);
 }
 
+function renderScatter(M){
+  document.getElementById('scatterAvgNote').textContent =
+    `Successful (won) avg discount: ${fmtPct(M.scatter.avgDiscWon)} · Not successful (lost) avg discount: ${fmtPct(M.scatter.avgDiscLost)} · ${M.scatter.won.length + M.scatter.lost.length} resolved DC quotes this YTD.`;
+  mkChart('chartScatter', {
+    type:'scatter',
+    data:{ datasets:[
+      {label:`Successful (avg ${fmtPct(M.scatter.avgDiscWon)})`, data:M.scatter.won, backgroundColor:COLORS.orange, pointRadius:3},
+      {label:`Not Successful (avg ${fmtPct(M.scatter.avgDiscLost)})`, data:M.scatter.lost, backgroundColor:COLORS.blue, pointRadius:3},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}},
+      scales:{
+        x:{title:{display:true,text:'Net Sales ($)'}, ticks:{callback:v=>fmtMoney(v)}},
+        y:{title:{display:true,text:'Discount %'}, ticks:{callback:v=>v+'%'}},
+      }}
+  });
+}
+
+function renderOrderSizeTable(M){
+  document.getElementById('orderSizeBody').innerHTML = M.orderSize.map(r=>`
+    <tr><td>${r.label}</td><td class="num">${fmt0(r.quotes)}</td><td class="num">${fmt0(r.orders)}</td><td class="num">${fmtPct(r.convPct,0)}</td><td class="num">${fmtPct(r.avgDisc,1)}</td></tr>
+  `).join('');
+}
+
 function renderElasticity(M){
   mkChart('chartElasticity', {
     type:'line',
@@ -692,6 +757,8 @@ function renderAll(M){
   renderKPIs(M);
   renderAdoption(M);
   renderSegConv(M);
+  renderScatter(M);
+  renderOrderSizeTable(M);
   renderElasticity(M);
   renderEconTables(M);
   renderThresholdSensitivity(M);
