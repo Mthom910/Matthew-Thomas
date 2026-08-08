@@ -237,7 +237,7 @@ tbody tr.section-row td{background:#F0F2F6;font-weight:700;color:var(--navy);fon
         <thead><tr><th>Order Size</th><th class="num">Quotes</th><th class="num">Orders</th><th class="num">Conv%</th><th class="num">% Disc</th></tr></thead>
         <tbody id="orderSizeBody"></tbody>
       </table></div>
-      <div class="foot-note" id="orderSizeFootnote">Order Size = job value (discounted). Conv% = did the sales appointment convert to an order of this size — won orders in this band ÷ total DC sales appointments in the period (not won ÷ quotes, which reads as an inflated close rate once a quote already exists). Quotes = won + lost jobs of that value (still-open excluded). % Disc = average discount % across those quotes.</div>
+      <div class="foot-note" id="orderSizeFootnote">Order Size = job value (discounted). Quotes = every unique DC job that entered the pipeline in the period and is at or above that value — won, lost, and still-open (each order/customer counted once, by its own canonical quote record). Orders = the won subset. Conv% = Orders ÷ Quotes. % Disc = average discount % across those quotes.</div>
     </div>
   </div>
 
@@ -513,7 +513,9 @@ function computeAll(cfg){
     };
   });
 
-  // ---- Net Sales x Discount% scatter + Order Size table (Just DC, resolved quotes only) ----
+  // ---- Net Sales x Discount% scatter + Order Size table (Just DC) ----
+  // Scatter shows resolved quotes only (won/lost) since "successful vs not successful"
+  // has no third state for a quote still open.
   const dcResolvedThis = pipeThis.filter(j=> isDC(j.rep) && (j.stage==='won' || j.stage==='lost'));
   M.scatter = {
     won: dcResolvedThis.filter(j=>j.stage==='won').map(j=>({x:j.revenue, y:j.discPct})),
@@ -521,21 +523,27 @@ function computeAll(cfg){
     avgDiscWon: avg(dcResolvedThis.filter(j=>j.stage==='won'), j=>j.discPct),
     avgDiscLost: avg(dcResolvedThis.filter(j=>j.stage==='lost'), j=>j.discPct),
   };
-  // Conversion here = did the sales appointment convert to an order — denominator is
-  // total DC appointments in the period, not quotes in the band (won/(won+lost) among
-  // quotes alone reads as an unrealistically high "close rate" once a quote exists;
-  // most appointments never make it to a quote at all, which this reflects).
-  const dcApptsThis = apptsIn(thisR).filter(a=>isDC(a.rep)).length;
-  M.dcApptsThis = dcApptsThis;
+  // Order Size table: quote-based conversion (orders ÷ quotes) per value band, but
+  // over ALL unique DC quotes that entered the pipeline in the period — won, lost,
+  // AND still-open — not just resolved ones (excluding open quotes inflates the rate
+  // once a quote exists). Each base job reference is its own single canonical/"primary"
+  // record (deduped upstream in refresh_initiative_data.py), so no order/customer is
+  // ever double-counted, and it's bucketed by that one record's own value.
+  const dcAllThis = pipeThis.filter(j=> isDC(j.rep));
   M.orderSize = ORDER_SIZE_BANDS.map(band=>{
-    const inBand = dcResolvedThis.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
+    const inBand = dcAllThis.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
     const won = inBand.filter(j=>j.stage==='won').length;
     return {
       label: band.label, quotes: inBand.length, orders: won,
-      convPct: dcApptsThis? 100*won/dcApptsThis:0,
+      convPct: inBand.length? 100*won/inBand.length:0,
       avgDisc: avg(inBand, j=>j.discPct),
     };
   });
+  M.orderSizeTotal = {
+    quotes: dcAllThis.length, orders: dcAllThis.filter(j=>j.stage==='won').length,
+    convPct: dcAllThis.length? 100*dcAllThis.filter(j=>j.stage==='won').length/dcAllThis.length:0,
+    avgDisc: avg(dcAllThis, j=>j.discPct),
+  };
 
   return M;
 }
@@ -673,9 +681,10 @@ function renderScatter(M){
 }
 
 function renderOrderSizeTable(M){
+  const t = M.orderSizeTotal;
   document.getElementById('orderSizeBody').innerHTML = M.orderSize.map(r=>`
     <tr><td>${r.label}</td><td class="num">${fmt0(r.quotes)}</td><td class="num">${fmt0(r.orders)}</td><td class="num">${fmtPct(r.convPct,1)}</td><td class="num">${fmtPct(r.avgDisc,1)}</td></tr>
-  `).join('') + `<tr class="total-row"><td colspan="5">${fmt0(M.dcApptsThis)} total DC sales appointments this period</td></tr>`;
+  `).join('') + `<tr class="total-row"><td>Total</td><td class="num">${fmt0(t.quotes)}</td><td class="num">${fmt0(t.orders)}</td><td class="num">${fmtPct(t.convPct,1)}</td><td class="num">${fmtPct(t.avgDisc,1)}</td></tr>`;
 }
 
 function renderElasticity(M){
