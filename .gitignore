@@ -6,6 +6,7 @@
 # scripts; these should never live in git history.
 insyte_*.json
 *_raw.csv
+*_raw_data.xlsx
 
 # Superseded artifact exports with real data embedded inline (not fetch-based)
 artifact_preview.html
