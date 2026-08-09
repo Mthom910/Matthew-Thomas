@@ -234,10 +234,21 @@ tbody tr.section-row td{background:#F0F2F6;font-weight:700;color:var(--navy);fon
     <div class="card">
       <div class="card-title">Conversion &amp; Discount by Order Size</div>
       <div class="tbl-scroll"><table>
-        <thead><tr><th>Order Size</th><th class="num">Quotes</th><th class="num">Orders</th><th class="num">Conv%</th><th class="num">% Disc</th></tr></thead>
+        <thead><tr>
+          <th rowspan="2">Order Size</th>
+          <th class="num" colspan="2">Quotes</th>
+          <th class="num" colspan="2">Orders</th>
+          <th class="num" colspan="3">Conv%</th>
+          <th class="num" colspan="3">Avg Disc%</th>
+        </tr><tr>
+          <th class="num" id="qsHdrThis">This Yr</th><th class="num" id="qsHdrLast1">Last Yr</th>
+          <th class="num" id="qsHdrThis2">This Yr</th><th class="num" id="qsHdrLast2">Last Yr</th>
+          <th class="num" id="qsHdrThis3">This Yr</th><th class="num" id="qsHdrLast3">Last Yr</th><th class="num">Δpp</th>
+          <th class="num" id="qsHdrThis4">This Yr</th><th class="num" id="qsHdrLast4">Last Yr</th><th class="num">Δpp</th>
+        </tr></thead>
         <tbody id="orderSizeBody"></tbody>
       </table></div>
-      <div class="foot-note" id="orderSizeFootnote">Order Size = job value (discounted). Quotes = every unique DC job that entered the pipeline in the period and is at or above that value — won, lost, and still-open (each order/customer counted once, by its own canonical quote record). Orders = the won subset. Conv% = Orders ÷ Quotes. % Disc = average discount % across those quotes.</div>
+      <div class="foot-note" id="orderSizeFootnote">Order Size = job value (discounted). Quotes = every unique DC job that entered the pipeline in the period and is at or above that value — won, lost, and still-open (each order/customer counted once, by its own canonical quote record). Orders = the won subset. Conv% = Orders ÷ Quotes. Avg Disc% = average discount % across those quotes.</div>
     </div>
   </div>
 
@@ -261,7 +272,7 @@ tbody tr.section-row td{background:#F0F2F6;font-weight:700;color:var(--navy);fon
         <div class="tbl-scroll"><table><thead><tr><th>Metric</th><th class="num">Below Bracket</th><th class="num">Above, ≤35%</th><th class="num">Above, &gt;35%</th><th class="num">Total</th></tr></thead><tbody id="econBodyLastPrimary"></tbody></table></div>
       </div>
     </div>
-    <div class="foot-note">Margin Contribution = AOV (discounted price) − Ad Spend/Order − COGS/Order − Sales Commission/Order − Installation/Order. Ad Spend/Order is derived from Lead Cost ÷ (Lead→Appointment Rate × segment conversion rate), consistent with the pilot's ~$135/lead assumption. All figures ex-GST.</div>
+    <div class="foot-note">Margin Contribution = AOV (discounted price) − Ad Spend/Order − COGS/Order − Sales Commission/Order − Installation/Order. Total Ad Spend for the period is derived once from Lead Cost ÷ (Lead→Appointment Rate × overall conversion rate), consistent with the pilot's ~$135/lead assumption, then allocated across segments by revenue share (so segment figures always sum to the Total column) — it is deliberately not recomputed per segment against the same company-wide appointment count, which would wildly overstate cost for any segment that's a small share of total orders. All figures ex-GST.</div>
   </div>
 
   <div class="card">
@@ -463,15 +474,25 @@ function computeAll(cfg){
     const a = apptsIn(range).length;
     return a ? wonSet.length/a : 0;
   }
-  function econRow(wonSet, range){
+  // Total ad spend for the whole won population in range is a single well-defined
+  // number (total leads needed ÷ appt rate × lead cost). It must NOT be recomputed
+  // per sub-segment against the same company-wide appointment total — doing so treats
+  // every appointment as if it were dedicated solely to that one segment, wildly
+  // inflating cost for any segment that's a small share of total orders. Instead we
+  // compute it once for "total" and allocate it across segments by revenue share, so
+  // the parts always sum to the same whole.
+  function totalAdSpend(total, range){
+    const orderRate = apptToOrderRate(range, total);
+    const leadsPerOrder = (cfg.apptRate>0 && orderRate>0) ? 1/((cfg.apptRate/100)*orderRate) : 0;
+    return leadsPerOrder * cfg.leadCost * total.length;
+  }
+  function econRow(wonSet, allocatedAdSpend){
     const n = wonSet.length;
     const rev = sum(wonSet,j=>j.revenue);
     const cogs = sum(wonSet,j=>j.cogs);
     const install = sum(wonSet,j=>j.installCost);
     const comm = sum(wonSet, j=>commissionOf(j,cfg));
-    const orderRate = apptToOrderRate(range, wonSet);
-    const leadsPerOrder = (cfg.apptRate>0 && orderRate>0) ? 1/((cfg.apptRate/100)*orderRate) : 0;
-    const adSpend = leadsPerOrder * cfg.leadCost * n;
+    const adSpend = allocatedAdSpend;
     const margin = rev - adSpend - cogs - comm - install;
     return {
       n, rev, aov: n?rev/n:0,
@@ -487,7 +508,15 @@ function computeAll(cfg){
     const aboveLow = wonSet.filter(j=>j.revenue>=threshold && j.discPct<=35);
     const aboveHigh = wonSet.filter(j=>j.revenue>=threshold && j.discPct>35);
     const total = wonSet;
-    const rows = {below: econRow(below,range), aboveLow: econRow(aboveLow,range), aboveHigh: econRow(aboveHigh,range), total: econRow(total,range)};
+    const totalSpend = totalAdSpend(total, range);
+    const totalRev = sum(total, j=>j.revenue) || 1;
+    const allocSpend = set => totalSpend * (sum(set,j=>j.revenue) / totalRev);
+    const rows = {
+      below: econRow(below, allocSpend(below)),
+      aboveLow: econRow(aboveLow, allocSpend(aboveLow)),
+      aboveHigh: econRow(aboveHigh, allocSpend(aboveHigh)),
+      total: econRow(total, totalSpend),
+    };
     const totalN = total.length || 1;
     rows.below.share = 100*below.length/totalN; rows.aboveLow.share = 100*aboveLow.length/totalN; rows.aboveHigh.share = 100*aboveHigh.length/totalN; rows.total.share = 100;
     rows.below.avgDisc = avg(below,j=>j.discPct); rows.aboveLow.avgDisc = avg(aboveLow,j=>j.discPct);
@@ -530,20 +559,22 @@ function computeAll(cfg){
   // record (deduped upstream in refresh_initiative_data.py), so no order/customer is
   // ever double-counted, and it's bucketed by that one record's own value.
   const dcAllThis = pipeThis.filter(j=> isDC(j.rep));
-  M.orderSize = ORDER_SIZE_BANDS.map(band=>{
-    const inBand = dcAllThis.filter(j=>j.revenue>=band.lo && j.revenue<band.hi);
+  const dcAllLast = pipeLast.filter(j=> isDC(j.rep));
+  function orderSizeStats(pool, band){
+    const inBand = band ? pool.filter(j=>j.revenue>=band.lo && j.revenue<band.hi) : pool;
     const won = inBand.filter(j=>j.stage==='won').length;
     return {
-      label: band.label, quotes: inBand.length, orders: won,
+      quotes: inBand.length, orders: won,
       convPct: inBand.length? 100*won/inBand.length:0,
       avgDisc: avg(inBand, j=>j.discPct),
     };
-  });
-  M.orderSizeTotal = {
-    quotes: dcAllThis.length, orders: dcAllThis.filter(j=>j.stage==='won').length,
-    convPct: dcAllThis.length? 100*dcAllThis.filter(j=>j.stage==='won').length/dcAllThis.length:0,
-    avgDisc: avg(dcAllThis, j=>j.discPct),
-  };
+  }
+  M.orderSize = ORDER_SIZE_BANDS.map(band=>({
+    label: band.label,
+    this: orderSizeStats(dcAllThis, band),
+    last: orderSizeStats(dcAllLast, band),
+  }));
+  M.orderSizeTotal = { this: orderSizeStats(dcAllThis, null), last: orderSizeStats(dcAllLast, null) };
 
   return M;
 }
@@ -680,11 +711,26 @@ function renderScatter(M){
   });
 }
 
+function orderSizeRowHtml(label, r, cls){
+  const convDelta = r.this.convPct - r.last.convPct;
+  const discDelta = r.this.avgDisc - r.last.avgDisc;
+  return `<tr class="${cls||''}">
+    <td>${label}</td>
+    <td class="num">${fmt0(r.this.quotes)}</td><td class="num" style="color:var(--muted-2);">${fmt0(r.last.quotes)}</td>
+    <td class="num">${fmt0(r.this.orders)}</td><td class="num" style="color:var(--muted-2);">${fmt0(r.last.orders)}</td>
+    <td class="num">${fmtPct(r.this.convPct,1)}</td><td class="num" style="color:var(--muted-2);">${fmtPct(r.last.convPct,1)}</td>
+    <td class="num ${convDelta>=0?'up':'down'}">${convDelta>=0?'+':''}${convDelta.toFixed(1)}</td>
+    <td class="num">${fmtPct(r.this.avgDisc,1)}</td><td class="num" style="color:var(--muted-2);">${fmtPct(r.last.avgDisc,1)}</td>
+    <td class="num ${discDelta>=0?'up':'down'}">${discDelta>=0?'+':''}${discDelta.toFixed(1)}</td>
+  </tr>`;
+}
 function renderOrderSizeTable(M){
-  const t = M.orderSizeTotal;
-  document.getElementById('orderSizeBody').innerHTML = M.orderSize.map(r=>`
-    <tr><td>${r.label}</td><td class="num">${fmt0(r.quotes)}</td><td class="num">${fmt0(r.orders)}</td><td class="num">${fmtPct(r.convPct,1)}</td><td class="num">${fmtPct(r.avgDisc,1)}</td></tr>
-  `).join('') + `<tr class="total-row"><td>Total</td><td class="num">${fmt0(t.quotes)}</td><td class="num">${fmt0(t.orders)}</td><td class="num">${fmtPct(t.convPct,1)}</td><td class="num">${fmtPct(t.avgDisc,1)}</td></tr>`;
+  const yrThis = CFG.thisYear.from.slice(0,4), yrLast = CFG.lastYear.from.slice(0,4);
+  ['qsHdrThis','qsHdrThis2','qsHdrThis3','qsHdrThis4'].forEach(id=>{ document.getElementById(id).textContent = yrThis; });
+  ['qsHdrLast1','qsHdrLast2','qsHdrLast3','qsHdrLast4'].forEach(id=>{ document.getElementById(id).textContent = yrLast; });
+  document.getElementById('orderSizeBody').innerHTML =
+    M.orderSize.map(r=>orderSizeRowHtml(r.label, r)).join('') +
+    orderSizeRowHtml('Total', M.orderSizeTotal, 'total-row');
 }
 
 function renderElasticity(M){
