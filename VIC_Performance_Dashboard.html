@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Victoria Performance Review — Hunter Douglas Australia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #F4F6F9;
+    --card: #FFFFFF;
+    --ink: #16233F;
+    --ink-soft: #5B6478;
+    --navy: #1B2A4A;
+    --navy-deep: #101A2E;
+    --accent: #E0A03D;
+    --accent-deep: #B87E24;
+    --good: #1F8A5F;
+    --good-bg: #E7F5EE;
+    --bad: #C53A3A;
+    --bad-bg: #FBEAEA;
+    --warn-bg: #FDF3E1;
+    --border: #E4E7ED;
+    --track: #EDEFF3;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{ display:flex; min-height:100vh; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:248px; flex-shrink:0;
+    background:var(--navy-deep);
+    color:#fff;
+    padding:28px 16px;
+    position:sticky; top:0; height:100vh;
+    overflow-y:auto;
+  }
+  .brand{
+    font-family:'Sora', sans-serif;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:0.02em;
+    color:#fff;
+    padding:0 10px 4px;
+  }
+  .brand-sub{
+    font-size:11px;
+    color:#8C97AE;
+    padding:0 10px 24px;
+    border-bottom:1px solid #26314A;
+    margin-bottom:18px;
+  }
+  nav.tabs{ display:flex; flex-direction:column; gap:2px; }
+  .tab-group-label{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:#6C7890;
+    padding:14px 10px 6px;
+    font-weight:600;
+  }
+  .tab-btn{
+    display:flex; align-items:center; gap:10px;
+    text-align:left;
+    background:none; border:none; cursor:pointer;
+    color:#B7C0D4;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13.5px;
+    font-weight:500;
+    padding:9px 10px;
+    border-radius:7px;
+    transition:background 0.15s, color 0.15s;
+  }
+  .tab-btn:hover{ background:#1C2740; color:#fff; }
+  .tab-btn.active{ background:var(--accent); color:#241705; font-weight:600; }
+  .tab-dot{
+    width:6px; height:6px; border-radius:50%;
+    background:currentColor; opacity:0.55; flex-shrink:0;
+  }
+  .tab-btn.active .tab-dot{ opacity:0.9; }
+
+  /* ---------- Main ---------- */
+  main{ flex:1; min-width:0; padding:34px 42px 60px; max-width:1280px; }
+  .page-header{ margin-bottom:26px; }
+  .eyebrow{
+    font-size:11.5px; font-weight:600; letter-spacing:0.09em; text-transform:uppercase;
+    color:var(--accent-deep); margin-bottom:6px;
+  }
+  h1.page-title{
+    font-family:'Sora', sans-serif; font-weight:700; font-size:27px; margin:0 0 6px;
+    color:var(--navy-deep);
+  }
+  .page-sub{ font-size:13.5px; color:var(--ink-soft); max-width:720px; line-height:1.55; }
+
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  /* ---------- Cards / grid ---------- */
+  .kpi-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:26px; }
+  .kpi-card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px 16px 14px;
+  }
+  .kpi-label{ font-size:11.5px; color:var(--ink-soft); font-weight:500; margin-bottom:6px; }
+  .kpi-value{ font-family:'Sora',sans-serif; font-size:22px; font-weight:700; color:var(--navy-deep); }
+  .kpi-delta{ font-size:12px; font-weight:600; margin-top:4px; }
+  .kpi-delta.good{ color:var(--good); }
+  .kpi-delta.bad{ color:var(--bad); }
+  .kpi-delta.flat{ color:var(--ink-soft); }
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:22px 24px; margin-bottom:22px;
+  }
+  .card h2{
+    font-family:'Sora',sans-serif; font-size:16px; font-weight:700; margin:0 0 4px; color:var(--navy-deep);
+  }
+  .card .card-sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:16px; line-height:1.5; }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:900px){ .two-col{ grid-template-columns:1fr; } }
+
+  .chart-wrap{ position:relative; }
+  .chart-wrap canvas{ max-width:100%; }
+
+  /* ---------- Table ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:12.8px; }
+  thead th{
+    text-align:left; font-size:10.8px; text-transform:uppercase; letter-spacing:0.04em;
+    color:#fff; background:var(--navy); padding:9px 10px; font-weight:600;
+    position:sticky; top:0;
+  }
+  thead th.num, td.num{ text-align:right; }
+  tbody td{ padding:8px 10px; border-bottom:1px solid var(--border); color:var(--ink); }
+  tbody tr:nth-child(even){ background:#FAFBFC; }
+  tbody tr:hover{ background:#F0F3F8; }
+  .table-scroll{ overflow-x:auto; border-radius:8px; border:1px solid var(--border); }
+
+  .pill{ display:inline-block; padding:2px 9px; border-radius:20px; font-size:11.5px; font-weight:600; }
+  .pill.good{ background:var(--good-bg); color:var(--good); }
+  .pill.bad{ background:var(--bad-bg); color:var(--bad); }
+  .pill.flat{ background:var(--track); color:var(--ink-soft); }
+
+  /* ---------- Delta bar (signature element) ---------- */
+  .delta-row{ display:flex; align-items:center; gap:8px; min-width:150px; }
+  .delta-track{
+    position:relative; flex:1; height:8px; background:var(--track); border-radius:5px; overflow:hidden;
+  }
+  .delta-fill{ position:absolute; top:0; bottom:0; border-radius:5px; }
+  .delta-fill.good{ background:var(--good); }
+  .delta-fill.bad{ background:var(--bad); }
+  .delta-num{ font-weight:700; font-size:12px; width:52px; text-align:right; flex-shrink:0; }
+  .delta-num.good{ color:var(--good); }
+  .delta-num.bad{ color:var(--bad); }
+
+  /* ---------- Notes / callouts ---------- */
+  .note{
+    font-size:12.5px; color:var(--ink-soft); background:var(--warn-bg);
+    border:1px solid #F0DFB8; border-radius:9px; padding:11px 14px; line-height:1.55;
+    margin-top:14px;
+  }
+  .note.correction{ background:var(--bad-bg); border-color:#EAC5C5; color:#7A2020; font-weight:500; }
+  .bullets{ margin:0; padding-left:18px; font-size:13px; line-height:1.7; color:var(--ink); }
+  .bullets li{ margin-bottom:6px; }
+  .bullets b{ color:var(--navy-deep); }
+
+  .section-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px; }
+
+  .legend-row{ display:flex; gap:18px; align-items:center; font-size:12px; color:var(--ink-soft); margin-bottom:10px; flex-wrap:wrap; }
+  .legend-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+
+  .comp-card{
+    border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px; background:#FDFDFE;
+  }
+  .comp-card .comp-name{ font-weight:700; font-size:13.5px; color:var(--navy-deep); }
+  .comp-card .comp-meta{ font-size:11.5px; color:var(--ink-soft); margin:3px 0 8px; }
+  .comp-card .comp-detail{ font-size:12.5px; line-height:1.55; }
+  .comp-tag{ display:inline-block; font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:6px; margin-left:6px; }
+  .comp-tag.crim{ background:#E7F0FB; color:#1D5EA8; }
+  .comp-tag.notcrim{ background:var(--track); color:var(--ink-soft); }
+
+  .showroom-heading{ font-family:'Sora',sans-serif; font-weight:700; font-size:14px; color:var(--navy-deep); margin:20px 0 8px; }
+  .showroom-heading:first-child{ margin-top:0; }
+
+  footer.dash-footer{ font-size:11.5px; color:var(--ink-soft); text-align:center; padding:22px 0 8px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">VIC PERFORMANCE REVIEW</div>
+    <div class="brand-sub">Hunter Douglas Australia · Jan–Jul 2026 vs 2025</div>
+    <nav class="tabs">
+      <div class="tab-group-label">Summary</div>
+      <button class="tab-btn active" data-tab="overview"><span class="tab-dot"></span>Overview</button>
+
+      <div class="tab-group-label">National Context</div>
+      <button class="tab-btn" data-tab="national"><span class="tab-dot"></span>National Trends</button>
+      <button class="tab-btn" data-tab="nswvic"><span class="tab-dot"></span>NSW vs VIC</button>
+
+      <div class="tab-group-label">Victoria Detail</div>
+      <button class="tab-btn" data-tab="vicshowrooms"><span class="tab-dot"></span>VIC Showrooms</button>
+      <button class="tab-btn" data-tab="crimsafe"><span class="tab-dot"></span>Crimsafe Deep Dive</button>
+      <button class="tab-btn" data-tab="roller"><span class="tab-dot"></span>Roller Blinds</button>
+
+      <div class="tab-group-label">People &amp; Market</div>
+      <button class="tab-btn" data-tab="consultants"><span class="tab-dot"></span>Consultants (VIC)</button>
+      <button class="tab-btn" data-tab="competitors"><span class="tab-dot"></span>Competitor Research</button>
+    </nav>
+  </aside>
+
+  <main>
+
+    <!-- ============ OVERVIEW ============ -->
+    <section class="panel active" data-panel="overview">
+      <div class="page-header">
+        <div class="eyebrow">Executive Summary</div>
+        <h1 class="page-title">Why Victorian showrooms are declining</h1>
+        <p class="page-sub">Consolidated review across national trends, state comparison, Victoria showroom performance, two product-line deep dives, consultant performance and competitor research.</p>
+      </div>
+
+      <div class="kpi-grid" id="overview-kpis"></div>
+
+      <div class="section-grid">
+        <div class="card">
+          <h2>1 · Overall VIC showroom decline</h2>
+          <ul class="bullets">
+            <li>Nine of ten Victorian showrooms trend flat-to-negative YoY; <b>Blackburn</b> is the clear exception, improving across nearly every metric.</li>
+            <li>Clearest overall decliners: <b>Hoppers Crossing, Airport West, Coburg, Elsternwick.</b></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>2 · Crimsafe-specific decline</h2>
+          <ul class="bullets">
+            <li>Four showrooms show Crimsafe order declines since April vs LY: Elsternwick (-25.0%), Toorak (-18.9%), Hoppers Crossing (-18.1%), Coburg (-12.5%).</li>
+            <li><b>Toorak</b>: quote volume is fine, conversion collapsed (-9.7 pts intra-year) — a closing-rate problem, cause not yet identified.</li>
+            <li><b>Hoppers Crossing</b>: conversion stable, quote volume fell -9.3% intra-year — a demand/lead problem.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>3 · Roller Blinds-specific decline</h2>
+          <ul class="bullets">
+            <li><b>Fitzroy</b> shows the sharpest Roller Blinds decline of any VIC showroom (-9.7 pts YoY) — a category-specific issue, not flagged in the overall decline.</li>
+            <li>Elsternwick (-6.2 pts) and Airport West (-5.2 pts) also decline meaningfully.</li>
+            <li>Roller Blinds is uniquely exposed to a national online DIY category (up to 70% off RRP) — Shutters/Curtains/Crimsafe need professional install and aren't exposed the same way.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>4 · Competitor research</h2>
+          <ul class="bullets">
+            <li>Competitors near the declining showrooms are narrower specialists: Crimsafe-only resellers, a roller-blind specialist, a value franchise, and online DIY retailers.</li>
+            <li><b>The driver of Toorak &amp; Hoppers Crossing's Crimsafe decline is an open question again</b> — likely needs a different line of investigation (pricing, staffing, local marketing, service issues).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>5 · Consultant performance (VIC)</h2>
+          <ul class="bullets">
+            <li>VIC-wide YoY: Orders -1.2%, Conversion +0.2 pts (flat), Sales -2.2%, Unconverted Value -7.1% (an improvement).</li>
+            <li><b>Adem Himmetoglu</b> and <b>Adam Cook</b> show the steepest conversion declines (-29.4 / -27.9 pts) — worth a direct conversation.</li>
+            <li><b>Ricardo Barata</b> and <b>Paul Millan</b> are the clearest bright spots.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>6 · State context (NSW vs VIC)</h2>
+          <ul class="bullets">
+            <li>NSW outperforms VIC across almost every product group and improved YoY while VIC softened — some VIC pressure may be state-specific.</li>
+            <li>Crimsafe is down by nearly the same margin in both states (~-1.0 pt) — <b>not unique to Victoria.</b></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NATIONAL TRENDS ============ -->
+    <section class="panel" data-panel="national">
+      <div class="page-header">
+        <div class="eyebrow">National Context</div>
+        <h1 class="page-title">National monthly trend &amp; price segments</h1>
+        <p class="page-sub">Company-wide (all states, all showrooms) conversion by month, and by quote/order price band. Sets the baseline VIC is compared against.</p>
+      </div>
+
+      <div class="card">
+        <h2>Monthly conversion, 2026 vs 2025</h2>
+        <div class="card-sub">Every month from Jan–Jun ran ahead of last year; July reversed the trend against a very strong July 2025.</div>
+        <div class="chart-wrap"><canvas id="chart-national-monthly" height="90"></canvas></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <h2>Conversion by price segment</h2>
+          <div class="card-sub">The bigger the quote, the lower the conversion rate — a consistent pattern both years.</div>
+          <div class="chart-wrap"><canvas id="chart-price-segment"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Average Order Value by month</h2>
+          <div class="card-sub">AOV has stayed broadly stable — conversion gains aren't coming at the expense of deal size.</div>
+          <div class="chart-wrap"><canvas id="chart-national-aov"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NSW vs VIC ============ -->
+    <section class="panel" data-panel="nswvic">
+      <div class="page-header">
+        <div class="eyebrow">National Context</div>
+        <h1 class="page-title">NSW vs VIC, by product group</h1>
+        <p class="page-sub">Same seven product groups, split by state. NSW is outperforming VIC in nearly every category.</p>
+      </div>
+      <div class="card">
+        <h2>2026 conversion by group and state</h2>
+        <div class="chart-wrap"><canvas id="chart-nsw-vic"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Detail table</h2>
+        <div class="table-scroll">
+          <table id="table-nsw-vic">
+            <thead><tr>
+              <th>Product Group</th><th class="num">NSW 2026</th><th class="num">NSW 2025</th><th class="num">NSW Δ</th>
+              <th class="num">VIC 2026</th><th class="num">VIC 2025</th><th class="num">VIC Δ</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIC SHOWROOMS ============ -->
+    <section class="panel" data-panel="vicshowrooms">
+      <div class="page-header">
+        <div class="eyebrow">Victoria Detail</div>
+        <h1 class="page-title">VIC showroom overview</h1>
+        <p class="page-sub">Overall conversion (all products), every Victorian showroom, worst to best year-over-year change.</p>
+      </div>
+      <div class="card">
+        <h2>YoY conversion change by showroom</h2>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:var(--bad)"></span>Decline &gt; 2 pts</span>
+          <span><span class="legend-dot" style="background:var(--accent)"></span>Smaller decline</span>
+          <span><span class="legend-dot" style="background:var(--good)"></span>Improved</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-vic-showrooms" height="110"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Detail table</h2>
+        <div class="table-scroll">
+          <table id="table-vic-showrooms">
+            <thead><tr>
+              <th>Showroom</th><th class="num">2026 Quotes</th><th class="num">2026 Orders</th><th class="num">2026 Conv%</th>
+              <th class="num">2025 Quotes</th><th class="num">2025 Orders</th><th class="num">2025 Conv%</th><th>YoY Change</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CRIMSAFE ============ -->
+    <section class="panel" data-panel="crimsafe">
+      <div class="page-header">
+        <div class="eyebrow">Victoria Detail</div>
+        <h1 class="page-title">Crimsafe deep dive</h1>
+        <p class="page-sub">Which VIC showrooms have Crimsafe orders declining since April, and what's driving it — quote volume (demand) vs conversion rate (execution).</p>
+      </div>
+      <div class="card">
+        <h2>Orders, year-over-year (Apr–Jul)</h2>
+        <div class="chart-wrap"><canvas id="chart-crimsafe-orders" height="100"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Diagnostic table</h2>
+        <div class="card-sub">"Intra-yr" compares Jan–Mar 2026 to Apr–Jul 2026. "YoY" compares Apr–Jul 2026 to the same 4 months in 2025.</div>
+        <div class="table-scroll">
+          <table id="table-crimsafe">
+            <thead><tr>
+              <th>Showroom</th><th class="num">Conv % (Jan–Mar 26)</th><th class="num">Conv % (Apr–Jul 26)</th>
+              <th class="num">Quote Vol Δ (intra-yr)</th><th class="num">Conv Δ (intra-yr, pts)</th>
+              <th class="num">Orders Δ (YoY)</th><th class="num">Conv Δ (YoY, pts)</th><th>Read</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="note">Fitzroy is excluded here (outside the original Crimsafe deep-dive scope) — see Roller Blinds tab, where its decline is concentrated instead.</div>
+      </div>
+    </section>
+
+    <!-- ============ ROLLER BLINDS ============ -->
+    <section class="panel" data-panel="roller">
+      <div class="page-header">
+        <div class="eyebrow">Victoria Detail</div>
+        <h1 class="page-title">Roller Blinds decline</h1>
+        <p class="page-sub">Roller Blinds conversion by VIC showroom — a different pattern to Crimsafe, concentrated in different showrooms.</p>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <h2>Roller Blinds conversion change</h2>
+          <div class="chart-wrap"><canvas id="chart-roller"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Crimsafe vs Roller Blinds, side by side</h2>
+          <div class="card-sub">Showrooms declining in <b>both</b> categories are the clearest all-round concern.</div>
+          <div class="chart-wrap"><canvas id="chart-both"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Detail table</h2>
+        <div class="table-scroll">
+          <table id="table-roller">
+            <thead><tr><th>Showroom</th><th class="num">2026 Conv%</th><th class="num">2025 Conv%</th><th>YoY Change</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONSULTANTS ============ -->
+    <section class="panel" data-panel="consultants">
+      <div class="page-header">
+        <div class="eyebrow">People</div>
+        <h1 class="page-title">Consultant performance — Victoria</h1>
+        <p class="page-sub">All 14 VIC consultants with meaningful volume (≥50 quotes), 2026 YTD vs the same period in 2025.</p>
+      </div>
+      <div class="kpi-grid" id="consultant-kpis"></div>
+      <div class="card">
+        <h2>Total sales vs unconverted value</h2>
+        <div class="chart-wrap"><canvas id="chart-consultants" height="110"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Detail table</h2>
+        <div class="table-scroll">
+          <table id="table-consultants">
+            <thead><tr>
+              <th>Consultant</th><th class="num">Quotes</th><th class="num">Orders</th><th class="num">Conv%</th>
+              <th>Conv vs LY</th><th class="num">AOV</th><th class="num">Total Sales</th><th>Sales vs LY</th><th class="num">Unconverted Sales</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ COMPETITORS ============ -->
+    <section class="panel" data-panel="competitors">
+      <div class="page-header">
+        <div class="eyebrow">Market</div>
+        <h1 class="page-title">Competitor research</h1>
+        <p class="page-sub">External competitors identified near the declining VIC showrooms, for Crimsafe and Roller Blinds specifically.</p>
+      </div>
+      <div id="competitor-list"></div>
+    </section>
+
+    <footer class="dash-footer">Compiled from full-thread analysis · Hunter Douglas Australia · Data as of August 2026</footer>
+  </main>
+</div>
+
+<script id="dashboard-data" type="application/json">
+{"nationalMonthly": [{"month": "Jan", "q26": 3926, "o26": 2224, "conv26": 56.6, "q25": 4374, "o25": 2393, "conv25": 54.7, "aov26": 2178, "aov25": 2267}, {"month": "Feb", "q26": 4389, "o26": 2602, "conv26": 59.3, "q25": 4728, "o25": 2554, "conv25": 54.0, "aov26": 2345, "aov25": 2269}, {"month": "Mar", "q26": 4558, "o26": 2597, "conv26": 57.0, "q25": 4622, "o25": 2519, "conv25": 54.5, "aov26": 2311, "aov25": 2262}, {"month": "Apr", "q26": 3414, "o26": 2005, "conv26": 58.7, "q25": 3712, "o25": 1967, "conv25": 53.0, "aov26": 2416, "aov25": 2295}, {"month": "May", "q26": 3514, "o26": 2056, "conv26": 58.5, "q25": 3531, "o25": 1915, "conv25": 54.2, "aov26": 2389, "aov25": 2291}, {"month": "Jun", "q26": 3487, "o26": 2125, "conv26": 60.9, "q25": 2937, "o25": 1622, "conv25": 55.2, "aov26": 2436, "aov25": 2316}, {"month": "Jul", "q26": 4556, "o26": 2762, "conv26": 60.6, "q25": 4544, "o25": 2907, "conv25": 64.0, "aov26": 2412, "aov25": 2386}], "nationalByGroup": [{"group": "Shutters", "q26": 3678, "o26": 1886, "conv26": 51.3, "q25": 3664, "o25": 1724, "conv25": 47.1, "aov26": 3293, "aov25": 3410}, {"group": "Venetians/Roman/Verticals", "q26": 2055, "o26": 1225, "conv26": 59.6, "q25": 2152, "o25": 1255, "conv25": 58.3, "aov26": 2272, "aov25": 2171}, {"group": "Awnings", "q26": 1789, "o26": 672, "conv26": 37.6, "q25": 2021, "o25": 741, "conv25": 36.7, "aov26": 4097, "aov25": 4093}, {"group": "Curtains", "q26": 3215, "o26": 1503, "conv26": 46.7, "q25": 2442, "o25": 1015, "conv25": 41.6, "aov26": 3923, "aov25": 4672}, {"group": "Crimsafe", "q26": 10697, "o26": 6070, "conv26": 56.7, "q25": 10884, "o25": 6285, "conv25": 57.7, "aov26": 2775, "aov25": 2724}, {"group": "Door & Flyscreens", "q26": 3101, "o26": 1896, "conv26": 61.1, "q25": 3124, "o25": 1892, "conv25": 60.6, "aov26": 2273, "aov25": 2185}, {"group": "Roller Blinds", "q26": 7224, "o26": 4194, "conv26": 58.1, "q25": 7056, "o25": 4071, "conv25": 57.7, "aov26": 2700, "aov25": 2739}], "nationalPriceSegment": [{"segment": "Under $500", "q26": 3949, "o26": 2811, "conv26": 71.2, "q25": 4536, "o25": 3119, "conv25": 68.8}, {"segment": "$500-999", "q26": 2941, "o26": 2096, "conv26": 71.3, "q25": 2918, "o25": 2024, "conv25": 69.4}, {"segment": "$1,000-1,999", "q26": 7563, "o26": 4750, "conv26": 62.8, "q25": 7439, "o25": 4760, "conv25": 64.0}, {"segment": "$2,000-3,499", "q26": 6154, "o26": 3499, "conv26": 56.9, "q25": 6027, "o25": 3379, "conv25": 56.1}, {"segment": "$3,500-4,999", "q26": 3213, "o26": 1539, "conv26": 47.9, "q25": 3095, "o25": 1525, "conv25": 49.3}, {"segment": "$5,000-9,999", "q26": 3700, "o26": 1544, "conv26": 41.7, "q25": 3856, "o25": 1524, "conv25": 39.5}, {"segment": "$10,000+", "q26": 1083, "o26": 291, "conv26": 26.9, "q25": 1206, "o25": 290, "conv25": 24.0}], "nswVicByGroup": [{"group": "Shutters", "NSW_conv26": 52.9, "NSW_conv25": 48.7, "VIC_conv26": 45.6, "VIC_conv25": 41.8}, {"group": "Venetians/Roman/Verticals", "NSW_conv26": 61.1, "NSW_conv25": 59.3, "VIC_conv26": 46.7, "VIC_conv25": 50.6}, {"group": "Awnings", "NSW_conv26": 40.4, "NSW_conv25": 38.9, "VIC_conv26": 31.7, "VIC_conv25": 31.5}, {"group": "Curtains", "NSW_conv26": 47.7, "NSW_conv25": 42.4, "VIC_conv26": 43.9, "VIC_conv25": 39.6}, {"group": "Crimsafe", "NSW_conv26": 57.5, "NSW_conv25": 58.5, "VIC_conv26": 55.2, "VIC_conv25": 56.2}, {"group": "Door & Flyscreens", "NSW_conv26": 62.2, "NSW_conv25": 62.0, "VIC_conv26": 58.8, "VIC_conv25": 57.1}, {"group": "Roller Blinds", "NSW_conv26": 59.7, "NSW_conv25": 58.9, "VIC_conv26": 52.8, "VIC_conv25": 54.1}], "vicShowroomOverview": [{"showroom": "Airport West", "q26": 924, "o26": 468, "conv26": 50.6, "q25": 814, "o25": 443, "conv25": 54.4, "delta": -3.8}, {"showroom": "Elsternwick", "q26": 654, "o26": 348, "conv26": 53.2, "q25": 694, "o25": 392, "conv25": 56.5, "delta": -3.3}, {"showroom": "Heidelberg", "q26": 899, "o26": 497, "conv26": 55.3, "q25": 927, "o25": 533, "conv25": 57.5, "delta": -2.2}, {"showroom": "Fitzroy", "q26": 540, "o26": 298, "conv26": 55.2, "q25": 573, "o25": 326, "conv25": 56.9, "delta": -1.7}, {"showroom": "Coburg", "q26": 653, "o26": 300, "conv26": 45.9, "q25": 708, "o25": 328, "conv25": 46.3, "delta": -0.4}, {"showroom": "Hoppers Crossing", "q26": 941, "o26": 487, "conv26": 51.8, "q25": 1051, "o25": 546, "conv25": 52.0, "delta": -0.2}, {"showroom": "Toorak", "q26": 980, "o26": 498, "conv26": 50.8, "q25": 1051, "o25": 527, "conv25": 50.1, "delta": 0.7}, {"showroom": "Sunshine North", "q26": 584, "o26": 324, "conv26": 55.5, "q25": 605, "o25": 327, "conv25": 54.0, "delta": 1.4}, {"showroom": "Dandenong", "q26": 962, "o26": 459, "conv26": 47.7, "q25": 980, "o25": 451, "conv25": 46.0, "delta": 1.7}, {"showroom": "Blackburn", "q26": 1094, "o26": 689, "conv26": 63.0, "q25": 975, "o25": 573, "conv25": 58.8, "delta": 4.2}], "crimsafeDiag": [{"showroom": "Elsternwick", "convJanMar26": 56.9, "convAprJul26": 53.3, "qVolChgIntra": -1.8, "convChgIntra": -3.6, "ordersYoyChg": -25.0, "convYoyChg": -8.0}, {"showroom": "Toorak", "convJanMar26": 57.5, "convAprJul26": 47.8, "qVolChgIntra": 10.3, "convChgIntra": -9.7, "ordersYoyChg": -18.9, "convYoyChg": -4.1}, {"showroom": "Hoppers Crossing", "convJanMar26": 51.0, "convAprJul26": 54.0, "qVolChgIntra": -9.3, "convChgIntra": 3.1, "ordersYoyChg": -18.1, "convYoyChg": 0.6}, {"showroom": "Coburg", "convJanMar26": 48.2, "convAprJul26": 49.7, "qVolChgIntra": -5.5, "convChgIntra": 1.5, "ordersYoyChg": -12.5, "convYoyChg": -3.7}, {"showroom": "Dandenong", "convJanMar26": 51.5, "convAprJul26": 52.6, "qVolChgIntra": 13.2, "convChgIntra": 1.1, "ordersYoyChg": 2.9, "convYoyChg": 0.3}, {"showroom": "Sunshine North", "convJanMar26": 61.7, "convAprJul26": 68.6, "qVolChgIntra": 19.1, "convChgIntra": 6.9, "ordersYoyChg": 9.3, "convYoyChg": 6.3}, {"showroom": "Heidelberg", "convJanMar26": 56.8, "convAprJul26": 57.1, "qVolChgIntra": -3.9, "convChgIntra": 0.3, "ordersYoyChg": 17.7, "convYoyChg": -1.5}, {"showroom": "Airport West", "convJanMar26": 56.5, "convAprJul26": 59.8, "qVolChgIntra": -8.7, "convChgIntra": 3.3, "ordersYoyChg": 20.2, "convYoyChg": 4.5}, {"showroom": "Blackburn", "convJanMar26": 66.8, "convAprJul26": 67.1, "qVolChgIntra": -4.1, "convChgIntra": 0.3, "ordersYoyChg": 26.6, "convYoyChg": 6.0}], "rollerDecline": [{"showroom": "Fitzroy", "conv26": 53.7, "conv25": 63.4, "delta": -9.7}, {"showroom": "Elsternwick", "conv26": 59.0, "conv25": 65.1, "delta": -6.2}, {"showroom": "Airport West", "conv26": 47.0, "conv25": 52.1, "delta": -5.2}, {"showroom": "Toorak", "conv26": 54.7, "conv25": 54.8, "delta": -0.1}, {"showroom": "Blackburn", "conv26": 58.7, "conv25": 58.4, "delta": 0.3}, {"showroom": "Hoppers Crossing", "conv26": 50.9, "conv25": 50.0, "delta": 0.9}, {"showroom": "Coburg", "conv26": 42.7, "conv25": 41.5, "delta": 1.2}, {"showroom": "Dandenong", "conv26": 41.9, "conv25": 40.3, "delta": 1.6}, {"showroom": "Heidelberg", "conv26": 54.6, "conv25": 52.6, "delta": 2.0}, {"showroom": "Sunshine North", "conv26": 62.1, "conv25": 57.1, "delta": 5.0}], "crimsafeRollerBoth": [{"showroom": "Hoppers Crossing", "crimsafeDelta": -3.5, "rollerDelta": 0.9}, {"showroom": "Airport West", "crimsafeDelta": -0.0, "rollerDelta": -5.2}, {"showroom": "Sunshine North", "crimsafeDelta": 2.4, "rollerDelta": 5.0}, {"showroom": "Toorak", "crimsafeDelta": -2.1, "rollerDelta": -0.1}, {"showroom": "Coburg", "crimsafeDelta": -5.4, "rollerDelta": 1.2}, {"showroom": "Heidelberg", "crimsafeDelta": -1.0, "rollerDelta": 2.0}, {"showroom": "Dandenong", "crimsafeDelta": -1.1, "rollerDelta": 1.6}, {"showroom": "Blackburn", "crimsafeDelta": 2.5, "rollerDelta": 0.3}, {"showroom": "Elsternwick", "crimsafeDelta": -5.0, "rollerDelta": -6.2}, {"showroom": "Fitzroy", "crimsafeDelta": 1.2, "rollerDelta": -9.7}], "consultants": [{"name": "Brendan Truesdale", "quotes": 911, "orders": 560, "conv": 61.5, "convDelta": 3.4, "aov": 2429, "sales": 1360472, "salesDeltaPct": -1, "unconverted": 1446482}, {"name": "Martin Rust", "quotes": 849, "orders": 427, "conv": 50.3, "convDelta": -1.0, "aov": 2632, "sales": 1123750, "salesDeltaPct": -9, "unconverted": 1653280}, {"name": "Darren Klein", "quotes": 854, "orders": 413, "conv": 48.4, "convDelta": 0.4, "aov": 2354, "sales": 972347, "salesDeltaPct": -5, "unconverted": 1292928}, {"name": "Ricardo Barata", "quotes": 757, "orders": 362, "conv": 47.8, "convDelta": 4.3, "aov": 2630, "sales": 951996, "salesDeltaPct": 16, "unconverted": 1461294}, {"name": "Bruce Corfield", "quotes": 624, "orders": 343, "conv": 55.0, "convDelta": -1.0, "aov": 2630, "sales": 902226, "salesDeltaPct": -22, "unconverted": 1224952}, {"name": "Paul  Millan", "quotes": 683, "orders": 373, "conv": 54.6, "convDelta": 0.0, "aov": 2384, "sales": 889254, "salesDeltaPct": 125, "unconverted": 1154866}, {"name": "Rod Tobin", "quotes": 541, "orders": 280, "conv": 51.8, "convDelta": -5.0, "aov": 2656, "sales": 743678, "salesDeltaPct": -14, "unconverted": 904489}, {"name": "Peter Nelson", "quotes": 561, "orders": 274, "conv": 48.8, "convDelta": -3.4, "aov": 2641, "sales": 723581, "salesDeltaPct": -10, "unconverted": 1056946}, {"name": "Angelo Christopolous", "quotes": 535, "orders": 280, "conv": 52.3, "convDelta": -0.2, "aov": 2563, "sales": 717582, "salesDeltaPct": -15, "unconverted": 640092}, {"name": "Dino Lorenzin", "quotes": 561, "orders": 251, "conv": 44.7, "convDelta": -0.9, "aov": 2499, "sales": 627166, "salesDeltaPct": -13, "unconverted": 909856}, {"name": "Ronny Couque", "quotes": 537, "orders": 252, "conv": 46.9, "convDelta": null, "aov": 2318, "sales": 584071, "salesDeltaPct": null, "unconverted": 954980}, {"name": "Adem  Himmetoglu", "quotes": 88, "orders": 37, "conv": 42.0, "convDelta": -29.4, "aov": 3091, "sales": 114375, "salesDeltaPct": 219, "unconverted": 251371}, {"name": "Arthur Marantos", "quotes": 86, "orders": 39, "conv": 45.3, "convDelta": -2.7, "aov": 2915, "sales": 113682, "salesDeltaPct": -79, "unconverted": 173981}, {"name": "Adam  Cook", "quotes": 59, "orders": 6, "conv": 10.2, "convDelta": -27.9, "aov": 3080, "sales": 18477, "salesDeltaPct": -87, "unconverted": 418424}], "consultantTotals": {"quotes": 7671, "orders": 3900, "conv": 50.840829096597574, "aov": 2524.5012928205133, "sales": 9845555.042000001, "unconverted": 13676293.861000001}}
+</script>
+
+<script>
+const DATA = JSON.parse(document.getElementById('dashboard-data').textContent);
+
+/* ---------- Tab navigation ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector('.panel[data-panel="' + btn.dataset.tab + '"]').classList.add('active');
+  });
+});
+
+/* ---------- Helpers ---------- */
+function fmtNum(n){ return Math.round(n).toLocaleString(); }
+function fmtCurrency(n){ return '$' + Math.round(n).toLocaleString(); }
+function fmtPct(n, d=1){ return n.toFixed(d) + '%'; }
+function fmtDelta(n, isPct=false, d=1){
+  if(n === null || n === undefined) return 'n/a';
+  const sign = n >= 0 ? '+' : '';
+  return sign + n.toFixed(d) + (isPct ? '%' : '');
+}
+function deltaClass(n){
+  if(n === null || n === undefined) return 'flat';
+  if (Math.abs(n) < 0.15) return 'flat';
+  return n >= 0 ? 'good' : 'bad';
+}
+const GOOD = '#1F8A5F', BAD = '#C53A3A', ACCENT = '#E0A03D', NAVY = '#1B2A4A', WARN='#D98A2B';
+
+function deltaBarHTML(val, maxAbs, decimals=1, suffix=''){
+  const cls = deltaClass(val);
+  const pct = Math.min(100, Math.abs(val) / maxAbs * 100);
+  const color = cls === 'good' ? GOOD : (cls === 'bad' ? BAD : '#9AA3B5');
+  const side = val >= 0 ? 'left:50%;' : 'right:50%;';
+  return `<div class="delta-row">
+    <div class="delta-track">
+      <div class="delta-fill" style="${side} width:${pct/2}%; background:${color};"></div>
+    </div>
+    <div class="delta-num" style="color:${color}">${fmtDelta(val,false,decimals)}${suffix}</div>
+  </div>`;
+}
+
+/* ================= OVERVIEW KPIs ================= */
+(function(){
+  const nm = DATA.nationalMonthly;
+  const totQ26 = nm.reduce((a,b)=>a+b.q26,0), totO26 = nm.reduce((a,b)=>a+b.o26,0);
+  const totQ25 = nm.reduce((a,b)=>a+b.q25,0), totO25 = nm.reduce((a,b)=>a+b.o25,0);
+  const conv26 = totO26/totQ26*100, conv25 = totO25/totQ25*100;
+  const vic = DATA.vicShowroomOverview;
+  const vicQ26 = vic.reduce((a,b)=>a+b.q26,0), vicO26 = vic.reduce((a,b)=>a+b.o26,0);
+  const vicQ25 = vic.reduce((a,b)=>a+b.q25,0), vicO25 = vic.reduce((a,b)=>a+b.o25,0);
+  const vicConv26 = vicO26/vicQ26*100, vicConv25 = vicO25/vicQ25*100;
+  const declining = vic.filter(s => s.delta < 0).length;
+
+  const kpis = [
+    {label:'National Conversion (YTD)', value: fmtPct(conv26), delta: fmtDelta(conv26-conv25,false)+' pts vs LY', cls: deltaClass(conv26-conv25)},
+    {label:'VIC Conversion (YTD)', value: fmtPct(vicConv26), delta: fmtDelta(vicConv26-vicConv25,false)+' pts vs LY', cls: deltaClass(vicConv26-vicConv25)},
+    {label:'VIC Showrooms Declining', value: declining + ' of 10', delta: 'Blackburn is the standout improver', cls:'flat'},
+    {label:'Crimsafe Showrooms in Decline', value: '4 of 9', delta: 'Since April, vs LY', cls:'bad'},
+    {label:'Roller Blinds Worst Decline', value: 'Fitzroy', delta: '-9.7 pts YoY', cls:'bad'},
+  ];
+  const grid = document.getElementById('overview-kpis');
+  kpis.forEach(k => {
+    grid.innerHTML += `<div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-delta ${k.cls}">${k.delta}</div>
+    </div>`;
+  });
+})();
+
+/* ================= NATIONAL TRENDS ================= */
+(function(){
+  const nm = DATA.nationalMonthly;
+  new Chart(document.getElementById('chart-national-monthly'), {
+    type:'line',
+    data:{
+      labels: nm.map(d=>d.month),
+      datasets:[
+        {label:'2026', data: nm.map(d=>d.conv26), borderColor: NAVY, backgroundColor: NAVY, tension:0.35, pointRadius:3, borderWidth:2.5},
+        {label:'2025', data: nm.map(d=>d.conv25), borderColor: ACCENT, backgroundColor: ACCENT, tension:0.35, pointRadius:3, borderWidth:2.5, borderDash:[5,3]},
+      ]
+    },
+    options:{
+      plugins:{ legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:7, font:{family:"'IBM Plex Sans'"} } },
+        tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%' } } },
+      scales:{
+        y:{ ticks:{ callback:v=>v+'%' }, grid:{ color:'#EEF0F4' } },
+        x:{ grid:{ display:false } }
+      }
+    }
+  });
+
+  const ps = DATA.nationalPriceSegment;
+  new Chart(document.getElementById('chart-price-segment'), {
+    type:'bar',
+    data:{
+      labels: ps.map(d=>d.segment),
+      datasets:[
+        {label:'2026', data: ps.map(d=>d.conv26), backgroundColor: NAVY, borderRadius:4},
+        {label:'2025', data: ps.map(d=>d.conv25), backgroundColor: ACCENT, borderRadius:4},
+      ]
+    },
+    options:{
+      plugins:{ legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:7 } } },
+      scales:{ y:{ ticks:{ callback:v=>v+'%' }, grid:{ color:'#EEF0F4' } }, x:{ grid:{ display:false }, ticks:{ font:{size:10.5} } } }
+    }
+  });
+
+  new Chart(document.getElementById('chart-national-aov'), {
+    type:'line',
+    data:{
+      labels: nm.map(d=>d.month),
+      datasets:[
+        {label:'2026 AOV', data: nm.map(d=>d.aov26), borderColor: NAVY, backgroundColor:'rgba(27,42,74,0.08)', fill:true, tension:0.35, pointRadius:3},
+        {label:'2025 AOV', data: nm.map(d=>d.aov25), borderColor: ACCENT, backgroundColor:'rgba(224,160,61,0.08)', fill:true, tension:0.35, pointRadius:3, borderDash:[5,3]},
+      ]
+    },
+    options:{
+      plugins:{ legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:7 } },
+        tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } } },
+      scales:{ y:{ ticks:{ callback:v=>'$'+v.toLocaleString() }, grid:{ color:'#EEF0F4' } }, x:{ grid:{ display:false } } }
+    }
+  });
+})();
+
+/* ================= NSW vs VIC ================= */
+(function(){
+  const d = DATA.nswVicByGroup;
+  new Chart(document.getElementById('chart-nsw-vic'), {
+    type:'bar',
+    data:{
+      labels: d.map(x=>x.group),
+      datasets:[
+        {label:'NSW 2026', data:d.map(x=>x.NSW_conv26), backgroundColor:NAVY, borderRadius:4},
+        {label:'VIC 2026', data:d.map(x=>x.VIC_conv26), backgroundColor:ACCENT, borderRadius:4},
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{ legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:7 } } },
+      scales:{ x:{ ticks:{ callback:v=>v+'%' }, grid:{ color:'#EEF0F4' } }, y:{ grid:{ display:false } } }
+    }
+  });
+
+  const tbody = document.querySelector('#table-nsw-vic tbody');
+  d.forEach(x => {
+    const nswD = x.NSW_conv26 - x.NSW_conv25, vicD = x.VIC_conv26 - x.VIC_conv25;
+    tbody.innerHTML += `<tr>
+      <td>${x.group}</td>
+      <td class="num">${fmtPct(x.NSW_conv26)}</td><td class="num">${fmtPct(x.NSW_conv25)}</td>
+      <td class="num"><span class="pill ${deltaClass(nswD)}">${fmtDelta(nswD,false)} pts</span></td>
+      <td class="num">${fmtPct(x.VIC_conv26)}</td><td class="num">${fmtPct(x.VIC_conv25)}</td>
+      <td class="num"><span class="pill ${deltaClass(vicD)}">${fmtDelta(vicD,false)} pts</span></td>
+    </tr>`;
+  });
+})();
+
+/* ================= VIC SHOWROOMS ================= */
+(function(){
+  const d = DATA.vicShowroomOverview;
+  new Chart(document.getElementById('chart-vic-showrooms'), {
+    type:'bar',
+    data:{
+      labels: d.map(x=>x.showroom),
+      datasets:[{
+        label:'YoY conversion change (pts)',
+        data: d.map(x=>x.delta),
+        backgroundColor: d.map(x=> x.delta < -2 ? BAD : (x.delta < 0 ? WARN : GOOD)),
+        borderRadius:4,
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => fmtDelta(ctx.parsed.x,false)+' pts' } } },
+      scales:{ x:{ ticks:{ callback:v=>v+' pts' }, grid:{ color:'#EEF0F4' } }, y:{ grid:{ display:false } } }
+    }
+  });
+
+  const tbody = document.querySelector('#table-vic-showrooms tbody');
+  d.forEach(x => {
+    tbody.innerHTML += `<tr>
+      <td><b>${x.showroom}</b></td>
+      <td class="num">${fmtNum(x.q26)}</td><td class="num">${fmtNum(x.o26)}</td><td class="num">${fmtPct(x.conv26)}</td>
+      <td class="num">${fmtNum(x.q25)}</td><td class="num">${fmtNum(x.o25)}</td><td class="num">${fmtPct(x.conv25)}</td>
+      <td>${deltaBarHTML(x.delta, 5, 1, ' pts')}</td>
+    </tr>`;
+  });
+})();
+
+/* ================= CRIMSAFE ================= */
+(function(){
+  const d = DATA.crimsafeDiag;
+  new Chart(document.getElementById('chart-crimsafe-orders'), {
+    type:'bar',
+    data:{
+      labels: d.map(x=>x.showroom),
+      datasets:[{
+        label:'Orders YoY change (%)',
+        data: d.map(x=>x.ordersYoyChg),
+        backgroundColor: d.map(x=> x.ordersYoyChg < -10 ? BAD : (x.ordersYoyChg < 0 ? WARN : GOOD)),
+        borderRadius:4,
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => fmtDelta(ctx.parsed.x,true) } } },
+      scales:{ x:{ ticks:{ callback:v=>v+'%' }, grid:{ color:'#EEF0F4' } }, y:{ grid:{ display:false } } }
+    }
+  });
+
+  const tbody = document.querySelector('#table-crimsafe tbody');
+  d.forEach(x => {
+    let read;
+    const volNeg = x.qVolChgIntra < -1.5;
+    const convNeg = x.convChgIntra < -1.5;
+    if (x.ordersYoyChg >= 0) read = 'Growing';
+    else if (volNeg && convNeg) read = 'Mixed: volume + conversion';
+    else if (convNeg) read = 'Conversion (execution)';
+    else if (volNeg) read = 'Quote volume (demand)';
+    else read = 'Modest / unclear';
+    const readCls = x.ordersYoyChg >= 0 ? 'good' : (x.ordersYoyChg < -10 ? 'bad' : 'flat');
+
+    tbody.innerHTML += `<tr>
+      <td><b>${x.showroom}</b></td>
+      <td class="num">${fmtPct(x.convJanMar26)}</td><td class="num">${fmtPct(x.convAprJul26)}</td>
+      <td class="num"><span class="pill ${deltaClass(x.qVolChgIntra)}">${fmtDelta(x.qVolChgIntra,true)}</span></td>
+      <td class="num"><span class="pill ${deltaClass(x.convChgIntra)}">${fmtDelta(x.convChgIntra,false)} pts</span></td>
+      <td class="num"><span class="pill ${deltaClass(x.ordersYoyChg)}">${fmtDelta(x.ordersYoyChg,true)}</span></td>
+      <td class="num"><span class="pill ${deltaClass(x.convYoyChg)}">${fmtDelta(x.convYoyChg,false)} pts</span></td>
+      <td><span class="pill ${readCls}">${read}</span></td>
+    </tr>`;
+  });
+})();
+
+/* ================= ROLLER BLINDS ================= */
+(function(){
+  const d = DATA.rollerDecline;
+  new Chart(document.getElementById('chart-roller'), {
+    type:'bar',
+    data:{
+      labels: d.map(x=>x.showroom),
+      datasets:[{
+        label:'YoY conversion change (pts)',
+        data: d.map(x=>x.delta),
+        backgroundColor: d.map(x=> x.delta < -2 ? BAD : (x.delta < 0 ? WARN : GOOD)),
+        borderRadius:4,
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ ticks:{ callback:v=>v+' pts' }, grid:{ color:'#EEF0F4' } }, y:{ grid:{ display:false } } }
+    }
+  });
+
+  const both = DATA.crimsafeRollerBoth;
+  new Chart(document.getElementById('chart-both'), {
+    type:'bar',
+    data:{
+      labels: both.map(x=>x.showroom),
+      datasets:[
+        {label:'Crimsafe Δ (pts)', data: both.map(x=>x.crimsafeDelta), backgroundColor:NAVY, borderRadius:4},
+        {label:'Roller Blinds Δ (pts)', data: both.map(x=>x.rollerDelta), backgroundColor:ACCENT, borderRadius:4},
+      ]
+    },
+    options:{
+      plugins:{ legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:7 } } },
+      scales:{ y:{ ticks:{ callback:v=>v+' pts' }, grid:{ color:'#EEF0F4' } }, x:{ grid:{ display:false }, ticks:{ font:{size:9.5}, maxRotation:35, minRotation:35 } } }
+    }
+  });
+
+  const tbody = document.querySelector('#table-roller tbody');
+  d.forEach(x => {
+    tbody.innerHTML += `<tr>
+      <td><b>${x.showroom}</b></td>
+      <td class="num">${fmtPct(x.conv26)}</td><td class="num">${fmtPct(x.conv25)}</td>
+      <td>${deltaBarHTML(x.delta, 10, 1, ' pts')}</td>
+    </tr>`;
+  });
+})();
+
+/* ================= CONSULTANTS ================= */
+(function(){
+  const c = DATA.consultants;
+  const t = DATA.consultantTotals;
+  const kpis = [
+    {label:'Total Quotes', value: fmtNum(t.quotes)},
+    {label:'Total Orders', value: fmtNum(t.orders)},
+    {label:'Conversion', value: fmtPct(t.conv)},
+    {label:'Avg Order Value', value: fmtCurrency(t.aov)},
+    {label:'Total Sales', value: '$' + (t.sales/1e6).toFixed(2) + 'M'},
+    {label:'Unconverted Value', value: '$' + (t.unconverted/1e6).toFixed(2) + 'M'},
+  ];
+  const grid = document.getElementById('consultant-kpis');
+  kpis.forEach(k => { grid.innerHTML += `<div class="kpi-card"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div></div>`; });
+
+  const sorted = [...c].sort((a,b)=>b.sales-a.sales);
+  new Chart(document.getElementById('chart-consultants'), {
+    type:'bar',
+    data:{
+      labels: sorted.map(x=>x.name),
+      datasets:[
+        {label:'Total Sales', data: sorted.map(x=>x.sales), backgroundColor:NAVY, borderRadius:4},
+        {label:'Unconverted Sales', data: sorted.map(x=>x.unconverted), backgroundColor:BAD, borderRadius:4},
+      ]
+    },
+    options:{
+      plugins:{ legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:7 } },
+        tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } } },
+      scales:{
+        y:{ ticks:{ callback:v=>'$'+(v/1000)+'k' }, grid:{ color:'#EEF0F4' } },
+        x:{ grid:{ display:false }, ticks:{ font:{size:9.5}, maxRotation:40, minRotation:40 } }
+      }
+    }
+  });
+
+  const tbody = document.querySelector('#table-consultants tbody');
+  sorted.forEach(x => {
+    tbody.innerHTML += `<tr>
+      <td><b>${x.name}</b></td>
+      <td class="num">${fmtNum(x.quotes)}</td><td class="num">${fmtNum(x.orders)}</td><td class="num">${fmtPct(x.conv)}</td>
+      <td>${x.convDelta===null ? '<span class="pill flat">n/a</span>' : `<span class="pill ${deltaClass(x.convDelta)}">${fmtDelta(x.convDelta,false)} pts</span>`}</td>
+      <td class="num">${fmtCurrency(x.aov)}</td>
+      <td class="num">${fmtCurrency(x.sales)}</td>
+      <td>${x.salesDeltaPct===null ? '<span class="pill flat">n/a</span>' : `<span class="pill ${deltaClass(x.salesDeltaPct)}">${fmtDelta(x.salesDeltaPct,true,0)}</span>`}</td>
+      <td class="num" style="color:${BAD}">${fmtCurrency(x.unconverted)}</td>
+    </tr>`;
+  });
+})();
+
+/* ================= COMPETITORS ================= */
+(function(){
+  const groups = [
+    {showroom:'Elsternwick', items:[
+      {name:'My Security Door – Bentleigh East', overlap:'Crimsafe security doors only', threat:'Direct, specialist, nearby',
+       detail:'Exclusive Designer range (15 designs not available elsewhere); free installation; virtual showroom tool.', crim:true},
+    ]},
+    {showroom:'Toorak', items:[
+      {name:'Windo Hawthorn', overlap:'Shutters, blinds, curtains, awnings (sells Luxaflex)', threat:'Premium/design-led, nearby',
+       detail:'No discounting angle found; competes on design consultancy and premium brand (Luxaflex).', crim:false},
+      {name:'Shades / Portside Shutters / inDesign Blinds', overlap:'Curtains, blinds, shutters', threat:'Premium/design-led, nearby',
+       detail:'High-touch design consultancy positioning, not discount-led.', crim:false},
+    ]},
+    {showroom:'Hoppers Crossing', items:[
+      {name:'My Security Door – Werribee', overlap:'Crimsafe security doors only', threat:'Direct, specialist, nearby',
+       detail:'Same Designer range differentiation as the Bentleigh East location.', crim:true},
+      {name:'Doors Blinds & Shutters / Wyndham Blinds / Sasco Screens / 3A Blinds / KRISNA', overlap:'Full local competitor cluster', threat:'Dense local market (6+ competitors on same strip)',
+       detail:'Various local/independent positioning; no single dominant promotion identified.', crim:false},
+    ]},
+    {showroom:'Airport West', items:[
+      {name:'Melbourne Roller Blinds – Broadmeadows', overlap:'Roller Blinds specialist', threat:'Direct, specialist, nearby',
+       detail:'Competes narrowly on price and speed of service.', crim:false},
+      {name:'dollar curtains + blinds – Niddrie', overlap:'Curtains, blinds, shutters, awnings', threat:'National franchise, nearby',
+       detail:'Positioned on affordability/value; 55+ years, vertically integrated manufacturing.', crim:false},
+    ]},
+    {showroom:'Coburg', items:[
+      {name:'Security Plus Shutters, Doors & Blinds – Coburg North', overlap:'Security doors (Crimsafe-equivalent), shutters, blinds', threat:'Local, established (215 reviews)',
+       detail:'Markets its own triple-lock/InvisiGard system loosely as "crimsafe" (generic term) — may confuse customers seeking genuine Crimsafe. Not an authorised licensee.', crim:false},
+      {name:'My Security Door – Brunswick East', overlap:'Crimsafe security doors only', threat:'Direct, specialist, nearby',
+       detail:'Same Designer range differentiation.', crim:true},
+    ]},
+    {showroom:'Fitzroy', items:[
+      {name:'DIY Blinds – Collingwood', overlap:'Roller Blinds, curtains, shutters (online DIY)', threat:'Direct, essentially next door',
+       detail:'Custom roller blinds online from $64; positioned as "designer window furnishings without the showroom price tag".', crim:false},
+      {name:'Imeko Blinds (CBD) / Studio Blinds (Brunswick East)', overlap:'Blinds, curtains, shutters', threat:'Local, competitive pricing cited in reviews',
+       detail:'No major promotion found; price-competitive positioning.', crim:false},
+    ]},
+    {showroom:'National (all areas)', items:[
+      {name:'Online DIY roller blind retailers (DIYblinds.com.au, Half Price Blinds, ABC Blinds Online, Veneta Blinds, Blinds Downunder, Aussie Online Blinds)', overlap:'Roller Blinds only', threat:'Structural, category-wide',
+       detail:'Advertise up to 70% off RRP by eliminating installer/showroom overhead — uniquely relevant to Roller Blinds since Shutters/Curtains/Crimsafe need professional install.', crim:false},
+    ]},
+  ];
+
+  const container = document.getElementById('competitor-list');
+  groups.forEach(g => {
+    let html = `<div class="showroom-heading">${g.showroom}</div>`;
+    g.items.forEach(it => {
+      html += `<div class="comp-card">
+        <div class="comp-name">${it.name}<span class="comp-tag ${it.crim?'crim':'notcrim'}">${it.crim?'Genuine Crimsafe':'Not Crimsafe'}</span></div>
+        <div class="comp-meta">${it.overlap} · ${it.threat}</div>
+        <div class="comp-detail">${it.detail}</div>
+      </div>`;
+    });
+    container.innerHTML += html;
+  });
+})();
+</script>
+</body>
+</html>
